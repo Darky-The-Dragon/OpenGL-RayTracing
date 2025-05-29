@@ -1,0 +1,38 @@
+# --- Build files ---
+/build/
+/cmake-build-*/
+/CMakeFiles/
+/CMakeCache.txt
+/Makefile
+/*.cmake
+/install_manifest.txt
+
+# --- macOS-specific ---
+.DS_Store
+*.DS_Store
+
+# --- JetBrains / CLion IDE files ---
+.idea/
+*.iml
+
+# --- Compiled object files and binaries ---
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+*.exe
+*.app
+
+# --- Logs and dumps ---
+*.log
+*.trace
+
+# --- Shader/intermediate binaries (optional) ---
+*.spv
+
+# --- Editor swap/backup files ---
+*~
+*.swp
+*.bak
+*.tmp
