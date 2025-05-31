@@ -3,26 +3,26 @@
 
 #include "Camera.h"
 #include "Shader.h"
+#include "utils/model.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 
-// Camera setup
+// Camera
 float lastX = 400, lastY = 300;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 bool firstMouse = true;
 Camera camera(glm::vec3(0.0f, 2.0f, 8.0f), -90.0f, -10.0f, 60.0f, 800.0f / 600.0f);
 
-// 📌 Resize callback: updates viewport
+// Resize callback
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
-    std::cout << "Framebuffer resized to: " << width << "x" << height << std::endl;
 }
 
-// 📌 Mouse input
+// Mouse movement
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     if (firstMouse) {
         lastX = (float)xpos;
@@ -37,7 +37,6 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 }
 
 int main() {
-    // Init GLFW
     if (!glfwInit()) return -1;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
@@ -53,62 +52,23 @@ int main() {
     }
     glfwMakeContextCurrent(window);
     gladLoadGL(glfwGetProcAddress);
-    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
-
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window, mouse_callback);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback); // ✅ Viewport resize handler
-
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glEnable(GL_DEPTH_TEST);
 
-    // Load shaders (adjust path if needed for your structure)
+    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+
     Shader shader("../shaders/basic.vert", "../shaders/basic.frag");
 
-    // Plane setup
-    float planeVertices[] = {
-        -5.0f, 0.0f,  5.0f,
-         5.0f, 0.0f,  5.0f,
-        -5.0f, 0.0f, -5.0f,
-         5.0f, 0.0f,  5.0f,
-         5.0f, 0.0f, -5.0f,
-        -5.0f, 0.0f, -5.0f
-    };
+    // Load Models
+    Model ground("../models/plane.obj");
+    Model bunny("../models/bunny_lp.obj");
+    Model sphere("../models/sphere.obj");
 
-    unsigned int planeVAO, planeVBO;
-    glGenVertexArrays(1, &planeVAO);
-    glGenBuffers(1, &planeVBO);
-    glBindVertexArray(planeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), planeVertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glBindVertexArray(0);
-
-    // Cube setup
-    float cubeVertices[] = {
-        -0.5f,-0.5f,-0.5f,  0.5f,-0.5f,-0.5f,  0.5f, 0.5f,-0.5f,
-         0.5f, 0.5f,-0.5f, -0.5f, 0.5f,-0.5f, -0.5f,-0.5f,-0.5f,
-        -0.5f,-0.5f, 0.5f,  0.5f,-0.5f, 0.5f,  0.5f, 0.5f, 0.5f,
-         0.5f, 0.5f, 0.5f, -0.5f, 0.5f, 0.5f, -0.5f,-0.5f, 0.5f,
-        -0.5f, 0.5f, 0.5f, -0.5f, 0.5f,-0.5f, -0.5f,-0.5f,-0.5f,
-        -0.5f,-0.5f,-0.5f, -0.5f,-0.5f, 0.5f, -0.5f, 0.5f, 0.5f,
-         0.5f, 0.5f, 0.5f,  0.5f, 0.5f,-0.5f,  0.5f,-0.5f,-0.5f,
-         0.5f,-0.5f,-0.5f,  0.5f,-0.5f, 0.5f,  0.5f, 0.5f, 0.5f,
-        -0.5f,-0.5f,-0.5f,  0.5f,-0.5f,-0.5f,  0.5f,-0.5f, 0.5f,
-         0.5f,-0.5f, 0.5f, -0.5f,-0.5f, 0.5f, -0.5f,-0.5f,-0.5f,
-        -0.5f, 0.5f,-0.5f,  0.5f, 0.5f,-0.5f,  0.5f, 0.5f, 0.5f,
-         0.5f, 0.5f, 0.5f, -0.5f, 0.5f, 0.5f, -0.5f, 0.5f,-0.5f
-    };
-
-    unsigned int cubeVAO, cubeVBO;
-    glGenVertexArrays(1, &cubeVAO);
-    glGenBuffers(1, &cubeVBO);
-    glBindVertexArray(cubeVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glBindVertexArray(0);
+    if (ground.meshes.empty()) std::cerr << "❌ Failed to load plane.obj\n";
+    if (bunny.meshes.empty())  std::cerr << "❌ Failed to load bunny_lp.obj\n";
+    if (sphere.meshes.empty()) std::cerr << "❌ Failed to load sphere.obj\n";
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -116,46 +76,38 @@ int main() {
         float currentFrame = (float)glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-
         camera.ProcessKeyboardInput(window, deltaTime);
 
         glClearColor(0.1f, 0.0f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shader.use();
-
         glm::mat4 view = camera.GetViewMatrix();
         glm::mat4 projection = camera.GetProjectionMatrix();
         shader.setMat4("view", view);
         shader.setMat4("projection", projection);
 
-        // --- Draw Cube ---
+        // Ground
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::rotate(model, currentFrame, glm::vec3(0.0f, 1.0f, 0.0f));
         shader.setMat4("model", model);
-        shader.setVec3("uColor", glm::vec3(1.0f, 0.5f, 0.0f)); // Orange
-        glBindVertexArray(cubeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        shader.setVec3("uColor", glm::vec3(0.1f, 0.4f, 0.1f)); // green
+        ground.Draw();
 
-        // --- Draw Plane ---
+        // Bunny
         model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(-2.0f, 1.5f, 0.0f));
+        model = glm::scale(model, glm::vec3(0.5f));
         shader.setMat4("model", model);
-        shader.setVec3("uColor", glm::vec3(0.1f, 0.4f, 0.1f)); // Greenish
-        glBindVertexArray(planeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        shader.setVec3("uColor", glm::vec3(0.9f, 0.9f, 0.9f)); // white
+        bunny.Draw();
 
-        // Debug uniform check
-        int loc = glGetUniformLocation(shader.ID, "uColor");
-        if (loc == -1) {
-            std::cerr << "Warning: 'uColor' uniform not found!\n";
-        }
-
-        // OpenGL error check
-        GLenum err;
-        while ((err = glGetError()) != GL_NO_ERROR) {
-            std::cerr << "OpenGL error: " << err << std::endl;
-        }
+        // Sphere
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(2.0f, 1.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(0.5f));
+        shader.setMat4("model", model);
+        shader.setVec3("uColor", glm::vec3(0.3f, 0.6f, 1.0f)); // blue
+        sphere.Draw();
 
         glfwSwapBuffers(window);
     }
