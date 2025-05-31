@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.1)
 project(OpenGLRayTracing)
 
-# C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -13,7 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_subdirectory(libs/glfw)
 include_directories(libs/glfw/include)
 
-# GLAD (GLAD 2 uses gl.c and gl.h)
+# GLAD 2
 add_library(glad STATIC libs/glad/src/gl.c)
 target_include_directories(glad PUBLIC libs/glad/include)
 
@@ -22,20 +21,31 @@ file(GLOB IMGUI_SOURCES libs/imgui/*.cpp)
 add_library(imgui STATIC ${IMGUI_SOURCES})
 target_include_directories(imgui PUBLIC libs/imgui)
 
-# GLM (header-only, no build step)
+# GLM (header-only)
 include_directories(libs/glm)
 
+# TinyObjLoader (header-only)
+include_directories(libs/tinyobjloader)
+
+# Assimp from submodule
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "Disable tests")
+set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "Disable tools")
+set(ASSIMP_BUILD_SAMPLES OFF CACHE BOOL "Disable samples")
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Static build")
+set(ASSIMP_NO_EXPORT ON CACHE BOOL "Disable export")
+set(ASSIMP_INSTALL OFF CACHE BOOL "No install")
+
+add_subdirectory(libs/assimp)
+include_directories(libs/assimp/include)
+
 # ------------------------------------------------------------
-# Project Source Files
+# Project Sources
 # ------------------------------------------------------------
 
-# Your own project headers
-include_directories(include)
+include_directories(include include/utils)
 
-# Automatically collect all .cpp files in src/
 file(GLOB_RECURSE SRC_FILES src/*.cpp)
 
-# Main executable
 add_executable(OpenGLRayTracing
         ${SRC_FILES}
         src/Camera.cpp
@@ -48,15 +58,12 @@ add_executable(OpenGLRayTracing
 # Linking
 # ------------------------------------------------------------
 
-# Link core libraries
-target_link_libraries(OpenGLRayTracing glfw glad imgui)
+target_link_libraries(OpenGLRayTracing glfw glad imgui assimp)
 
-# macOS-specific OpenGL frameworks
 if(APPLE)
-    target_link_libraries(OpenGLRayTracing "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
+    target_link_libraries(OpenGLRayTracing "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
 endif()
 
-# Windows/Linux-specific OpenGL linking
 if(WIN32 OR UNIX AND NOT APPLE)
     find_package(OpenGL REQUIRED)
     target_link_libraries(OpenGLRayTracing OpenGL::GL)
