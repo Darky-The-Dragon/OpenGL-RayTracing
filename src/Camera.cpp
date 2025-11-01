@@ -7,14 +7,13 @@ Camera::Camera(glm::vec3 position, float yaw, float pitch, float fov, float aspe
           Pitch(pitch),
           Fov(fov),
           AspectRatio(aspectRatio),
-          WorldUp(glm::vec3(0.0f, 1.0f, 0.0f)),
-          MovementSpeed(2.5f)
-{
+          MovementSpeed(2.5f),
+          WorldUp(glm::vec3(0.0f, 1.0f, 0.0f)) {
     UpdateCameraVectors();
 }
 
 void Camera::ProcessKeyboardInput(GLFWwindow* window, float deltaTime) {
-    float velocity = MovementSpeed * deltaTime;
+    const float velocity = MovementSpeed * deltaTime;
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         Position += Front * velocity;
@@ -25,18 +24,18 @@ void Camera::ProcessKeyboardInput(GLFWwindow* window, float deltaTime) {
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         Position += Right * velocity;
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-        Position -= Up * velocity;
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
         Position += Up * velocity;
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+        Position -= Up * velocity;
 }
 
-void Camera::ProcessMouseMovement(float xoffset, float yoffset) {
+void Camera::ProcessMouseMovement(float xOffset, float yOffset) {
     float sensitivity = 0.1f;
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
+    xOffset *= sensitivity;
+    yOffset *= sensitivity;
 
-    Yaw   += xoffset;
-    Pitch += yoffset;
+    Yaw += xOffset;
+    Pitch += yOffset;
 
     // Constrain the pitch
     if (Pitch > 89.0f)

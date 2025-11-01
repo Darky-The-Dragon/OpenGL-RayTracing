@@ -54,7 +54,7 @@ public:
     }
 
     // Renders all meshes in the model
-    void Draw() {
+    void Draw() const {
         for (auto& mesh : meshes)
             mesh.Draw();
     }
@@ -82,7 +82,7 @@ private:
     }
 
     // Recursively processes nodes in the Assimp scene graph
-    void processNode(aiNode* node, const aiScene* scene) {
+    void processNode(const aiNode *node, const aiScene *scene) {
         for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
             aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
             meshes.emplace_back(processMesh(mesh));
@@ -93,12 +93,12 @@ private:
     }
 
     // Converts an aiMesh to a Mesh object
-    Mesh processMesh(aiMesh* mesh) {
+    static Mesh processMesh(aiMesh *mesh) {
         vector<Vertex> vertices;
         vector<GLuint> indices;
 
         for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
-            Vertex vertex;
+            Vertex vertex{};
 
             // Position
             vertex.Position = {
@@ -147,6 +147,6 @@ private:
                 indices.emplace_back(face.mIndices[j]);
         }
 
-        return Mesh(vertices, indices);
+        return Mesh{vertices, indices};
     }
 };

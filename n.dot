@@ -1,0 +1,1462 @@
+digraph "objects" { rankdir="LR"
+fontname="Lexend"
+"HEAD" [ tooltip="ref: refs/heads/main" ]
+"HEAD" -> "main"
+subgraph blobs { rank="same"
+"01646449caedc958effc3b450360aefd260671ab" [label="016464 |  # i f n d e f sp _ _ " tooltip="#ifndef __khrplatform_h_
+#define __khrplatform_h_
+
+/\*
+\*\* Copyright (c) 2008-2018 The Khronos Group Inc.
+\*\*
+\*\* Permission is hereby granted, free of charge, to any person obtaining a
+\*\* copy of this software and/or associated documentation files (the
+\*\* \"Materials\"), to deal in the Materials without restriction, including
+\*\* without limitation the rights to use, copy, modify, merge, publish,
+\*\* distribute, sublicense, and/or sell copies of the Materials, and to
+\*\* permit persons to whom the Materials are furnished to do so, subject to
+\*\* the following conditions:
+\*\*
+\*\* The above copyright notice and this permission notice shall be included
+\*\* in all copies or substantial portions of the Materials.
+\*\*
+\*\* THE MATERIALS ARE PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,
+\*\* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+\*\* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT." fillcolor="plum1" shape=record  style=filled]
+"0e422af601ac24944accaee7a2d90cdf76b77b59" [label="0e422a |  # sp - - - sp B u i l " tooltip="# --- Build files ---
+/build/
+/cmake-build-\*/
+/CMakeFiles/
+/CMakeCache.txt
+/Makefile
+/\*.cmake
+/install_manifest.txt
+
+# --- macOS-specific ---
+.DS_Store
+\*.DS_Store
+
+# --- JetBrains / CLion IDE files ---
+.idea/
+\*.iml
+
+# --- Compiled object files and binaries ---
+\*.o
+\*.obj" fillcolor="plum1" shape=record  style=filled]
+"14c782cc10a1efec7445954236a3ac142e241c62" [label="14c782 |  / \* nl sp sp sp sp M o d " tooltip="/\*
+    Model class
+
+    Loads .obj models using the Assimp library and converts the imported data into a format
+    compatible with OpenGL rendering via the Mesh class.
+
+    Key Concepts:
+    - Uses Assimp to parse 3D model files
+    - Converts Assimp mesh data to OpenGL-compatible structures
+    - Stores each sub-mesh as a Mesh instance
+    - Delegates rendering to Mesh::Draw()
+
+    Notes:
+    1) Follows RAII: Model and Mesh manage their own GPU resources and cleanup automatically.
+    2) Copying is disabled — this is a move-only class to avoid duplicating GPU resources.
+    3) This version does not support textures.
+    4) Based on LearnOpenGL’s model loading example by Joey de Vries.
+
+    Authors: Davide Gadia, Michael Marchesan
+    Real-Time Graphics Programming – 2024/2025" fillcolor="plum1" shape=record  style=filled]
+"15eae66c08249f6ba4c73d8c6e4bc60f76db0f3d" [label="15eae6 |  [ s u b m o d u l e " tooltip="[submodule \"libs/glfw\"]
+	path = libs/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule \"libs/imgui\"]
+	path = libs/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule \"libs/glm\"]
+	path = libs/glm
+	url = https://github.com/g-truc/glm.git
+[submodule \"libs/tinyobjloader\"]
+	path = libs/tinyobjloader
+	url = https://github.com/tinyobjloader/tinyobjloader.git
+[submodule \"external/assimp\"]
+	path = external/assimp
+	url = https://github.com/assimp/assimp.git
+[submodule \"libs/assimp\"]
+	path = libs/assimp
+	url = https://github.com/assimp/assimp.git" fillcolor="plum1" shape=record  style=filled]
+"1fdcbda09238e5392026a84b802fe6cda8f0021c" [label="1fdcbd |  / \* \* nl sp \* sp S P D " tooltip="/\*\*
+ \* SPDX-License-Identifier: (WTFPL OR CC0-1.0) AND Apache-2.0
+ \*/
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;glad/gl.h&gt;
+
+#ifndef GLAD_IMPL_UTIL_C_
+#define GLAD_IMPL_UTIL_C_
+
+#ifdef _MSC_VER
+#define GLAD_IMPL_UTIL_SSCANF sscanf_s
+#else
+#define GLAD_IMPL_UTIL_SSCANF sscanf
+#endif
+
+#endif /\* GLAD_IMPL_UTIL_C_ \*/
+
+#ifdef __cplusplus" fillcolor="plum1" shape=record  style=filled]
+"26b3849620bf3c50e51f14f597279a1b67f47c73" [label="26b384 |  [ s u b m o d u l e " tooltip="[submodule \"libs/glfw\"]
+    path = libs/glfw
+    url = https://github.com/glfw/glfw.git
+
+[submodule \"libs/imgui\"]
+    path = libs/imgui
+    url = https://github.com/ocornut/imgui.git
+
+[submodule \"libs/glm\"]
+    path = libs/glm
+    url = https://github.com/g-truc/glm.git
+
+[submodule \"libs/tinyobjloader\"]
+    path = libs/tinyobjloader
+    url = https://github.com/tinyobjloader/tinyobjloader.git
+
+[submodule \"libs/assimp\"]
+	path = libs/assimp
+	url = https://github.com/assimp/assimp.git" fillcolor="thistle1" shape=record color="gray70" fontcolor="gray53"   style=filled]
+"3f419a81c3364a8faac40fdffebaff909d78f198" [label="3f419a |  / / nl / / sp C r e a " tooltip="//
+// Created by Darky on 29/05/25.
+//
+
+#include \"main.h\"" fillcolor="plum1" shape=record  style=filled]
+"3fceea892779073b3eb22f68879331499b00f345" [label="3fceea |  # i n c l u d e sp \" " tooltip="#include \"Shader.h\"
+#include &lt;fstream&gt;
+#include &lt;sstream&gt;
+#include &lt;iostream&gt;
+
+Shader::Shader(const char\* vertexPath, const char\* fragmentPath) {
+    std::ifstream vFile(vertexPath);
+    std::ifstream fFile(fragmentPath);
+    std::stringstream vStream, fStream;
+
+    if (!vFile \|\| !fFile) {
+        std::cerr &lt;&lt; \"ERROR: Could not open shader files:\\n\"
+                  &lt;&lt; \"Vertex: \" &lt;&lt; vertexPath &lt;&lt; \"\\n\"
+                  &lt;&lt; \"Fragment: \" &lt;&lt; fragmentPath &lt;&lt; std::endl;
+    }
+
+    vStream &lt;&lt; vFile.rdbuf();
+    fStream &lt;&lt; fFile.rdbuf();
+
+    std::string vCode = vStream.str();" fillcolor="plum1" shape=record  style=filled]
+"4217550d3ffcce4a010eee56b4e04ace4fad4f01" [label="421755 |  # p r a g m a sp o n " tooltip="#pragma once
+
+#include &lt;string&gt;
+#include &lt;glm/glm.hpp&gt;
+#include &lt;glad/gl.h&gt;
+
+class Shader {
+public:
+    unsigned int ID;
+
+    Shader(const char\* vertexPath, const char\* fragmentPath);
+    void use() const;
+
+    void setBool(const std::string\& name, bool value) const;
+    void setInt(const std::string\& name, int value) const;
+    void setFloat(const std::string\& name, float value) const;
+    void setMat4(const std::string\& name, const glm::mat4\& mat) const;
+    void setVec3(const std::string\& name, const glm::vec3\& value) const;
+
+private:" fillcolor="plum1" shape=record  style=filled]
+"4626371ce45a6a570fdd80718057615e58cedb6e" [label="462637 |  [ s u b m o d u l e " tooltip="[submodule \"libs/glfw\"]
+	path = libs/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule \"libs/imgui\"]
+	path = libs/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule \"libs/glm\"]
+	path = libs/glm
+	url = https://github.com/g-truc/glm.git
+[submodule \"libs/tinyobjloader\"]
+	path = libs/tinyobjloader
+	url = https://github.com/tinyobjloader/tinyobjloader.git
+[submodule \"external/assimp\"]
+	path = external/assimp
+	url = https://github.com/assimp/assimp.git" fillcolor="thistle1" shape=record color="gray70" fontcolor="gray53"   style=filled]
+"51a15fd83c6a5e16ef44cc089b44c072d88fa5af" [label="51a15f |  [ s u b m o d u l e " tooltip="[submodule \"libs/glfw\"]
+	path = libs/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule \"libs/imgui\"]
+	path = libs/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule \"libs/glm\"]
+	path = libs/glm
+	url = https://github.com/g-truc/glm.git" fillcolor="plum1" shape=record  style=filled]
+"576fde2bd7e884ea74851099528826b112f8a248" [label="576fde |  # i n c l u d e sp &lt; " tooltip="#include &lt;glad/gl.h&gt;
+#include &lt;GLFW/glfw3.h&gt;
+
+#include \"Camera.h\"
+#include &lt;glm/glm.hpp&gt;
+#include &lt;glm/gtc/matrix_transform.hpp&gt;
+#include &lt;glm/gtc/type_ptr.hpp&gt;
+#include &lt;iostream&gt;
+
+
+float lastX = 400, lastY = 300;
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+bool firstMouse = true;
+
+Camera camera(glm::vec3(0.0f, 1.0f, 5.0f), -90.0f, 0.0f, 45.0f, 800.0f / 600.0f);
+
+// Mouse movement callback
+void mouse_callback(GLFWwindow\* window, double xpos, double ypos) {
+    if (firstMouse) {" fillcolor="thistle1" shape=record color="gray70" fontcolor="gray53"   style=filled]
+"58ffc0f95868baa0f5ed73dea7506aefaa5f4efe" [label="58ffc0 |  # i n c l u d e sp &lt; " tooltip="#include &lt;glad/gl.h&gt;
+#include &lt;GLFW/glfw3.h&gt;
+#include &lt;iostream&gt;
+
+int main() {
+    if (!glfwInit()) return -1;
+    GLFWwindow\* window = glfwCreateWindow(800, 600, \"Test\", nullptr, nullptr);
+    glfwMakeContextCurrent(window);
+    gladLoadGL(glfwGetProcAddress);
+    std::cout &lt;&lt; \"OpenGL Version: \" &lt;&lt; glGetString(GL_VERSION) &lt;&lt; std::endl;
+
+    while (!glfwWindowShouldClose(window)) {
+        glClearColor(0.1f, 0.0f, 0.2f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    glfwTerminate();
+    return 0;" fillcolor="plum1" shape=record  style=filled]
+"5a16abe1787ef779d9130dbf47fefd22f0f1f931" [label="5a16ab |  # v e r s i o n sp 4 " tooltip="#version 410 core
+layout (location = 0) in vec3 aPos;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
+void main() {
+    gl_Position = projection \* view \* model \* vec4(aPos, 1.0);
+}" fillcolor="plum1" shape=record  style=filled]
+"6130ead3a696fa233b82bcb344ab5016ec5b659d" [label="6130ea |  / \* nl sp sp sp sp M e s " tooltip="/\*
+    Mesh Class
+
+    This class manages the GPU representation of a mesh using modern OpenGL.
+    It handles:
+
+    - VAO (Vertex Array Object): remembers how vertex data is laid out in memory.
+    - VBO (Vertex Buffer Object): stores vertex attributes like positions and normals.
+    - EBO (Element Buffer Object): stores indices that define faces via shared vertices.
+
+    Once initialized, this class allows the mesh to be rendered via a simple .Draw() call.
+
+    References:
+    - https://learnopengl.com/Getting-started/Hello-Triangle
+    - RAII Principles: https://en.cppreference.com/w/cpp/language/raii
+    - Based on: https://github.com/JoeyDeVries/LearnOpenGL/blob/master/includes/learnopengl/mesh.h
+
+    Design Notes:
+    - Mesh is a \*\*move-only\*\* class. Copying is disabled to avoid multiple owners of GPU resources.
+    - It follows RAII: resources (VBO, VAO, EBO) are acquired and released automatically." fillcolor="plum1" shape=record  style=filled]
+"639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="639c01 |  M I T sp L i c e n s " tooltip="MIT License
+
+Copyright (c) 2025 Zotea Dumitru
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the \"Software\"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE" fillcolor="plum1" shape=record  style=filled]
+"670220120b47e80167d9656190eda604b45babab" [label="670220 |  c m a k e _ m i n i " tooltip="cmake_minimum_required(VERSION 3.1)
+project(OpenGLRayTracing)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# ------------------------------------------------------------
+# Dependencies
+# ------------------------------------------------------------
+
+# GLFW
+add_subdirectory(libs/glfw)
+include_directories(libs/glfw/include)
+
+# GLAD 2
+add_library(glad STATIC libs/glad/src/gl.c)
+target_include_directories(glad PUBLIC libs/glad/include)
+
+# ImGui
+file(GLOB IMGUI_SOURCES libs/imgui/\*.cpp)" fillcolor="plum1" shape=record  style=filled]
+"81796958e28ff3f14bdb4a2c8313323eb07f8d61" [label="817969 |  c m a k e _ m i n i " tooltip="cmake_minimum_required(VERSION 3.1)
+project(OpenGLRayTracing)
+
+# C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# ------------------------------------------------------------
+# Dependencies
+# ------------------------------------------------------------
+
+# GLFW
+add_subdirectory(libs/glfw)
+include_directories(libs/glfw/include)
+
+# GLAD (GLAD 2 uses gl.c and gl.h)
+add_library(glad STATIC libs/glad/src/gl.c)
+target_include_directories(glad PUBLIC libs/glad/include)
+
+# ImGui" fillcolor="plum1" shape=record  style=filled]
+"86dec4371cf719c6f15b6596a39b7fc20b9a4a7d" [label="86dec4 |  # i n c l u d e sp &lt; " tooltip="#include &lt;glad/gl.h&gt;
+#include &lt;GLFW/glfw3.h&gt;
+
+#include \"Camera.h\"
+#include \"Shader.h\"
+
+#include &lt;glm/glm.hpp&gt;
+#include &lt;glm/gtc/matrix_transform.hpp&gt;
+#include &lt;glm/gtc/type_ptr.hpp&gt;
+#include &lt;iostream&gt;
+
+// Camera setup
+float lastX = 400, lastY = 300;
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+bool firstMouse = true;
+Camera camera(glm::vec3(0.0f, 2.0f, 8.0f), -90.0f, -10.0f, 60.0f, 800.0f / 600.0f);
+
+// 📌 Resize callback: updates viewport
+void framebuffer_size_callback(GLFWwindow\* window, int width, int height) {" fillcolor="plum1" shape=record  style=filled]
+"8c482649f59c2873d541220f7d0f2fc0634ee4a6" [label="8c4826 |  [ s u b m o d u l e " tooltip="[submodule \"libs/glfw\"]
+	path = libs/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule \"libs/imgui\"]
+	path = libs/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule \"libs/glm\"]
+	path = libs/glm
+	url = https://github.com/g-truc/glm.git
+&lt;&lt;&lt;&lt;&lt;&lt;&lt; Updated upstream
+=======
+[submodule \"libs/tinyobjloader\"]
+	path = libs/tinyobjloader
+	url = https://github.com/tinyobjloader/tinyobjloader.git
+[submodule \"libs/assimp\"]
+	path = libs/assimp
+	url = https://github.com/assimp/assimp.git
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; Stashed changes" fillcolor="thistle1" shape=record color="gray70" fontcolor="gray53"   style=filled]
+"9264eb859bf4cb14b0b1faf994c1d9ebf8fd7da3" [label="9264eb |  [ s u b m o d u l e " tooltip="[submodule \"libs/glfw\"]
+	path = libs/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule \"libs/imgui\"]
+	path = libs/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule \"libs/glm\"]
+	path = libs/glm
+	url = https://github.com/g-truc/glm.git
+[submodule \"libs/tinyobjloader\"]
+	path = libs/tinyobjloader
+	url = https://github.com/tinyobjloader/tinyobjloader.git
+[submodule \"libs/assimp\"]
+	path = libs/assimp
+	url = https://github.com/assimp/assimp.git" fillcolor="plum1" shape=record  style=filled]
+"930b5444ab55387d904985320862280801d3dc6d" [label="930b54 |  # i n c l u d e sp &lt; " tooltip="#include &lt;glad/gl.h&gt;
+#include &lt;GLFW/glfw3.h&gt;
+
+#include \"Camera.h\"
+#include \"Shader.h\"
+#include \"utils/model.h\"
+
+#include &lt;glm/glm.hpp&gt;
+#include &lt;glm/gtc/matrix_transform.hpp&gt;
+#include &lt;glm/gtc/type_ptr.hpp&gt;
+#include &lt;iostream&gt;
+
+// Camera
+float lastX = 400, lastY = 300;
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+bool firstMouse = true;
+Camera camera(glm::vec3(0.0f, 2.0f, 8.0f), -90.0f, -10.0f, 60.0f, 800.0f / 600.0f);
+
+// Resize callback" fillcolor="plum1" shape=record  style=filled]
+"94e42edd8c681fe897b2c37fb6f75939e5d6203e" [label="94e42e |  # v e r s i o n sp 4 " tooltip="#version 410 core
+out vec4 FragColor;
+
+uniform vec3 uColor;
+
+void main() {
+    FragColor = vec4(uColor, 1.0); // Use the uniform color for output
+}" fillcolor="plum1" shape=record  style=filled]
+"9a3d17e77ccefbb686f42218ff24cb268cb6b39e" [label="9a3d17 |  c m a k e _ m i n i " tooltip="cmake_minimum_required(VERSION 3.1)
+project(OpenGLRayTracing)
+
+# C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# GLFW
+add_subdirectory(libs/glfw)
+include_directories(libs/glfw/include)
+
+# GLAD 2 (named gl.c/gl.h)
+add_library(glad STATIC libs/glad/src/gl.c)
+target_include_directories(glad PUBLIC libs/glad/include)
+
+# ImGui
+file(GLOB IMGUI_SOURCES libs/imgui/\*.cpp)
+add_library(imgui STATIC ${IMGUI_SOURCES})
+target_include_directories(imgui PUBLIC libs/imgui)" fillcolor="plum1" shape=record  style=filled]
+"a294bd74c6d89ab991ddf48049a993875b044217" [label="a294bd |  [ s u b m o d u l e " tooltip="[submodule \"libs/glfw\"]
+	path = libs/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule \"libs/imgui\"]
+	path = libs/imgui
+	url = https://github.com/ocornut/imgui.git" fillcolor="plum1" shape=record  style=filled]
+"a22d7e5f2889c8ac2ec409cbe204dd950b7436c2" [label="a22d7e |  / / nl / / sp C r e a " tooltip="//
+// Created by Darky on 29/05/25.
+//
+
+#ifndef OPENGL_RAYTRACING_MAIN_H
+#define OPENGL_RAYTRACING_MAIN_H
+
+
+class main {
+
+};
+
+
+#endif //OPENGL_RAYTRACING_MAIN_H" fillcolor="thistle1" shape=record color="gray70" fontcolor="gray53"   style=filled]
+"a496e094f7fcf7f4bd504ee6a2d775b7b078206e" [label="a496e0 |  # p r a g m a sp o n " tooltip="#pragma once
+
+#include &lt;glm/glm.hpp&gt;
+#include &lt;glm/gtc/matrix_transform.hpp&gt;
+#include &lt;GLFW/glfw3.h&gt;
+
+class Camera {
+public:
+    Camera(glm::vec3 position, float yaw, float pitch, float fov, float aspectRatio);
+
+    void ProcessKeyboardInput(GLFWwindow\* window, float deltaTime);
+    void ProcessMouseMovement(float xoffset, float yoffset);
+    void UpdateCameraVectors();
+
+    glm::mat4 GetViewMatrix() const;
+    glm::mat4 GetProjectionMatrix() const;
+
+    glm::vec3 Position;
+    float Yaw;
+    float Pitch;" fillcolor="plum1" shape=record  style=filled]
+"a614223dd61e53e15d756f40d8b7d5c84e4628ab" [label="a61422 |  # i n c l u d e sp \" " tooltip="#include \"Camera.h\"
+#include &lt;GLFW/glfw3.h&gt;
+
+Camera::Camera(glm::vec3 position, float yaw, float pitch, float fov, float aspectRatio)
+        : Position(position),
+          Yaw(yaw),
+          Pitch(pitch),
+          Fov(fov),
+          AspectRatio(aspectRatio),
+          WorldUp(glm::vec3(0.0f, 1.0f, 0.0f)),
+          MovementSpeed(2.5f)
+{
+    UpdateCameraVectors();
+}
+
+void Camera::ProcessKeyboardInput(GLFWwindow\* window, float deltaTime) {
+    float velocity = MovementSpeed \* deltaTime;
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        Position += Front \* velocity;" fillcolor="plum1" shape=record  style=filled]
+"ac171ba0e04a4f0dc0fefdd6d49952b36b31fba0" [label="ac171b |  / \* \* nl sp \* sp L o a " tooltip="/\*\*
+ \* Loader generated by glad 2.0.8 on Thu May 29 18:37:56 2025
+ \*
+ \* SPDX-License-Identifier: (WTFPL OR CC0-1.0) AND Apache-2.0
+ \*
+ \* Generator: C/C++
+ \* Specification: gl
+ \* Extensions: 0
+ \*
+ \* APIs:
+ \*  - gl:core=4.1
+ \*
+ \* Options:
+ \*  - ALIAS = False
+ \*  - DEBUG = False
+ \*  - HEADER_ONLY = False
+ \*  - LOADER = False
+ \*  - MX = False
+ \*  - ON_DEMAND = False
+ \*" fillcolor="plum1" shape=record  style=filled]
+"dba15f304ed236fff4bcc0eb49ec415dded3a953" [label="dba15f |  [ s u b m o d u l e " tooltip="[submodule \"libs/glfw\"]
+	path = libs/glfw
+	url = https://github.com/glfw/glfw.git" fillcolor="thistle1" shape=record color="gray70" fontcolor="gray53"   style=filled]
+"de2b72cde42b9fffa9f7b9828d0756ad0d88cd0b" [label="de2b72 |  [ s u b m o d u l e " tooltip="[submodule \"libs/glfw\"]
+	path = libs/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule \"libs/imgui\"]
+	path = libs/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule \"libs/glm\"]
+	path = libs/glm
+	url = https://github.com/g-truc/glm.git
+[submodule \"libs/tinyobjloader\"]
+	path = libs/tinyobjloader
+	url = https://github.com/tinyobjloader/tinyobjloader.git" fillcolor="thistle1" shape=record color="gray70" fontcolor="gray53"   style=filled]
+"e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="e69de2 | empty" tooltip="" fillcolor="plum1" shape=record  style=filled]
+"f8aaf2138d9535bb37e81a0fb17f11b5aa98b78b" [label="f8aaf2 |  [ s u b m o d u l e " tooltip="[submodule \"libs/glfw\"]
+    path = libs/glfw
+    url = https://github.com/glfw/glfw.git
+
+[submodule \"libs/imgui\"]
+    path = libs/imgui
+    url = https://github.com/ocornut/imgui.git
+
+[submodule \"libs/glm\"]
+    path = libs/glm
+    url = https://github.com/g-truc/glm.git
+
+[submodule \"libs/tinyobjloader\"]
+    path = libs/tinyobjloader
+    url = https://github.com/tinyobjloader/tinyobjloader.git
+
+[submodule \"libs/assimp\"]
+    path = libs/assimp
+    url = https://github.com/assimp/assimp.git" fillcolor="plum1" shape=record  style=filled]
+"fe811ec0ea6669041e003afe3651f989bf496df6" [label="fe811e |  [ s u b m o d u l e " tooltip="[submodule \"libs/glfw\"]
+    path = libs/glfw
+    url = https://github.com/glfw/glfw.git
+
+[submodule \"libs/imgui\"]
+    path = libs/imgui
+    url = https://github.com/ocornut/imgui.git
+
+[submodule \"libs/glm\"]
+    path = libs/glm
+    url = https://github.com/g-truc/glm.git
+
+[submodule \"libs/tinyobjloader\"]
+	path = libs/tinyobjloader
+	url = https://github.com/tinyobjloader/tinyobjloader.git
+
+[submodule \"libs/assimp\"]
+	path = libs/assimp
+	url = https://github.com/assimp/assimp.git" fillcolor="plum1" shape=record  style=filled]
+}
+subgraph commits { rank="same"
+"19228556d37a640693daec001dec6d88e5284b6f" [label="192285" tooltip="tree 50b8d8327005cde73f020b990130691a1ef0a2b8
+parent f3d0d1167d84b4b8923d7d12f61dc53f5e6f4e4c
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748620898 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748620898 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg51mIACgkQxuAexUmv
+ EINachAArPPuaZtIgRppGobTypzPc9MYc01p6lKd6fTksNigEOSvakIYAem2OYmI
+ bUnl68G7zLKq/iQUF0wWT9fWY324b/CA/b2qfE4cfa/H0wdZ78EY0C8STvkmHUvO
+ 9NEsgoNQZYv6/SvfqPpVBglsx4UUXZrcSws1pjA542Bg/xrIK+WOOoeWqwqK3bfX
+ zycB6TZWbup7/03f9LXG16aLPoows2ewd0kd1cVkdPkqXPBdFAFO1V9T+OTOW+Fl
+ R+EDIayAlOEZWYkuEsKR+bAcPPxvygsUmx4ODatJbnbUpItq89kU+s4F6HyWGyf4
+ 02Q4p+zxIwlldA3ej5jRmPR2kqOfh1PrxLZUdlOU2uFqgERi8aolsk9lpGCXhRHn
+ +zl4BuAzPjj/dX3dgAXZoVjRGC/kiH6G8H/6Ln46jVWhVFz8m4s+EHAFAhy5pgHT
+ wCaY+1rMA0IgV5YWZRXCjrnceZKArr5StldmXrLHrq87uB03YT/m/udJgELRIKzV
+ YUJcTmVEqSpFBUxlfi6n9F4yprkDreVImZnrxj+A5kPSMNIZ9q9ZmHoxagvCAzLN
+ RaG0PMBel6xGU0fuX9QX6itYoq4JI6Otmb4oyi7mXzlPLK6ehcH78FclPABQnRk+
+ deQsqMeg1HLT32a7ZIfu5I6KXPPVljRs4K1DRX8wm1h1gYy5jwI=
+ =zbG0
+ -----END PGP SIGNATURE-----
+
+Added GLAD \(OpenGL loader\) files for project setup" fillcolor="khaki1" shape=rectangle  style=filled]
+"1a9be81a7cba932167ee8b06341f8852e6b29384" [label="1a9be8" tooltip="tree 1573011856271752143ac3be70cb5107e35460a8
+parent ceece7ab4c97c7b8ee16dca2827ced3f62e48d3e
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748548766 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748548766 +0200
+
+index on main: ceece7a Initial config of .gitignore for build files, IDE configs, and temp files" fillcolor="lightyellow" shape=rectangle color="gray70" fontcolor="gray53"   style=filled]
+"1e5e2ae6c2fd86a0f648554e59c5f07be0185d5c" [label="1e5e2a" tooltip="tree bf23f35d09bde277275575a6bd9fe27abe60e6bf
+parent 81537ce38309242b9327553d02b966978e309f87
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748702030 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748702030 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg7E04ACgkQxuAexUmv
+ EIOxphAAmttUC1VrLn6W8w/tP06wIAvxIFDKD5etkaqJIFfGAEzL5ZNfNF+kP7N9
+ /G/xPyTabBfmbGP+22Shhz/wUfAIiMGUY/hy03801lO/79nmcP6LWiTVztab1PEs
+ dj91W1rM2o+RO+xvFd3NrOEoElBUR7pNly6olLtVQBXCDcZCylHxWr8V3PdqRDmc
+ irOgpjau66QAT7h6TYRaYbQuP6DeJ6dbo9jvNwNsH2WljKXLRVfCyDHXlXcQI2ui
+ Ghw1Jkr3HORJmE/i2McGqgD8HlwRanJ0Ds9VfchCk4fV2O+iX9/Fs+PS8OhS7yBa
+ L5J9n/o/ID79Yai2f+zPYTFoT+dMx7xZl5/wfxvgYgjcOKHuAebzynD81Sz+G0Xi
+ JU0UcGRCU71ZPoYDp+l5C9zCHxTr74CnW1YoyMSHCPUBcnkMuVnjJy7XaykhAyg3
+ Id2P4Pfi8g87EJ2jt4l6uF05LW7V+oyf+pz7/AasBZOLQg6KUIQypZ123h+1LRXa
+ 1OgKBkPbtzuvFD/KGoQK4B4xdahXT1Yg8CjwWq3gANFqj6nkyamTPevHmyOH4kYM
+ RP0TznAYPSforvKFZYMTNCawqkELxmm301KFg8O+fS+qvty0C4uNCaXfGM+tIfRq
+ pzDPNg66oNE6Z83ATRzWN7cM2XrzIX3WGNIpURj2xe0BIdPawfA=
+ =ySZb
+ -----END PGP SIGNATURE-----
+
+Updated main.cpp to render a ground plane and spinning cube with separate colors using uColor uniform" fillcolor="khaki1" shape=rectangle  style=filled]
+"24bf4a5ebe5e9aba909b7504646128eda90600ad" [label="24bf4a" tooltip="tree 58f31101af8a0999601a0812df440010b0ee98e9
+parent 5c008ea2ed2228a963b45dd29da80ed31fdbf6c3
+parent 49ea3ebd26dc3de903fd29640a531fd30acf66df
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748705874 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748705874 +0200
+
+WIP on main: 5c008ea Updated git submodules to include the assimp library" fillcolor="khaki1" shape=rectangle  style=filled]
+"2cf29f7210229401f04042207309343f121e3bf9" [label="2cf29f" tooltip="tree f8d7b832f9f4d712d5976cbc2b6315e31e8b910b
+parent 2ea8c6d33b0d8d65406e4f2a23fca61e5b5ae06a
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748706556 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748706556 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg7JPwACgkQxuAexUmv
+ EIOsMBAAog9WqTKw9RA+YASkgwzIgbnpuyQ6ipMa120qK3G1TfRCHG0qNp4xUZzT
+ WMXvAO5dRIGkfpV2A259dOmHegmpshP77dCwSd2vIQq8Hh86dhknv4shryvph28e
+ J0Vt8UKrQkA/YiSDCOyIXFed1f85/jQDy80Re5xwQ+JRRhIUmUqdHOCHYyESxDpX
+ HClbE+TSrLNaQBpxDiarQY3FCKVHnwRI0QfNpeO6BD0qFvftUzZihbJLynTrwY0s
+ qvjVAEfBVHDqC3lHrNxEkyPiv1StDKFDqtbw6YgAmLI/KJtA1nElMcgOI4Ha+jF3
+ qxMgsUfIi8/Mba6qJEW3CWNL5hsYtK37e4RlX4bvqJ61KJy4+WTuO0VZFB3SKFxk
+ /GLObxcJVWdkcPmfRrSJ4satsfcrPc6eYssiMSQxm46KjusRk0YUKyJtSWx1HTE7
+ S8Crv13DpKZmEI1fnfgl1FMHVEdU0LDsDsIsvNnW7qDPeW4RDMZUrB6GafKUtUJd
+ iUGzrrmVpNDVWfhx5iJjeV80YcsuXEThQtIHif56BaaxMdyTNRX87eaauxCFssOX
+ g+TKpmoiC3lbsx3xxrg+tFrdzMpzJNyU2y19O0ASdijCiOpurMzV6Eeh8Kn53KvH
+ isCDpr5651JWH5SGZEfijJaraTZQjDO/06hG9Br3B7fBlHNhA2Y=
+ =WJ8a
+ -----END PGP SIGNATURE-----
+
+Updated CMakeLists.txt to include the Assimp and tiniobjloader libraries from libs/" fillcolor="khaki1" shape=rectangle  style=filled]
+"2ea8c6d33b0d8d65406e4f2a23fca61e5b5ae06a" [label="2ea8c6" tooltip="tree bf7e817e4f03578b98431fcda1de2a35e93c95e2
+parent 5c008ea2ed2228a963b45dd29da80ed31fdbf6c3
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748706415 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748706415 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg7JG8ACgkQxuAexUmv
+ EIOxlQ/+NXv8htxt3JOe3yh/N0Bo/912yMzR6V1XImCE/UQlGts11pl2P97QJ6/C
+ hNv4t4AUj8itHy0C79agIGBPiQb1N5IrHt+QntkZ+od5Mkqz1ZicXnddrpb+i+jT
+ Tster5vTaoVww+NFtLSSTjnhlHNv6xandpKOuvNJ4PaDplyLlSqFsO9NW12n7hmy
+ 4jV092t6xLrjtT4Z3ylsqtlMbqGIZ5dNI4TjbvGkzOaXwPdjQyjCh3V3NY20am5o
+ JN4NKKptOlSrxhw1wNdOc+YVVSF48NxjIA2p1D8EJgU/krQjF/7fYr4zdcSHap+N
+ rja9F2v6OoSnBqd7//Dis8lPBX+Z+EHBIYiY6fk2t6rjvRxlvP6BmfSdamhagx2r
+ 9cfIf4zA33MF4gnbLvg1/kbavwxsINQpqhYh5WZrmoyxmR8ugQglH7GbSrKnG1Tx
+ if5GXMh+xfE5kpyy0FyNvNsC1AgsoBtuvk4fv7ZapYB/IfMsDJMY12sEir6xRLZb
+ djpx/strFEdBVhwkjE3EuFvc5A37LWfk4GPro7thHCPuO2I9vS2gHA2qxnjZHb89
+ qdWDWe0dwdsQThMPg+/MQrTTz5vYm0O9diep81fZAEuT7TfwGoZluGYMZX4CFkf1
+ x7s6GSNXZeImGVcXDk7QCru7tBBD4zMzLixDlWwMBeSjwcPHfPQ=
+ =51Ho
+ -----END PGP SIGNATURE-----
+
+Added Assimp and TinyObjLoader as git submodules" fillcolor="khaki1" shape=rectangle  style=filled]
+"49ea3ebd26dc3de903fd29640a531fd30acf66df" [label="49ea3e" tooltip="tree bd6f5303dec8ab20b1deeba38566a8ec5e44dd68
+parent 5c008ea2ed2228a963b45dd29da80ed31fdbf6c3
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748705874 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748705874 +0200
+
+index on main: 5c008ea Updated git submodules to include the assimp library" fillcolor="khaki1" shape=rectangle  style=filled]
+"5a4c1f3b6e056ba8392a9a338b9c570e0726b6d7" [label="5a4c1f" tooltip="tree 27faaec26aa4a037939715c6b538489570dbd890
+parent ceece7ab4c97c7b8ee16dca2827ced3f62e48d3e
+parent e975e2d533f9356953af17dea7373840197166f8
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748548754 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748548754 +0200
+
+WIP on main: ceece7a Initial config of .gitignore for build files, IDE configs, and temp files" fillcolor="lightyellow" shape=rectangle color="gray70" fontcolor="gray53"   style=filled]
+"5c008ea2ed2228a963b45dd29da80ed31fdbf6c3" [label="5c008e" tooltip="tree bd6f5303dec8ab20b1deeba38566a8ec5e44dd68
+parent 1e5e2ae6c2fd86a0f648554e59c5f07be0185d5c
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748705606 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748705606 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg7IUYACgkQxuAexUmv
+ EIPiKg/+KexojBmMVwLJcATwgnTrv9av05TOHzB1ogcwQmkGN2dN4AQ7w7H0fDnQ
+ w6SmwLeAzPrb5R3JLCitjGM0zirW6h/rJFQCC/R6P5jUxkAWeafy1Zp5yjulfNtG
+ UljfAYSUPge2nWnkKYlk0BLurcrYFGbvmVX76P0Q7VP9y9/dTqK4wnL6OhaMUa5H
+ H19aydF60gxgPqCz+ByfMn+YDNZZsfWKXwivJc6hhCXnnHebtuiqiq8eI+aJSicA
+ 8DiGoPtuJT9DhwhxBRL+00lJNrjti3yB76xxJpoO4ZzlHfXESueB2AFHWm7P/ur7
+ PMDyhBO2zRovN9x04/lnpjmKIOQ8HxAaXkcBhxkhkSuublrgEftp64Tu6yMD/qG2
+ wY32hfF9AwVoFs/ImRv+eEfruUvmiBBwjpy/i2vsKORfboYADG6jXUK9Iqbt/3Bo
+ CrvHuJdnAVu6lFnE8X6ziWbaYPrzZO2vuVX42yFzYVC9KBkyM1lZkmz5ASqTP/nv
+ chpT+ju/biCUawGwPA2EVeJEcvMKmkDbttHRPp4RmjwKnaBshGHpRhkZpzXm04ep
+ D6t1LFz7mi58se1CPZ+Dhu3CV6iagQPveWt7OUAjUhhAIEKza3P27dTvD1YP1+By
+ qbv2ZWMdMUL3FChctJYrtjQ2HRSxPLIvsVy7To7NNbVKYAwQD8o=
+ =9m2I
+ -----END PGP SIGNATURE-----
+
+Updated git submodules to include the assimp library" fillcolor="khaki1" shape=rectangle  style=filled]
+"81537ce38309242b9327553d02b966978e309f87" [label="81537c" tooltip="tree a84bbc3db1dc1086a795ecf00352e83b17be6a7b
+parent e599119770dedee22b1ee28116b9b918ad33f490
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748701994 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748701994 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg7EyoACgkQxuAexUmv
+ EIP7WQ/9FHTteBwlILQ0JQUnk31rq/hzEErG3kP4Z2Om2y0hP6c+DXzqsi5wnP1U
+ F+yvL7KSr2Y3UeNqEaQ/TnoAveLpR+zIkk+TDdcl7u7Ihfwo6+CDBP5WUxe8ebFW
+ +A0A59CKpqIzrGHhHYn40nKL31oq8llS3wv6r9kGCIoom2VcPwNQAtlwSlWYoje8
+ JAgoJzxToQ5HUdJXfE9Wb6ugMZ+XaHi+EBvZndY5ZkFr19APkTa9xs5paYMv2qLR
+ YHmq7DpFXFiqiH5Y62l1r3hw7rImbgG90ntrxL6t9RUoD1KA2T9LqGE89oyI44Yj
+ hGf+8A8xEBP/qXKUXEkvAVo47+lVBiQVe6byLVuWV8gDI9TY6T1bMvzDP8BQbuom
+ e49TCzehoKHfFWweK0Liw9acNgz1vNlSg0cKAuJhQlwmjjSyN0Ga9FK3FYFjGohn
+ tMVJsHEYTjHx8yFMqABUHnCaEF/GX7QMiKW2XH72oe/P+ltHC1JQWRZX8UPqcMIN
+ 9m9Gaug14vJ/2V9iR3/PCrbKhMxc3YuczueavXmc+Any77jVM/z9uGkdG+BW/wUE
+ 3vaiUDzA4Qf7OM/BUhzCk6COF+YYfQmf7WlfS3qgxv9/B6LLNXX/qS+KK9pG4LA5
+ +M9Bot+RwmNzuMwYFS9YDD0bk4URZM0i+4PPnSUIsRzfDk25HxE=
+ =/Tx4
+ -----END PGP SIGNATURE-----
+
+Created basic GLSL vertex and fragment shaders with color uniform support for a test scene" fillcolor="khaki1" shape=rectangle  style=filled]
+"9a54ddc300fc0927ad5c419e5cb199d230565089" [label="9a54dd" tooltip="tree 0a17549594201e4d2202aafb889ae57c1b1cf6d2
+parent ceece7ab4c97c7b8ee16dca2827ced3f62e48d3e
+parent d62036630bf570c5cbbb593213c3f301eb9f053e
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748548766 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748548766 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg4vLYACgkQxuAexUmv
+ EIM3RBAAmiLmFIh/i0NZ+iWHHkmnOLT1wJZ57gPApxY1Yv6pH6Yz8hTpptVOBXfl
+ uzuG0gl8qtlr08gXm+ty20ft253WJv342gO/Tc9SA0QhxA+0wsvEmQ1F4gNS5fcE
+ KbNlMpOp7ig5FNZu+UqG+b5GfoeZjuG/Wt6eMZyafvvQOa6dazcovh/z9IZ6Cv87
+ SW78bITXjln4KtLm4yWfHY+DlMoveKdyEgZJTwXtDJrz+vJ2klgMw0c3jc3XmpFD
+ rseI9RT4T/LHktIAlN/JCJk7jochsioUYV1ym8tI47Typ5qz7j3Of91teASZiwCj
+ BhTrTRCI9isVyhrD47G7NjZO2C1f5Yg6GpdTe9d331mKqCIi7pWniYU4yOIGQKU2
+ Aq9v42nFeOwp6otn4Yps33OGuvUXYv8Popjc+jVFuGO/e5uK9NfAwUcmuvI0NNdp
+ 0a22Z2FOjl8jsoCoWrInci51rQF+JvWrFSIbviZRuolc7zWMqMiv5BioFFadAfPG
+ 8smETi0QnDx4Vichv3aEmdgOXSF0yYnVGYoyKn8q2/Ujhan4XJ74FFKEZk8CtCGp
+ oRdPOx5cgJgG2nzvGhtHUkPUGB4dJlSnr3N2LULyNlTJkJqiiIFgrTJz85VCygGG
+ 3GW90J869DX6znhB+Lkt7Vmip4FO0GBN3h5+fE24tUaS/rQsJfM=
+ =kj7k
+ -----END PGP SIGNATURE-----
+
+Merge branch 'main' of https://github.com/Darky-The-Dragon/OpenGL-RayTracing" fillcolor="khaki1" shape=rectangle  style=filled]
+"9f374168be8d2118b6faf16b010b7e43b07078f3" [label="9f3741" tooltip="tree 9b7b508d2096ebdd1c2f423de68819285bbc51e8
+parent 19228556d37a640693daec001dec6d88e5284b6f
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748633798 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748633798 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg6CMYACgkQxuAexUmv
+ EIPC/Q//TdJ5yqAt+Bggst9+W1VCKCYDSHrkwe+cAbnWfQAJWMr3QZG5aJEAmdP7
+ rROZIF4LnIaEUXaNmyrtxltTnJR3GtcSzu5FlxCf3aCpAPIIoxjTvDNJmDIRvZeF
+ I7orRaycOnSlL1/wp/hsjSnG4dtSQtR7hfSwX8yRY2sN6WuAs8wVfPPshyqSHhkK
+ BCITiCZD40RrIQotk2FD8nWyShA21yBu61jLEK3wMo2e1vjJHOS1gmW+l3R+mwMT
+ i/1q9s3jpWb1IGcKofnxpYK/ZbwGZ6y9kzkAk2Olq4dLKemzQNMPzFtkgsSOriHs
+ 5cWGNI4I9tlqK/klVjOSiRL2yMzRHfwzWPUSI+HGTlijCO+sRy5FxOyLVGSBjz5I
+ jxHlAeYJd65UglJbz+Px0tIh/9nmvJ2QiITVdXIJXmY4e5mYOy+O27qsTAoLMrXe
+ MCTDmZDSSCQnbakUzLO4sEe9Re58pOKXQQY+nhlZrXPPd+Uh/2Uqw9tqkl98E7jy
+ d2cgcKxJw5deLlXpHe28NdLfzFBxOH34aqHYEE2EckTXDKEDO9Its0IG5xczgvVS
+ GVJcPRvUsaVv1LeKMsU0LwFcXiDvybd6Pl8sqVXKYgifdoHxJN/b7916vSmhvxXk
+ 3JTCBE9vj/JV415TlCLsw4Qt2ovJVQOPEkVYf37FvcXYuMCQy40=
+ =KcqF
+ -----END PGP SIGNATURE-----
+
+Added glm submodules and libraries" fillcolor="khaki1" shape=rectangle  style=filled]
+"c5bbfaa04ccd14f97d2a681d82c01eee688373fc" [label="c5bbfa" tooltip="tree 27faaec26aa4a037939715c6b538489570dbd890
+parent ceece7ab4c97c7b8ee16dca2827ced3f62e48d3e
+parent 1a9be81a7cba932167ee8b06341f8852e6b29384
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748548766 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748548766 +0200
+
+WIP on main: ceece7a Initial config of .gitignore for build files, IDE configs, and temp files" fillcolor="lightyellow" shape=rectangle color="gray70" fontcolor="gray53"   style=filled]
+"c71d3a12e4d5f1debaeb9cc532c3616f9dac9366" [label="c71d3a" tooltip="tree 9f65dac7227260dbbea99710ce6121b10b4ae23e
+parent fc8e961b00368cbac4a366c0fcd005b73cb5c85f
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748620564 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748620564 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg51RQACgkQxuAexUmv
+ EIO4Ag//fOSuU1uSjCPy8Uk7TFYTNl0Y3PXtsxeoS4f38mn8/zFQp3pJI//0Ij60
+ iA8U6hU8bXmxpngzH2i6OYjllEKGumpDmppZUF3e0F41WKm8iSsYV3HMW1B1kA/k
+ vUBL669zBiRR33cPrP/O4F0WlDKI+c/Y12vqcM+1XOHC40eMSogkVMZb2AR4bSUr
+ +3gROwvh5MzwBGIq5pLMhGseP+M8nPwhq+moufYqzyuxi4MXWs9sj0LDN6pQREKe
+ osohy/2iy1iK/veAUuY7+i2JHaAcPgDFi21OAMyoF+KME7EjZY1S9ToVzLTtY3PV
+ KJ8cEqiEtlT3VnLYfkk5ixrNZqN+khoSKhR4GkAthh7BgA8h5tUWwVZwBk/AASDz
+ tkGenJs8JHRe5mrxhuYJ+eZZeub5zl1e9J8Ln2Vde08ze3waCPpRhyUNHZxqllVx
+ L9XfWJy6gaCdZ2fkZrG0L3qvOdIKVOk1B+s6D87uGGJ30Z9MzFFG1PRrneH/W2Aj
+ HCZFZGMaTn1Yuvezi+CoemNck9lIqp/e4Rh1g8bVM2zcHvAuWzI+idWP2dhIguPA
+ ldqfsy7zzMwlcoam+dbQs9mDTJeeyoWgi8fOZW/QR+MHIlXq5WwRitc/kjw4/llp
+ Oja7/yT/dKPQsh0t+srEo+8WEG9E/306zRyTR7JNGy28HiWa/1c=
+ =VCDY
+ -----END PGP SIGNATURE-----
+
+Readme Update" fillcolor="khaki1" shape=rectangle  style=filled]
+"ceece7ab4c97c7b8ee16dca2827ced3f62e48d3e" [label="ceece7" tooltip="tree 1573011856271752143ac3be70cb5107e35460a8
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748548352 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748548352 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg4uwAACgkQxuAexUmv
+ EIM9ag//cE4456XhOAJQQ+tR04ZpX2CVKeSi0UvFroct3NB8VgMZ1kTJbYdCBx/O
+ KrVz+VffhO6mtvAWQ7JhksHC2Q3pllHrMmuHaaXrNR9w0EhUtvA5SgAGnAl5/z0q
+ 2PYkZLJhMBZRJpUCEA1co/3HhxBLuqbVsGWeuD2S7UkIvZWiDofWFWjk7y2OM885
+ x5P8FrN8wBLbuFPkDcltAovnpgrPAgttfhsZ6z1NIo86HKLDYalAydAaQq0aOifD
+ gXhBS9ZqL2lXkbs2yubP+YxDeUQobEyLcOukrFGJpRr2crB4Bu+9hV1K0SmwyxAj
+ 79IhoU28CkKd+4q4Jn+6X0tNzJU5C6Prhwji1TMFaQWoD0DtkgRZep1iqJXENhAy
+ elhue3a7XIqlVxw65EWZl2irMjQ8v/0B1FAwVd9vxNP+479Ebx1GybW9BxUwTVUp
+ jhRreqGxpeZvYDNbZlpKZJ2O94ann2ZUR1PJEHHt8JQ5REkNwWjws0vxpNc9KFdX
+ mxrFl5DmJAyXARonASpjcp4RknBeLzNc4Rw3QMYLHu0OP9uVB6BPL/lVOBnJtGDs
+ Z2TSBf2vQl4KsNg3RAVrkvZhDEwb4YF341QCCjn24nNqOhi8hmqlbpw8uaG0GWAH
+ Im3eTH8PvKUdA6JKZng/UbcM19onNhOxhMVgZf16cn78NQvY48g=
+ =UO6Z
+ -----END PGP SIGNATURE-----
+
+Initial config of .gitignore for build files, IDE configs, and temp files" fillcolor="khaki1" shape=rectangle  style=filled]
+"d17b4abf062eee6517d7a0b6ed9cc491d1f9777b" [label="d17b4a" tooltip="tree 472f6d754b6b733d2208d18aaa47ea49e3cd8d16
+parent 2cf29f7210229401f04042207309343f121e3bf9
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748706724 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748706724 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg7JaQACgkQxuAexUmv
+ EIMHvQ//TC0iVPdh1NaqEGqiuAAayGbW+WOy+yOtz4CMRhwGWImrNjINBAN7/nho
+ ktznEIS23v67riKp50QY5xnobN1qYAt54CPeZ6VILL0q4wCGW2JpLoRa389Nrhsa
+ vpGdfhYnOg7aqzSSsVC6McJskPbxG2/ucYVv9OxoZCvEGPglXdsYPoLTy9iQvLOf
+ pSG1C4EHHGBEYdw955YpesX+kTlrFHKVJy6bY5p5CfbpKvDrA1EV8yIjD8LPzyZW
+ fEMl95H3P1roo3SxwP7TyNKaD9BaAIR0dPcwIE4pBnrf1qaCzV0TECnlFXpMcES1
+ tIN4yonJoERVg1lK4ldGTfszeW5LUvk/BvNuQqZTQhacKrSQJr+SChvKHPmwsy1C
+ Bri659jZkeZUQIM4NYgVNz+CIxTlR1YPaHXSi5sq9y//os1//tWFYpatzPYvMRA6
+ Uezvm3hOJGzk4dUOtxly1nddlD7gHcEnBsAxSiNd16X23iiepvMdsr0+M1eIl8pF
+ AEa8qSaG7N8Yqj5NKdpt7Vy7xkO7/qIB8HOYB6eqKDXDoGe8AIpI4o8NpkVxy++5
+ a7tNgB0k00/dM2tEqAXwmHX0w1xMds0Ztc7nUuJv0/h5Y0pSFa/U0HwEl3KQupfY
+ CplJqpat3yPjC2ly4+kliHyQ1TAm2xlpMrAuVGFvZtAFmISvR0s=
+ =Flbd
+ -----END PGP SIGNATURE-----
+
+Added Assimp and TinyObjLoader as git submodules" fillcolor="khaki1" shape=rectangle  style=filled]
+"d38e975b716bd9efdba12b711ebc0e9f0194f76f" [label="d38e97" tooltip="tree 1167142c1c36da8756130303abddf5d3b401b714
+parent dae26413b4dfd95028ee0a8011a8a3e6d04faf4e
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748701912 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748701912 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg7EtgACgkQxuAexUmv
+ EIOWchAAlkOuKsVHzQhQ0Fueqqnu+2+6c3XNT/d1yOTklHIyXhSQaorW8b1MhiEf
+ JiIdepgWTxGB3dlIz8L5c14iajxSicFRmgxbqPxblqsGwrR3SFlNrncDEO3MbuZ0
+ UNm9WmxdayiFPIa9Z6fGNGmJqLRnnKQcXX4tSs39FZmw67wvOd784m4PyHY9Do3P
+ NHWlPRb/TgBTo84TK50Z2KMPIk5h/Z3Jk7jk+JauWGt/T5txQR/3wk2Uz4t1573t
+ peftkfwMtZhtd3/VEgYYx6jzQ2BCzGyDPGeH1rk7MJfsdQ1samN08KwcmDFnX5lx
+ 9MBv69nmMgtrVFq1juQ/X5+SZqQ1+QCwJyByXalaozgWntNX5/VFls6SB9xnWLgv
+ UXXcH2+r0laxIAeF6IYkLCybgFpL0nAftF4kTb6axz863gbJvKCLPqy4f1JPHKQ8
+ G5zRMiV3ALpIQRDEFqefGwkolXl4US7yKaxwbqCCDRTGFXmrCRelj955FxrW9lv4
+ RTdKIQZ6pLXCT+SL/vq+958557yLvTofb5ig0lxjspXq0f1PLe4pfdRVjJJYeu68
+ J2+udPwwoWGHYH4gRAz6eByuC5UTOqopkOmGxPaLYpmsz79D/dFPQIBm/hjk7qb6
+ l6m0ST+Ykiu1KcOPUS+ex9gfIoKoHkev5+r95dd4a1yjk1got3M=
+ =2YQ3
+ -----END PGP SIGNATURE-----
+
+Implemented basic Camera class with WASD movement and mouse control" fillcolor="khaki1" shape=rectangle  style=filled]
+"d62036630bf570c5cbbb593213c3f301eb9f053e" [label="d62036" tooltip="tree e91a19797518b7fb8d69123e3d82a2d62f1c6eab
+author Zotea Dumitru &lt;83721857+Darky-The-Dragon@users.noreply.github.com> 1748544953 +0200
+committer GitHub &lt;noreply@github.com> 1748544953 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ wsFcBAABCAAQBQJoOK25CRC1aQ7uu5UhlAAADZgQAHlZwAzCC82KSj8xmZm7cylw
+ Zbeh22RSe796XAB4jNP7Szp/KB3Z4kx4H8UJPhjdcPcLEipqovX7QMe72+uvDxnJ
+ Jb/+Mwa90zA7qbmvAohu3A+yalcuJkffLk4TkUsK+rg4Kjxix/4P3yvQqzjg2TKH
+ FP4WZ7z2i73CNBowfJOhKJ5mD/9L4f+wPPZQOyReEzFTFaWGZ7JHNiZ5/+PxZKWV
+ Cw56R68smk3TkG3GTSOlHug2YqJjVYe1rFQcqGkqqjHtgs1IPBeJfFVXg4y5/DLG
+ 9+RhTOenqHfuMTMiei1Oc80q5pVJjVRNcnb7VpFGAnZDZnwk2uCX1lXIwb5KZtnH
+ mlO2L8sNlxiDSvuFWliNAdfDPluqK6UxnscSXZxqjb7mSZIdoyd9sqYG4tJs7s49
+ g+bPIJy117wkyzGCjCw+g+cstBv+VhamwwpzFv1+Lk522iZHebsLefbMHppHrDfw
+ 60WeWHkmRiE9KA0vqE/fKbbMh3aUKxiajQveykGwj7DP0LN8LkwszdO0DdRGzI4P
+ ZWyExnc4yGvVR+mX3qBSSANRyy2LWYR0x5f88PZTR2PZNaRxrhrW0xtqT5SMAI29
+ w6fbRrkmkKOILG+DigsHxUIXlffbXG79tXbK2S94nrQfnRiDQiJmQ+tEqSongf2T
+ Roymp3er/LA96mVpl8F2
+ =q08d
+ -----END PGP SIGNATURE-----
+ 
+
+Initial commit" fillcolor="khaki1" shape=rectangle  style=filled]
+"dae26413b4dfd95028ee0a8011a8a3e6d04faf4e" [label="dae264" tooltip="tree 9ead168ec68348556a0dc9f4347f8c6318bd52c4
+parent 9f374168be8d2118b6faf16b010b7e43b07078f3
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748701863 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748701863 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg7EqgACgkQxuAexUmv
+ EIMI2Q//QpR439qoPLQY2dvlqWZ/ZOfXJeGI2Dn1OwEPs9ENmtyb/54vMACr+4mY
+ EnAYNGXCIxwU2Z45Qjs7GGmlSmv6WfLhs8kmFfui2ErShY35Op4i3fmgcNdM+sIy
+ 6pymGBFFp1AgnNTrY30W/RlN7rb57+S438APAk7DmMoSVMS5048Vr77AmT2xrqKu
+ 2V2lwaM/C6dVLwjfYoRJdiuXFncgKTmhL5OVvgKEJAH0XAmjZ6dEHyRKDJmxmb4i
+ ouqQ6BomBs7DWF9+N4JHICQcRXKayJ9xiXxxMxmqqJdVHgNUEf8/u+qlnSjs8rhZ
+ VJmhvIx9ByY/ZxtvtHs/frFW01TEswS3CAtryIuF7zBYF6iF7diKd6UJcESLmnrF
+ 26xA/w8Mv4zJNk+1uhtXSa0r9FWlf6KQ9odF6pvgvzLriHPnf7Hn+flAvhBvL0/1
+ 7rL3KBtn32r/wGJdl8Ppw50wHdCS62nFLtyDqo2Xdfmq3/AqIwnGcjRtEaByX3uB
+ FWYgpt3MvVWwF5CNQG7ECSduXx4F87FNumP1H6YdP7lmEWegNmxqjDitBfU/2xoP
+ 0Q3hRu8Z0fcoQljZxFsNwSP68KxK6nI2Zrn25o/ssJc6oxHSXsNw9wZAp0icsqJp
+ Ir8Qm2Hx6QvNJXgyYBSmRuBXkatpbzR0DNm3MXJ2HCNt5htvgTk=
+ =HtbV
+ -----END PGP SIGNATURE-----
+
+Updated CMakeLists.cpp to support the shader file copy" fillcolor="khaki1" shape=rectangle  style=filled]
+"ddd5e3c21e33fc30205a08c38baefd0966d7f3d6" [label="ddd5e3" tooltip="tree ce6e093abd1ad0d4d11eeef25171716924649a68
+parent d17b4abf062eee6517d7a0b6ed9cc491d1f9777b
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748706842 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748706842 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg7JhoACgkQxuAexUmv
+ EINF/g/+J6UoniArnCR0NTa62fViSz5YwoDw/lL47B6VbWErdLjI7UBkDatOQCqa
+ 3OMl9Lw+xkLW1Ho3OD4N/0VBLsv6dlAizoztXFz0eO0MXwHUFn+CZQSBikfwYi3B
+ dLSzQkkO3r3No8u1/qYwRJQUWd9RuiDTnaI3pGT06lhOge7bl+fqvH3kAGY8zYzV
+ t3z1cLkDAE8KuxC86Vkd7D33hTfS6ksvP4gZt/37V9kDwpkBVdoQ+zdX9agjhSv+
+ IRnXTn6BdIOlhS9QmZkfR/ijDy83FtmRdvNqwJMYDPGE4zKtK38eBSeX+5RonBhA
+ YKrTil1xecRqoK3VW/+p61++Fh3pRt6b5htP58rViukauWkpLvyX6C0CoEul64yD
+ jJNhlzW1FQahBpBt1w4T62vKhSf8JIKE503f+PyvA2t8ZSS1NsKMyYJhY+38fy6T
+ 4AFrbTnPI3wg8COFU5r6O14jFc6kOr+cZvhh8TZUe0+J2xui38P1STxyYqTBiDoH
+ 61Y4voAA9QWB5tQJ84ejvsoqY9zlU/2X/j5eFfbagKnnYs9zemxU/rUroMAdlLYD
+ 7R+4R3bXSXv7qUqIYHz/IUJ2VaXf7Oj03o7ixAWBK3tYLV+ndGJ1PYqcMMIByVQX
+ IvlW+rHOCtITQGkCbM2HI/EKCjMcYd+cfvM3hx/5GiFgL0XmDUM=
+ =ovIn
+ -----END PGP SIGNATURE-----
+
+Added mesh.h and model.h classes to load models from disk" fillcolor="khaki1" shape=rectangle  style=filled]
+"e599119770dedee22b1ee28116b9b918ad33f490" [label="e59911" tooltip="tree 7f846608a7818a8062874b9ce125dd1180d44f39
+parent d38e975b716bd9efdba12b711ebc0e9f0194f76f
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748701949 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748701949 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg7Ev0ACgkQxuAexUmv
+ EIMluA/9EwMAX2MKc7flWcTwT/KzMJvaPl9VR30EcyfwfWj/rJUTyMH8TUGkOt8i
+ K99jauoZC2170ShnUUMf8TTLlF0t6RgwVq1Fx0T3yukN7fTnpelsnSgu7Lbxa6cW
+ sVYhVId2JBrl63plEdqLGS2yUti/F3gaZ64rPlKWjj7FNOn/yFxw/V3+yu3ZRU2r
+ gJOWyv/ntVgwDfEUj1Cd9ED1Oiswv3CdnfSrwxhgfqbXt5n5GRvJlPyWcE0MvVbf
+ KylDo0LAbuYS7R2Jk+jjYNuNWxQ/+1t1P6TqFXATghn5Cq1+lIpA1Loo7zmYRgro
+ 4HbhvJ5dhXnVQL90PHGZ4PcXThUgLWOSmgXHxTHNIaUbCgYMtbknCOUC0pkRFtYA
+ mDNfnrPLBizIelc+rztxYa3b4Gk8i+lWipo/6OFvqRmxxRi/cX8WKe9dYbS1j60c
+ rhPdWZPJoJa8AegH1OgXyKbUCMOrC13OSFZYXuxwh30eJ69U2Q1cg43lnukGmP/K
+ kDI1TSoDQVE2fcfqYRGg+oB8KXpFeYxozsyRCF3kQQAYxJKr3gPdgj73asZBX6Kv
+ k1/3uQRkXBO8NIknx/CGRMs0QgIFGFuVrvpDT2Hssa9rcCbuhidozfTl+U31IrAX
+ wbzRgbc+h1BKlVkwcrdj2At81GcPWw5sn169hQvhuw1oaS+c3Qg=
+ =wFX5
+ -----END PGP SIGNATURE-----
+
+Added a shader class with support for mat4, vec3, float, int uniforms and compile/link error checks" fillcolor="khaki1" shape=rectangle  style=filled]
+"e975e2d533f9356953af17dea7373840197166f8" [label="e975e2" tooltip="tree 1573011856271752143ac3be70cb5107e35460a8
+parent ceece7ab4c97c7b8ee16dca2827ced3f62e48d3e
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748548754 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748548754 +0200
+
+index on main: ceece7a Initial config of .gitignore for build files, IDE configs, and temp files" fillcolor="lightyellow" shape=rectangle color="gray70" fontcolor="gray53"   style=filled]
+"f3d0d1167d84b4b8923d7d12f61dc53f5e6f4e4c" [label="f3d0d1" tooltip="tree 80ffc017b04119c502e31134013cd0219fa7ac6c
+parent c71d3a12e4d5f1debaeb9cc532c3616f9dac9366
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748620647 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748620647 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg51WcACgkQxuAexUmv
+ EIN84A/+OJlQplWDhIWHOoCthlxGidHBSH653zTCx+N7mP2gDsSYYpdpUnQq6cki
+ eQyO4NU3nHs9EIAqlWcZ1MBGv9Azydg2MNWjh67eM/I+50wWSVxRdEOrrQVpuhDD
+ iMxfC8vW3GLQp9XMDj87WeuzGCfTRXCByJPP3FV/l3Go6fICmBoWz48XgKFU/48N
+ 1ZIKDW5YQ18NOU6Be1wcau86WumUe4ZlklFo2lPYhyqMpBJy2WRsHuoC17nOS8L3
+ MEf9QIKVcb2wtuhvyLZ4npIgQT2XXk/DzVu3t+80ANS0Q7bQazrJ5Ujt4bXmNW/Z
+ oTqgF7//4s+149OhBpM8ocPEnM4Txczpe4tb/MoG9kmAp8ukvh4gIq/w5CFozQnB
+ Bi79wDKBhjgxPKEiky8surVciSJ3VKOOYrB5JAy/L5hoGBdgxtofhu0A0+Vsup4j
+ awA/RRb4+/3L/CnFlH+PfAv/7R8qqpUCOZaPg4sWQUT4hbt9qUOpZmzLN6uRNwb2
+ DkBkKW3XVFBCwGu4fUuomb0XA3+DTClav2eI4tiyVpMHIQPPsvLzGG1/rhOzMnJy
+ Glf/Fadi78UKttAEtuH9lnkdt1og3YUslkaXkra7ildJf7zuvKiZGgXk8opty3Fn
+ MUGhkNNQc8MA7qRvY5i52+29kVvES7NvR878jIg4EbQHbu7gK8s=
+ =NDin
+ -----END PGP SIGNATURE-----
+
+Added make file for test build" fillcolor="khaki1" shape=rectangle  style=filled]
+"f997b91713d3ae7acd02d4b3901c682553b2c501" [label="f997b9" tooltip="tree dc177c7af5a61ee36d8f49527056bb48920d33fe
+parent ddd5e3c21e33fc30205a08c38baefd0966d7f3d6
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748706896 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748706896 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg7JlAACgkQxuAexUmv
+ EINVOw/8DYgzZOnK3QgjbSOiaV0iJf8yX5tuk6qJRl8PRzFM1Q1Y2qoM8I1F3Fiq
+ 05HQarFnskXxMRFGJIQaJTPJCvum7/lq6cFSgE6zyhz094ecOAwVAe74gnX184KF
+ 7BEiIRRb5KohoVio8eD3kgj7QGtT4D29NNTf2kReiKvOt+epq0ULmZA4crGbtxDD
+ onSnhVmhq+ZByJnADdIfWtzkycIOoEkRe5NAq/2CTNwvuxZdiH6Fly6BsY9GiIFO
+ tdIqoISl7iv48cd9P+lJjYrQyPWHuW6rmtymSAG4BGGA7HY/+9AydAAD8Gy+0Phk
+ DW/WCHo96pXlU7twlqN5ZdsGYb9bpl1iLuBpsHN+W5UkmAFrcDo+c84X9rBK0Hgm
+ krCakpZw2shjYxTlljR3A3U1OiqiB6KDbhyQLsP86IRdou/PyFIlObh0ezFyfR8a
+ u9Mtg9GezRA4KPNLij7hjERT+OPyOf39B2uFvUt0kIIL0+EAcIsQQ83CoDG48OFM
+ 1sCvq0uHMYh3Ly2wgR3E86LRnAeaLS8aT2dKyRHBH0DQQkpwWIHvwGtFB+eWNHOM
+ CwPzVCku6Hgxi3cebYbX/lyeyK4ygIyPyo1xhvQ6yoGOlDe+MUcyKKj/6yWBsAr5
+ wj51AXghUK4kOayTBAcXgawByF4s6qAIs2AXweGS/sWu8ivwY2A=
+ =9UzD
+ -----END PGP SIGNATURE-----
+
+Updated main.cpp to load the bunny and sphere models on top of a green plane from the models/ folder" fillcolor="khaki1" shape=rectangle  style=filled]
+"fc8e961b00368cbac4a366c0fcd005b73cb5c85f" [label="fc8e96" tooltip="tree 515775300deedf43eb6a4121ad2d5f81b5806cd0
+parent 9a54ddc300fc0927ad5c419e5cb199d230565089
+author Darky &lt;dim4ik12092000.dz@gmail.com> 1748620451 +0200
+committer Darky &lt;dim4ik12092000.dz@gmail.com> 1748620451 +0200
+gpgsig -----BEGIN PGP SIGNATURE-----
+ 
+ iQIzBAABCAAdFiEElySaybe9j/lf5i1TxuAexUmvEIMFAmg51KMACgkQxuAexUmv
+ EIPZVg//T9TO7V0tXmLBKkQEAYctTetanH2O3CLJYmaaJP1wQEex1zAGIvjkgrIO
+ kja+bJ4El79BcTsthkjZzl7Y4KqFMdrMhQ6aR+zcJGqqkTtXHBo2UFjS3yDbn/zI
+ 3eYL5pIcmbOB+PUh081TkxnnQlpUVp+FK0FEumP0U+YiDikUw3cgTVSiVSNObIhA
+ rId5Yl9ObhwqgtWQ2tD49w3hKiUAWsxF5a48+fzLfpBY3+XeB+4cAZJoC8UY5YyE
+ juWUT+HQmvmT8e9t9NzGfvEcV/N1JM74FlIQAvXUeoTtUr+DbIAiBCEQVYmYw7Bh
+ ypBG+e0I8jrZhNhMIUwkWgft/8H0TW55KUJ4tPskL3jlV4zOw8oVZIWWL5RbZayb
+ cCHNyHI2Sz9nS2Uvz9ZBVgyKjoqiji5oKmpF4bczMQNRm+cMZ+WViPiw+RCpdqvT
+ nv/Z9C6Rt2WYRzABYd7kHzlpiB6w1qKGuoggLNrRfPyBikb5khoA+4qoBVJwrdvV
+ kXzpE6VUgUTZUccr/cjpjkzXQutQG7LrPCbCfKZywFVuMy9Z19Wpaq5RbvaC6OIb
+ ynNU8FNpnCwPDhVYc/g61vRjl0l+bEQL2lRTEsvvQM/ZNVtgdAHQ2VpnYZvq0O3R
+ 0X9fJhB/EV+VUGtufZDXGJmzESceCDpBtCoraUGXng6zAdtU5v4=
+ =glgM
+ -----END PGP SIGNATURE-----
+
+OpenGL Test main.cpp" fillcolor="khaki1" shape=rectangle  style=filled]
+}
+"main" [ fillcolor="lightpink1" shape=rarrow  tooltip="f997b91713d3ae7acd02d4b3901c682553b2c501"  style=filled ]
+"main" -> "f997b91713d3ae7acd02d4b3901c682553b2c501"
+"00abcbe9d9c6150b3c9acf7e826fb418d0d32de2" [label="00abcb" tooltip="100644 blob ac171ba0e04a4f0dc0fefdd6d49952b36b31fba0	gl.h" fillcolor="skyblue" shape=folder  style=filled]
+"00abcbe9d9c6150b3c9acf7e826fb418d0d32de2" -> "ac171ba0e04a4f0dc0fefdd6d49952b36b31fba0" [label="gl.h"]
+"048b3f21c45f48d084b38a80fbfaeccd20ed436e" [label="048b3f" tooltip="100644 blob 6130ead3a696fa233b82bcb344ab5016ec5b659d	mesh.h
+100644 blob 14c782cc10a1efec7445954236a3ac142e241c62	model.h" fillcolor="skyblue" shape=folder  style=filled]
+"048b3f21c45f48d084b38a80fbfaeccd20ed436e" -> "6130ead3a696fa233b82bcb344ab5016ec5b659d" [label="mesh.h"]
+"048b3f21c45f48d084b38a80fbfaeccd20ed436e" -> "14c782cc10a1efec7445954236a3ac142e241c62" [label="model.h"]
+"071d0fefae112b8664ed4c9e9d74592aa3f951fa" [label="071d0f" tooltip="040000 tree 048b3f21c45f48d084b38a80fbfaeccd20ed436e	utils" fillcolor="skyblue" shape=folder  style=filled]
+"071d0fefae112b8664ed4c9e9d74592aa3f951fa" -> "048b3f21c45f48d084b38a80fbfaeccd20ed436e" [label="utils"]
+"0a17549594201e4d2202aafb889ae57c1b1cf6d2" [label="0a1754" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob a294bd74c6d89ab991ddf48049a993875b044217	.gitmodules
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+040000 tree ff06896aab8ecf229f0e39234855f790ede2c3dc	libs
+040000 tree 39b56ce2d682f4bd3f443ee159e581519df5ca8c	src" fillcolor="skyblue" shape=folder  style=filled]
+"0a17549594201e4d2202aafb889ae57c1b1cf6d2" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"0a17549594201e4d2202aafb889ae57c1b1cf6d2" -> "a294bd74c6d89ab991ddf48049a993875b044217" [label=".gitmodules"]
+"0a17549594201e4d2202aafb889ae57c1b1cf6d2" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"0a17549594201e4d2202aafb889ae57c1b1cf6d2" -> "ff06896aab8ecf229f0e39234855f790ede2c3dc" [label="libs"]
+"0a17549594201e4d2202aafb889ae57c1b1cf6d2" -> "39b56ce2d682f4bd3f443ee159e581519df5ca8c" [label="src"]
+"1167142c1c36da8756130303abddf5d3b401b714" [label="116714" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob 51a15fd83c6a5e16ef44cc089b44c072d88fa5af	.gitmodules
+100644 blob 81796958e28ff3f14bdb4a2c8313323eb07f8d61	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree 77fd025d986b364bb1a15dc431593a268e5227d5	libs
+040000 tree 53b169235d69a1fda23d05b4b4ce2206fb8419ad	src" fillcolor="skyblue" shape=folder  style=filled]
+"1167142c1c36da8756130303abddf5d3b401b714" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"1167142c1c36da8756130303abddf5d3b401b714" -> "51a15fd83c6a5e16ef44cc089b44c072d88fa5af" [label=".gitmodules"]
+"1167142c1c36da8756130303abddf5d3b401b714" -> "81796958e28ff3f14bdb4a2c8313323eb07f8d61" [label="CMakeLists.txt"]
+"1167142c1c36da8756130303abddf5d3b401b714" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"1167142c1c36da8756130303abddf5d3b401b714" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"1167142c1c36da8756130303abddf5d3b401b714" -> "77fd025d986b364bb1a15dc431593a268e5227d5" [label="libs"]
+"1167142c1c36da8756130303abddf5d3b401b714" -> "53b169235d69a1fda23d05b4b4ce2206fb8419ad" [label="src"]
+"1573011856271752143ac3be70cb5107e35460a8" [label="157301" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob a294bd74c6d89ab991ddf48049a993875b044217	.gitmodules
+040000 tree ff06896aab8ecf229f0e39234855f790ede2c3dc	libs
+040000 tree 39b56ce2d682f4bd3f443ee159e581519df5ca8c	src" fillcolor="skyblue" shape=folder  style=filled]
+"1573011856271752143ac3be70cb5107e35460a8" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"1573011856271752143ac3be70cb5107e35460a8" -> "a294bd74c6d89ab991ddf48049a993875b044217" [label=".gitmodules"]
+"1573011856271752143ac3be70cb5107e35460a8" -> "ff06896aab8ecf229f0e39234855f790ede2c3dc" [label="libs"]
+"1573011856271752143ac3be70cb5107e35460a8" -> "39b56ce2d682f4bd3f443ee159e581519df5ca8c" [label="src"]
+"19228556d37a640693daec001dec6d88e5284b6f" -> "50b8d8327005cde73f020b990130691a1ef0a2b8"
+"19228556d37a640693daec001dec6d88e5284b6f" -> "f3d0d1167d84b4b8923d7d12f61dc53f5e6f4e4c"
+"1a9be81a7cba932167ee8b06341f8852e6b29384" -> "1573011856271752143ac3be70cb5107e35460a8"
+"1a9be81a7cba932167ee8b06341f8852e6b29384" -> "ceece7ab4c97c7b8ee16dca2827ced3f62e48d3e"
+"1e5e2ae6c2fd86a0f648554e59c5f07be0185d5c" -> "bf23f35d09bde277275575a6bd9fe27abe60e6bf"
+"1e5e2ae6c2fd86a0f648554e59c5f07be0185d5c" -> "81537ce38309242b9327553d02b966978e309f87"
+"24bf4a5ebe5e9aba909b7504646128eda90600ad" -> "58f31101af8a0999601a0812df440010b0ee98e9"
+"24bf4a5ebe5e9aba909b7504646128eda90600ad" -> "5c008ea2ed2228a963b45dd29da80ed31fdbf6c3"
+"24bf4a5ebe5e9aba909b7504646128eda90600ad" -> "49ea3ebd26dc3de903fd29640a531fd30acf66df"
+"27faaec26aa4a037939715c6b538489570dbd890" [label="27faae" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob a294bd74c6d89ab991ddf48049a993875b044217	.gitmodules
+040000 tree ff06896aab8ecf229f0e39234855f790ede2c3dc	libs
+040000 tree a025a2d95642e6ffe531ee964c05b94952963145	src" fillcolor="lightcyan" shape=folder color="gray70" fontcolor="gray53"  color="#bbb" fontcolor="#888" style=filled]
+"27faaec26aa4a037939715c6b538489570dbd890" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"27faaec26aa4a037939715c6b538489570dbd890" -> "a294bd74c6d89ab991ddf48049a993875b044217" [label=".gitmodules"]
+"27faaec26aa4a037939715c6b538489570dbd890" -> "ff06896aab8ecf229f0e39234855f790ede2c3dc" [label="libs"]
+"27faaec26aa4a037939715c6b538489570dbd890" -> "a025a2d95642e6ffe531ee964c05b94952963145" [label="src"]
+"288fba1e42bce018989f893ff67637039ecf3001" [label="288fba" tooltip="040000 tree 3e8dd95179c60c87cb0e16819021aaf38569801a	include
+040000 tree d423b5c080d308a8b1c484a454c1dd73afe8bc3c	src" fillcolor="skyblue" shape=folder  style=filled]
+"288fba1e42bce018989f893ff67637039ecf3001" -> "3e8dd95179c60c87cb0e16819021aaf38569801a" [label="include"]
+"288fba1e42bce018989f893ff67637039ecf3001" -> "d423b5c080d308a8b1c484a454c1dd73afe8bc3c" [label="src"]
+"2cf29f7210229401f04042207309343f121e3bf9" -> "f8d7b832f9f4d712d5976cbc2b6315e31e8b910b"
+"2cf29f7210229401f04042207309343f121e3bf9" -> "2ea8c6d33b0d8d65406e4f2a23fca61e5b5ae06a"
+"2ea8c6d33b0d8d65406e4f2a23fca61e5b5ae06a" -> "bf7e817e4f03578b98431fcda1de2a35e93c95e2"
+"2ea8c6d33b0d8d65406e4f2a23fca61e5b5ae06a" -> "5c008ea2ed2228a963b45dd29da80ed31fdbf6c3"
+"39b56ce2d682f4bd3f443ee159e581519df5ca8c" [label="39b56c" tooltip="100644 blob 3f419a81c3364a8faac40fdffebaff909d78f198	main.cpp" fillcolor="skyblue" shape=folder  style=filled]
+"39b56ce2d682f4bd3f443ee159e581519df5ca8c" -> "3f419a81c3364a8faac40fdffebaff909d78f198" [label="main.cpp"]
+"3ab34b51a8f0f89a3658f0678b3343a85d6f9eb7" [label="3ab34b" tooltip="100644 blob a614223dd61e53e15d756f40d8b7d5c84e4628ab	Camera.cpp
+100644 blob a496e094f7fcf7f4bd504ee6a2d775b7b078206e	Camera.h
+100644 blob 3fceea892779073b3eb22f68879331499b00f345	Shader.cpp
+100644 blob 4217550d3ffcce4a010eee56b4e04ace4fad4f01	Shader.h
+100644 blob 930b5444ab55387d904985320862280801d3dc6d	main.cpp" fillcolor="skyblue" shape=folder  style=filled]
+"3ab34b51a8f0f89a3658f0678b3343a85d6f9eb7" -> "a614223dd61e53e15d756f40d8b7d5c84e4628ab" [label="Camera.cpp"]
+"3ab34b51a8f0f89a3658f0678b3343a85d6f9eb7" -> "a496e094f7fcf7f4bd504ee6a2d775b7b078206e" [label="Camera.h"]
+"3ab34b51a8f0f89a3658f0678b3343a85d6f9eb7" -> "3fceea892779073b3eb22f68879331499b00f345" [label="Shader.cpp"]
+"3ab34b51a8f0f89a3658f0678b3343a85d6f9eb7" -> "4217550d3ffcce4a010eee56b4e04ace4fad4f01" [label="Shader.h"]
+"3ab34b51a8f0f89a3658f0678b3343a85d6f9eb7" -> "930b5444ab55387d904985320862280801d3dc6d" [label="main.cpp"]
+"3e8dd95179c60c87cb0e16819021aaf38569801a" [label="3e8dd9" tooltip="040000 tree 65a4252b3a22c62a273016b8c40b44c1f54e143e	KHR
+040000 tree 00abcbe9d9c6150b3c9acf7e826fb418d0d32de2	glad" fillcolor="skyblue" shape=folder  style=filled]
+"3e8dd95179c60c87cb0e16819021aaf38569801a" -> "65a4252b3a22c62a273016b8c40b44c1f54e143e" [label="KHR"]
+"3e8dd95179c60c87cb0e16819021aaf38569801a" -> "00abcbe9d9c6150b3c9acf7e826fb418d0d32de2" [label="glad"]
+"406447c913eb717ba35e22cc6e7c0b39f52c00c4" [label="406447" tooltip="160000 commit c4515f53ca9a60cf4645b9bc837faaf14026b6d1	assimp
+040000 tree 288fba1e42bce018989f893ff67637039ecf3001	glad
+160000 commit e7ea71be039836da3a98cea55ae5569cb5eb885c	glfw
+160000 commit 2d4c4b4dd31fde06cfffad7915c2b3006402322f	glm
+160000 commit 77f1d3b317c400c34ee02fe9a5354d0d757b55ca	imgui
+160000 commit 3bb554cf74428d7db13418b4aca1b9752a1d2be8	tinyobjloader" fillcolor="skyblue" shape=folder  style=filled]
+"406447c913eb717ba35e22cc6e7c0b39f52c00c4" -> "c4515f53ca9a60cf4645b9bc837faaf14026b6d1" [label="assimp"]
+"406447c913eb717ba35e22cc6e7c0b39f52c00c4" -> "288fba1e42bce018989f893ff67637039ecf3001" [label="glad"]
+"406447c913eb717ba35e22cc6e7c0b39f52c00c4" -> "e7ea71be039836da3a98cea55ae5569cb5eb885c" [label="glfw"]
+"406447c913eb717ba35e22cc6e7c0b39f52c00c4" -> "2d4c4b4dd31fde06cfffad7915c2b3006402322f" [label="glm"]
+"406447c913eb717ba35e22cc6e7c0b39f52c00c4" -> "77f1d3b317c400c34ee02fe9a5354d0d757b55ca" [label="imgui"]
+"406447c913eb717ba35e22cc6e7c0b39f52c00c4" -> "3bb554cf74428d7db13418b4aca1b9752a1d2be8" [label="tinyobjloader"]
+"472f6d754b6b733d2208d18aaa47ea49e3cd8d16" [label="472f6d" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob fe811ec0ea6669041e003afe3651f989bf496df6	.gitmodules
+100644 blob 670220120b47e80167d9656190eda604b45babab	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree 406447c913eb717ba35e22cc6e7c0b39f52c00c4	libs
+040000 tree b8d13892a8cc3ec4df3339da0d00414652c918c3	shaders
+040000 tree aa8357554db0dc78df8ea2a555b88d2ce02d514f	src" fillcolor="skyblue" shape=folder  style=filled]
+"472f6d754b6b733d2208d18aaa47ea49e3cd8d16" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"472f6d754b6b733d2208d18aaa47ea49e3cd8d16" -> "fe811ec0ea6669041e003afe3651f989bf496df6" [label=".gitmodules"]
+"472f6d754b6b733d2208d18aaa47ea49e3cd8d16" -> "670220120b47e80167d9656190eda604b45babab" [label="CMakeLists.txt"]
+"472f6d754b6b733d2208d18aaa47ea49e3cd8d16" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"472f6d754b6b733d2208d18aaa47ea49e3cd8d16" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"472f6d754b6b733d2208d18aaa47ea49e3cd8d16" -> "406447c913eb717ba35e22cc6e7c0b39f52c00c4" [label="libs"]
+"472f6d754b6b733d2208d18aaa47ea49e3cd8d16" -> "b8d13892a8cc3ec4df3339da0d00414652c918c3" [label="shaders"]
+"472f6d754b6b733d2208d18aaa47ea49e3cd8d16" -> "aa8357554db0dc78df8ea2a555b88d2ce02d514f" [label="src"]
+"49ea3ebd26dc3de903fd29640a531fd30acf66df" -> "bd6f5303dec8ab20b1deeba38566a8ec5e44dd68"
+"49ea3ebd26dc3de903fd29640a531fd30acf66df" -> "5c008ea2ed2228a963b45dd29da80ed31fdbf6c3"
+"50b8d8327005cde73f020b990130691a1ef0a2b8" [label="50b8d8" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob a294bd74c6d89ab991ddf48049a993875b044217	.gitmodules
+100644 blob 9a3d17e77ccefbb686f42218ff24cb268cb6b39e	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree a3a037b4f95c421c2a94aec1ed06edcb1dc6c18c	libs
+040000 tree a025a2d95642e6ffe531ee964c05b94952963145	src" fillcolor="skyblue" shape=folder  style=filled]
+"50b8d8327005cde73f020b990130691a1ef0a2b8" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"50b8d8327005cde73f020b990130691a1ef0a2b8" -> "a294bd74c6d89ab991ddf48049a993875b044217" [label=".gitmodules"]
+"50b8d8327005cde73f020b990130691a1ef0a2b8" -> "9a3d17e77ccefbb686f42218ff24cb268cb6b39e" [label="CMakeLists.txt"]
+"50b8d8327005cde73f020b990130691a1ef0a2b8" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"50b8d8327005cde73f020b990130691a1ef0a2b8" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"50b8d8327005cde73f020b990130691a1ef0a2b8" -> "a3a037b4f95c421c2a94aec1ed06edcb1dc6c18c" [label="libs"]
+"50b8d8327005cde73f020b990130691a1ef0a2b8" -> "a025a2d95642e6ffe531ee964c05b94952963145" [label="src"]
+"515775300deedf43eb6a4121ad2d5f81b5806cd0" [label="515775" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob a294bd74c6d89ab991ddf48049a993875b044217	.gitmodules
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+040000 tree ff06896aab8ecf229f0e39234855f790ede2c3dc	libs
+040000 tree a025a2d95642e6ffe531ee964c05b94952963145	src" fillcolor="skyblue" shape=folder  style=filled]
+"515775300deedf43eb6a4121ad2d5f81b5806cd0" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"515775300deedf43eb6a4121ad2d5f81b5806cd0" -> "a294bd74c6d89ab991ddf48049a993875b044217" [label=".gitmodules"]
+"515775300deedf43eb6a4121ad2d5f81b5806cd0" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"515775300deedf43eb6a4121ad2d5f81b5806cd0" -> "ff06896aab8ecf229f0e39234855f790ede2c3dc" [label="libs"]
+"515775300deedf43eb6a4121ad2d5f81b5806cd0" -> "a025a2d95642e6ffe531ee964c05b94952963145" [label="src"]
+"53b169235d69a1fda23d05b4b4ce2206fb8419ad" [label="53b169" tooltip="100644 blob a614223dd61e53e15d756f40d8b7d5c84e4628ab	Camera.cpp
+100644 blob a496e094f7fcf7f4bd504ee6a2d775b7b078206e	Camera.h
+100644 blob 58ffc0f95868baa0f5ed73dea7506aefaa5f4efe	main.cpp" fillcolor="skyblue" shape=folder  style=filled]
+"53b169235d69a1fda23d05b4b4ce2206fb8419ad" -> "a614223dd61e53e15d756f40d8b7d5c84e4628ab" [label="Camera.cpp"]
+"53b169235d69a1fda23d05b4b4ce2206fb8419ad" -> "a496e094f7fcf7f4bd504ee6a2d775b7b078206e" [label="Camera.h"]
+"53b169235d69a1fda23d05b4b4ce2206fb8419ad" -> "58ffc0f95868baa0f5ed73dea7506aefaa5f4efe" [label="main.cpp"]
+"58f31101af8a0999601a0812df440010b0ee98e9" [label="58f311" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob 9264eb859bf4cb14b0b1faf994c1d9ebf8fd7da3	.gitmodules
+100644 blob 670220120b47e80167d9656190eda604b45babab	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree 77fd025d986b364bb1a15dc431593a268e5227d5	libs
+040000 tree b8d13892a8cc3ec4df3339da0d00414652c918c3	shaders
+040000 tree 3ab34b51a8f0f89a3658f0678b3343a85d6f9eb7	src" fillcolor="skyblue" shape=folder  style=filled]
+"58f31101af8a0999601a0812df440010b0ee98e9" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"58f31101af8a0999601a0812df440010b0ee98e9" -> "9264eb859bf4cb14b0b1faf994c1d9ebf8fd7da3" [label=".gitmodules"]
+"58f31101af8a0999601a0812df440010b0ee98e9" -> "670220120b47e80167d9656190eda604b45babab" [label="CMakeLists.txt"]
+"58f31101af8a0999601a0812df440010b0ee98e9" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"58f31101af8a0999601a0812df440010b0ee98e9" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"58f31101af8a0999601a0812df440010b0ee98e9" -> "77fd025d986b364bb1a15dc431593a268e5227d5" [label="libs"]
+"58f31101af8a0999601a0812df440010b0ee98e9" -> "b8d13892a8cc3ec4df3339da0d00414652c918c3" [label="shaders"]
+"58f31101af8a0999601a0812df440010b0ee98e9" -> "3ab34b51a8f0f89a3658f0678b3343a85d6f9eb7" [label="src"]
+"5a4c1f3b6e056ba8392a9a338b9c570e0726b6d7" -> "27faaec26aa4a037939715c6b538489570dbd890"
+"5a4c1f3b6e056ba8392a9a338b9c570e0726b6d7" -> "ceece7ab4c97c7b8ee16dca2827ced3f62e48d3e"
+"5a4c1f3b6e056ba8392a9a338b9c570e0726b6d7" -> "e975e2d533f9356953af17dea7373840197166f8"
+"5c008ea2ed2228a963b45dd29da80ed31fdbf6c3" -> "bd6f5303dec8ab20b1deeba38566a8ec5e44dd68"
+"5c008ea2ed2228a963b45dd29da80ed31fdbf6c3" -> "1e5e2ae6c2fd86a0f648554e59c5f07be0185d5c"
+"63ab34755b98bd216446c5cd82c6649f1585b01d" [label="63ab34" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob 8c482649f59c2873d541220f7d0f2fc0634ee4a6	.gitmodules
+100644 blob 670220120b47e80167d9656190eda604b45babab	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree 77fd025d986b364bb1a15dc431593a268e5227d5	libs
+040000 tree b8d13892a8cc3ec4df3339da0d00414652c918c3	shaders
+040000 tree 3ab34b51a8f0f89a3658f0678b3343a85d6f9eb7	src" fillcolor="lightcyan" shape=folder color="gray70" fontcolor="gray53"  color="#bbb" fontcolor="#888" style=filled]
+"63ab34755b98bd216446c5cd82c6649f1585b01d" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"63ab34755b98bd216446c5cd82c6649f1585b01d" -> "8c482649f59c2873d541220f7d0f2fc0634ee4a6" [label=".gitmodules"]
+"63ab34755b98bd216446c5cd82c6649f1585b01d" -> "670220120b47e80167d9656190eda604b45babab" [label="CMakeLists.txt"]
+"63ab34755b98bd216446c5cd82c6649f1585b01d" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"63ab34755b98bd216446c5cd82c6649f1585b01d" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"63ab34755b98bd216446c5cd82c6649f1585b01d" -> "77fd025d986b364bb1a15dc431593a268e5227d5" [label="libs"]
+"63ab34755b98bd216446c5cd82c6649f1585b01d" -> "b8d13892a8cc3ec4df3339da0d00414652c918c3" [label="shaders"]
+"63ab34755b98bd216446c5cd82c6649f1585b01d" -> "3ab34b51a8f0f89a3658f0678b3343a85d6f9eb7" [label="src"]
+"65a4252b3a22c62a273016b8c40b44c1f54e143e" [label="65a425" tooltip="100644 blob 01646449caedc958effc3b450360aefd260671ab	khrplatform.h" fillcolor="skyblue" shape=folder  style=filled]
+"65a4252b3a22c62a273016b8c40b44c1f54e143e" -> "01646449caedc958effc3b450360aefd260671ab" [label="khrplatform.h"]
+"77fd025d986b364bb1a15dc431593a268e5227d5" [label="77fd02" tooltip="040000 tree 288fba1e42bce018989f893ff67637039ecf3001	glad
+160000 commit e7ea71be039836da3a98cea55ae5569cb5eb885c	glfw
+160000 commit 2d4c4b4dd31fde06cfffad7915c2b3006402322f	glm
+160000 commit 77f1d3b317c400c34ee02fe9a5354d0d757b55ca	imgui" fillcolor="skyblue" shape=folder  style=filled]
+"77fd025d986b364bb1a15dc431593a268e5227d5" -> "288fba1e42bce018989f893ff67637039ecf3001" [label="glad"]
+"77fd025d986b364bb1a15dc431593a268e5227d5" -> "e7ea71be039836da3a98cea55ae5569cb5eb885c" [label="glfw"]
+"77fd025d986b364bb1a15dc431593a268e5227d5" -> "2d4c4b4dd31fde06cfffad7915c2b3006402322f" [label="glm"]
+"77fd025d986b364bb1a15dc431593a268e5227d5" -> "77f1d3b317c400c34ee02fe9a5354d0d757b55ca" [label="imgui"]
+"7f846608a7818a8062874b9ce125dd1180d44f39" [label="7f8466" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob 51a15fd83c6a5e16ef44cc089b44c072d88fa5af	.gitmodules
+100644 blob 81796958e28ff3f14bdb4a2c8313323eb07f8d61	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree 77fd025d986b364bb1a15dc431593a268e5227d5	libs
+040000 tree b2a7c59f12c51526c4e87785babeb5de57277672	src" fillcolor="skyblue" shape=folder  style=filled]
+"7f846608a7818a8062874b9ce125dd1180d44f39" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"7f846608a7818a8062874b9ce125dd1180d44f39" -> "51a15fd83c6a5e16ef44cc089b44c072d88fa5af" [label=".gitmodules"]
+"7f846608a7818a8062874b9ce125dd1180d44f39" -> "81796958e28ff3f14bdb4a2c8313323eb07f8d61" [label="CMakeLists.txt"]
+"7f846608a7818a8062874b9ce125dd1180d44f39" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"7f846608a7818a8062874b9ce125dd1180d44f39" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"7f846608a7818a8062874b9ce125dd1180d44f39" -> "77fd025d986b364bb1a15dc431593a268e5227d5" [label="libs"]
+"7f846608a7818a8062874b9ce125dd1180d44f39" -> "b2a7c59f12c51526c4e87785babeb5de57277672" [label="src"]
+"80ffc017b04119c502e31134013cd0219fa7ac6c" [label="80ffc0" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob a294bd74c6d89ab991ddf48049a993875b044217	.gitmodules
+100644 blob 9a3d17e77ccefbb686f42218ff24cb268cb6b39e	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree ff06896aab8ecf229f0e39234855f790ede2c3dc	libs
+040000 tree a025a2d95642e6ffe531ee964c05b94952963145	src" fillcolor="skyblue" shape=folder  style=filled]
+"80ffc017b04119c502e31134013cd0219fa7ac6c" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"80ffc017b04119c502e31134013cd0219fa7ac6c" -> "a294bd74c6d89ab991ddf48049a993875b044217" [label=".gitmodules"]
+"80ffc017b04119c502e31134013cd0219fa7ac6c" -> "9a3d17e77ccefbb686f42218ff24cb268cb6b39e" [label="CMakeLists.txt"]
+"80ffc017b04119c502e31134013cd0219fa7ac6c" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"80ffc017b04119c502e31134013cd0219fa7ac6c" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"80ffc017b04119c502e31134013cd0219fa7ac6c" -> "ff06896aab8ecf229f0e39234855f790ede2c3dc" [label="libs"]
+"80ffc017b04119c502e31134013cd0219fa7ac6c" -> "a025a2d95642e6ffe531ee964c05b94952963145" [label="src"]
+"81537ce38309242b9327553d02b966978e309f87" -> "a84bbc3db1dc1086a795ecf00352e83b17be6a7b"
+"81537ce38309242b9327553d02b966978e309f87" -> "e599119770dedee22b1ee28116b9b918ad33f490"
+"9a54ddc300fc0927ad5c419e5cb199d230565089" -> "0a17549594201e4d2202aafb889ae57c1b1cf6d2"
+"9a54ddc300fc0927ad5c419e5cb199d230565089" -> "ceece7ab4c97c7b8ee16dca2827ced3f62e48d3e"
+"9a54ddc300fc0927ad5c419e5cb199d230565089" -> "d62036630bf570c5cbbb593213c3f301eb9f053e"
+"9b7b508d2096ebdd1c2f423de68819285bbc51e8" [label="9b7b50" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob 51a15fd83c6a5e16ef44cc089b44c072d88fa5af	.gitmodules
+100644 blob 9a3d17e77ccefbb686f42218ff24cb268cb6b39e	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree 77fd025d986b364bb1a15dc431593a268e5227d5	libs
+040000 tree a025a2d95642e6ffe531ee964c05b94952963145	src" fillcolor="skyblue" shape=folder  style=filled]
+"9b7b508d2096ebdd1c2f423de68819285bbc51e8" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"9b7b508d2096ebdd1c2f423de68819285bbc51e8" -> "51a15fd83c6a5e16ef44cc089b44c072d88fa5af" [label=".gitmodules"]
+"9b7b508d2096ebdd1c2f423de68819285bbc51e8" -> "9a3d17e77ccefbb686f42218ff24cb268cb6b39e" [label="CMakeLists.txt"]
+"9b7b508d2096ebdd1c2f423de68819285bbc51e8" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"9b7b508d2096ebdd1c2f423de68819285bbc51e8" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"9b7b508d2096ebdd1c2f423de68819285bbc51e8" -> "77fd025d986b364bb1a15dc431593a268e5227d5" [label="libs"]
+"9b7b508d2096ebdd1c2f423de68819285bbc51e8" -> "a025a2d95642e6ffe531ee964c05b94952963145" [label="src"]
+"9ead168ec68348556a0dc9f4347f8c6318bd52c4" [label="9ead16" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob 51a15fd83c6a5e16ef44cc089b44c072d88fa5af	.gitmodules
+100644 blob 81796958e28ff3f14bdb4a2c8313323eb07f8d61	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree 77fd025d986b364bb1a15dc431593a268e5227d5	libs
+040000 tree a025a2d95642e6ffe531ee964c05b94952963145	src" fillcolor="skyblue" shape=folder  style=filled]
+"9ead168ec68348556a0dc9f4347f8c6318bd52c4" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"9ead168ec68348556a0dc9f4347f8c6318bd52c4" -> "51a15fd83c6a5e16ef44cc089b44c072d88fa5af" [label=".gitmodules"]
+"9ead168ec68348556a0dc9f4347f8c6318bd52c4" -> "81796958e28ff3f14bdb4a2c8313323eb07f8d61" [label="CMakeLists.txt"]
+"9ead168ec68348556a0dc9f4347f8c6318bd52c4" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"9ead168ec68348556a0dc9f4347f8c6318bd52c4" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"9ead168ec68348556a0dc9f4347f8c6318bd52c4" -> "77fd025d986b364bb1a15dc431593a268e5227d5" [label="libs"]
+"9ead168ec68348556a0dc9f4347f8c6318bd52c4" -> "a025a2d95642e6ffe531ee964c05b94952963145" [label="src"]
+"9f65dac7227260dbbea99710ce6121b10b4ae23e" [label="9f65da" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob a294bd74c6d89ab991ddf48049a993875b044217	.gitmodules
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree ff06896aab8ecf229f0e39234855f790ede2c3dc	libs
+040000 tree a025a2d95642e6ffe531ee964c05b94952963145	src" fillcolor="skyblue" shape=folder  style=filled]
+"9f65dac7227260dbbea99710ce6121b10b4ae23e" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"9f65dac7227260dbbea99710ce6121b10b4ae23e" -> "a294bd74c6d89ab991ddf48049a993875b044217" [label=".gitmodules"]
+"9f65dac7227260dbbea99710ce6121b10b4ae23e" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"9f65dac7227260dbbea99710ce6121b10b4ae23e" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"9f65dac7227260dbbea99710ce6121b10b4ae23e" -> "ff06896aab8ecf229f0e39234855f790ede2c3dc" [label="libs"]
+"9f65dac7227260dbbea99710ce6121b10b4ae23e" -> "a025a2d95642e6ffe531ee964c05b94952963145" [label="src"]
+"9f374168be8d2118b6faf16b010b7e43b07078f3" -> "9b7b508d2096ebdd1c2f423de68819285bbc51e8"
+"9f374168be8d2118b6faf16b010b7e43b07078f3" -> "19228556d37a640693daec001dec6d88e5284b6f"
+"a025a2d95642e6ffe531ee964c05b94952963145" [label="a025a2" tooltip="100644 blob 58ffc0f95868baa0f5ed73dea7506aefaa5f4efe	main.cpp" fillcolor="skyblue" shape=folder  style=filled]
+"a025a2d95642e6ffe531ee964c05b94952963145" -> "58ffc0f95868baa0f5ed73dea7506aefaa5f4efe" [label="main.cpp"]
+"a3a037b4f95c421c2a94aec1ed06edcb1dc6c18c" [label="a3a037" tooltip="040000 tree 288fba1e42bce018989f893ff67637039ecf3001	glad
+160000 commit e7ea71be039836da3a98cea55ae5569cb5eb885c	glfw
+160000 commit 77f1d3b317c400c34ee02fe9a5354d0d757b55ca	imgui" fillcolor="skyblue" shape=folder  style=filled]
+"a3a037b4f95c421c2a94aec1ed06edcb1dc6c18c" -> "288fba1e42bce018989f893ff67637039ecf3001" [label="glad"]
+"a3a037b4f95c421c2a94aec1ed06edcb1dc6c18c" -> "e7ea71be039836da3a98cea55ae5569cb5eb885c" [label="glfw"]
+"a3a037b4f95c421c2a94aec1ed06edcb1dc6c18c" -> "77f1d3b317c400c34ee02fe9a5354d0d757b55ca" [label="imgui"]
+"a84bbc3db1dc1086a795ecf00352e83b17be6a7b" [label="a84bbc" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob 51a15fd83c6a5e16ef44cc089b44c072d88fa5af	.gitmodules
+100644 blob 81796958e28ff3f14bdb4a2c8313323eb07f8d61	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree 77fd025d986b364bb1a15dc431593a268e5227d5	libs
+040000 tree b8d13892a8cc3ec4df3339da0d00414652c918c3	shaders
+040000 tree b2a7c59f12c51526c4e87785babeb5de57277672	src" fillcolor="skyblue" shape=folder  style=filled]
+"a84bbc3db1dc1086a795ecf00352e83b17be6a7b" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"a84bbc3db1dc1086a795ecf00352e83b17be6a7b" -> "51a15fd83c6a5e16ef44cc089b44c072d88fa5af" [label=".gitmodules"]
+"a84bbc3db1dc1086a795ecf00352e83b17be6a7b" -> "81796958e28ff3f14bdb4a2c8313323eb07f8d61" [label="CMakeLists.txt"]
+"a84bbc3db1dc1086a795ecf00352e83b17be6a7b" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"a84bbc3db1dc1086a795ecf00352e83b17be6a7b" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"a84bbc3db1dc1086a795ecf00352e83b17be6a7b" -> "77fd025d986b364bb1a15dc431593a268e5227d5" [label="libs"]
+"a84bbc3db1dc1086a795ecf00352e83b17be6a7b" -> "b8d13892a8cc3ec4df3339da0d00414652c918c3" [label="shaders"]
+"a84bbc3db1dc1086a795ecf00352e83b17be6a7b" -> "b2a7c59f12c51526c4e87785babeb5de57277672" [label="src"]
+"aa8357554db0dc78df8ea2a555b88d2ce02d514f" [label="aa8357" tooltip="100644 blob a614223dd61e53e15d756f40d8b7d5c84e4628ab	Camera.cpp
+100644 blob a496e094f7fcf7f4bd504ee6a2d775b7b078206e	Camera.h
+100644 blob 3fceea892779073b3eb22f68879331499b00f345	Shader.cpp
+100644 blob 4217550d3ffcce4a010eee56b4e04ace4fad4f01	Shader.h
+100644 blob 86dec4371cf719c6f15b6596a39b7fc20b9a4a7d	main.cpp" fillcolor="skyblue" shape=folder  style=filled]
+"aa8357554db0dc78df8ea2a555b88d2ce02d514f" -> "a614223dd61e53e15d756f40d8b7d5c84e4628ab" [label="Camera.cpp"]
+"aa8357554db0dc78df8ea2a555b88d2ce02d514f" -> "a496e094f7fcf7f4bd504ee6a2d775b7b078206e" [label="Camera.h"]
+"aa8357554db0dc78df8ea2a555b88d2ce02d514f" -> "3fceea892779073b3eb22f68879331499b00f345" [label="Shader.cpp"]
+"aa8357554db0dc78df8ea2a555b88d2ce02d514f" -> "4217550d3ffcce4a010eee56b4e04ace4fad4f01" [label="Shader.h"]
+"aa8357554db0dc78df8ea2a555b88d2ce02d514f" -> "86dec4371cf719c6f15b6596a39b7fc20b9a4a7d" [label="main.cpp"]
+"b2a7c59f12c51526c4e87785babeb5de57277672" [label="b2a7c5" tooltip="100644 blob a614223dd61e53e15d756f40d8b7d5c84e4628ab	Camera.cpp
+100644 blob a496e094f7fcf7f4bd504ee6a2d775b7b078206e	Camera.h
+100644 blob 3fceea892779073b3eb22f68879331499b00f345	Shader.cpp
+100644 blob 4217550d3ffcce4a010eee56b4e04ace4fad4f01	Shader.h
+100644 blob 58ffc0f95868baa0f5ed73dea7506aefaa5f4efe	main.cpp" fillcolor="skyblue" shape=folder  style=filled]
+"b2a7c59f12c51526c4e87785babeb5de57277672" -> "a614223dd61e53e15d756f40d8b7d5c84e4628ab" [label="Camera.cpp"]
+"b2a7c59f12c51526c4e87785babeb5de57277672" -> "a496e094f7fcf7f4bd504ee6a2d775b7b078206e" [label="Camera.h"]
+"b2a7c59f12c51526c4e87785babeb5de57277672" -> "3fceea892779073b3eb22f68879331499b00f345" [label="Shader.cpp"]
+"b2a7c59f12c51526c4e87785babeb5de57277672" -> "4217550d3ffcce4a010eee56b4e04ace4fad4f01" [label="Shader.h"]
+"b2a7c59f12c51526c4e87785babeb5de57277672" -> "58ffc0f95868baa0f5ed73dea7506aefaa5f4efe" [label="main.cpp"]
+"b8d13892a8cc3ec4df3339da0d00414652c918c3" [label="b8d138" tooltip="100644 blob 94e42edd8c681fe897b2c37fb6f75939e5d6203e	basic.frag
+100644 blob 5a16abe1787ef779d9130dbf47fefd22f0f1f931	basic.vert" fillcolor="skyblue" shape=folder  style=filled]
+"b8d13892a8cc3ec4df3339da0d00414652c918c3" -> "94e42edd8c681fe897b2c37fb6f75939e5d6203e" [label="basic.frag"]
+"b8d13892a8cc3ec4df3339da0d00414652c918c3" -> "5a16abe1787ef779d9130dbf47fefd22f0f1f931" [label="basic.vert"]
+"bd6f5303dec8ab20b1deeba38566a8ec5e44dd68" [label="bd6f53" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob 15eae66c08249f6ba4c73d8c6e4bc60f76db0f3d	.gitmodules
+100644 blob 81796958e28ff3f14bdb4a2c8313323eb07f8d61	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree 77fd025d986b364bb1a15dc431593a268e5227d5	libs
+040000 tree b8d13892a8cc3ec4df3339da0d00414652c918c3	shaders
+040000 tree aa8357554db0dc78df8ea2a555b88d2ce02d514f	src" fillcolor="skyblue" shape=folder  style=filled]
+"bd6f5303dec8ab20b1deeba38566a8ec5e44dd68" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"bd6f5303dec8ab20b1deeba38566a8ec5e44dd68" -> "15eae66c08249f6ba4c73d8c6e4bc60f76db0f3d" [label=".gitmodules"]
+"bd6f5303dec8ab20b1deeba38566a8ec5e44dd68" -> "81796958e28ff3f14bdb4a2c8313323eb07f8d61" [label="CMakeLists.txt"]
+"bd6f5303dec8ab20b1deeba38566a8ec5e44dd68" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"bd6f5303dec8ab20b1deeba38566a8ec5e44dd68" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"bd6f5303dec8ab20b1deeba38566a8ec5e44dd68" -> "77fd025d986b364bb1a15dc431593a268e5227d5" [label="libs"]
+"bd6f5303dec8ab20b1deeba38566a8ec5e44dd68" -> "b8d13892a8cc3ec4df3339da0d00414652c918c3" [label="shaders"]
+"bd6f5303dec8ab20b1deeba38566a8ec5e44dd68" -> "aa8357554db0dc78df8ea2a555b88d2ce02d514f" [label="src"]
+"bf7e817e4f03578b98431fcda1de2a35e93c95e2" [label="bf7e81" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob f8aaf2138d9535bb37e81a0fb17f11b5aa98b78b	.gitmodules
+100644 blob 81796958e28ff3f14bdb4a2c8313323eb07f8d61	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree 77fd025d986b364bb1a15dc431593a268e5227d5	libs
+040000 tree b8d13892a8cc3ec4df3339da0d00414652c918c3	shaders
+040000 tree aa8357554db0dc78df8ea2a555b88d2ce02d514f	src" fillcolor="skyblue" shape=folder  style=filled]
+"bf7e817e4f03578b98431fcda1de2a35e93c95e2" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"bf7e817e4f03578b98431fcda1de2a35e93c95e2" -> "f8aaf2138d9535bb37e81a0fb17f11b5aa98b78b" [label=".gitmodules"]
+"bf7e817e4f03578b98431fcda1de2a35e93c95e2" -> "81796958e28ff3f14bdb4a2c8313323eb07f8d61" [label="CMakeLists.txt"]
+"bf7e817e4f03578b98431fcda1de2a35e93c95e2" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"bf7e817e4f03578b98431fcda1de2a35e93c95e2" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"bf7e817e4f03578b98431fcda1de2a35e93c95e2" -> "77fd025d986b364bb1a15dc431593a268e5227d5" [label="libs"]
+"bf7e817e4f03578b98431fcda1de2a35e93c95e2" -> "b8d13892a8cc3ec4df3339da0d00414652c918c3" [label="shaders"]
+"bf7e817e4f03578b98431fcda1de2a35e93c95e2" -> "aa8357554db0dc78df8ea2a555b88d2ce02d514f" [label="src"]
+"bf23f35d09bde277275575a6bd9fe27abe60e6bf" [label="bf23f3" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob 51a15fd83c6a5e16ef44cc089b44c072d88fa5af	.gitmodules
+100644 blob 81796958e28ff3f14bdb4a2c8313323eb07f8d61	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree 77fd025d986b364bb1a15dc431593a268e5227d5	libs
+040000 tree b8d13892a8cc3ec4df3339da0d00414652c918c3	shaders
+040000 tree aa8357554db0dc78df8ea2a555b88d2ce02d514f	src" fillcolor="skyblue" shape=folder  style=filled]
+"bf23f35d09bde277275575a6bd9fe27abe60e6bf" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"bf23f35d09bde277275575a6bd9fe27abe60e6bf" -> "51a15fd83c6a5e16ef44cc089b44c072d88fa5af" [label=".gitmodules"]
+"bf23f35d09bde277275575a6bd9fe27abe60e6bf" -> "81796958e28ff3f14bdb4a2c8313323eb07f8d61" [label="CMakeLists.txt"]
+"bf23f35d09bde277275575a6bd9fe27abe60e6bf" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"bf23f35d09bde277275575a6bd9fe27abe60e6bf" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"bf23f35d09bde277275575a6bd9fe27abe60e6bf" -> "77fd025d986b364bb1a15dc431593a268e5227d5" [label="libs"]
+"bf23f35d09bde277275575a6bd9fe27abe60e6bf" -> "b8d13892a8cc3ec4df3339da0d00414652c918c3" [label="shaders"]
+"bf23f35d09bde277275575a6bd9fe27abe60e6bf" -> "aa8357554db0dc78df8ea2a555b88d2ce02d514f" [label="src"]
+"c5bbfaa04ccd14f97d2a681d82c01eee688373fc" -> "27faaec26aa4a037939715c6b538489570dbd890"
+"c5bbfaa04ccd14f97d2a681d82c01eee688373fc" -> "ceece7ab4c97c7b8ee16dca2827ced3f62e48d3e"
+"c5bbfaa04ccd14f97d2a681d82c01eee688373fc" -> "1a9be81a7cba932167ee8b06341f8852e6b29384"
+"c71d3a12e4d5f1debaeb9cc532c3616f9dac9366" -> "9f65dac7227260dbbea99710ce6121b10b4ae23e"
+"c71d3a12e4d5f1debaeb9cc532c3616f9dac9366" -> "fc8e961b00368cbac4a366c0fcd005b73cb5c85f"
+"ce6e093abd1ad0d4d11eeef25171716924649a68" [label="ce6e09" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob fe811ec0ea6669041e003afe3651f989bf496df6	.gitmodules
+100644 blob 670220120b47e80167d9656190eda604b45babab	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree 071d0fefae112b8664ed4c9e9d74592aa3f951fa	include
+040000 tree 406447c913eb717ba35e22cc6e7c0b39f52c00c4	libs
+040000 tree b8d13892a8cc3ec4df3339da0d00414652c918c3	shaders
+040000 tree aa8357554db0dc78df8ea2a555b88d2ce02d514f	src" fillcolor="skyblue" shape=folder  style=filled]
+"ce6e093abd1ad0d4d11eeef25171716924649a68" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"ce6e093abd1ad0d4d11eeef25171716924649a68" -> "fe811ec0ea6669041e003afe3651f989bf496df6" [label=".gitmodules"]
+"ce6e093abd1ad0d4d11eeef25171716924649a68" -> "670220120b47e80167d9656190eda604b45babab" [label="CMakeLists.txt"]
+"ce6e093abd1ad0d4d11eeef25171716924649a68" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"ce6e093abd1ad0d4d11eeef25171716924649a68" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"ce6e093abd1ad0d4d11eeef25171716924649a68" -> "071d0fefae112b8664ed4c9e9d74592aa3f951fa" [label="include"]
+"ce6e093abd1ad0d4d11eeef25171716924649a68" -> "406447c913eb717ba35e22cc6e7c0b39f52c00c4" [label="libs"]
+"ce6e093abd1ad0d4d11eeef25171716924649a68" -> "b8d13892a8cc3ec4df3339da0d00414652c918c3" [label="shaders"]
+"ce6e093abd1ad0d4d11eeef25171716924649a68" -> "aa8357554db0dc78df8ea2a555b88d2ce02d514f" [label="src"]
+"ceece7ab4c97c7b8ee16dca2827ced3f62e48d3e" -> "1573011856271752143ac3be70cb5107e35460a8"
+"d17b4abf062eee6517d7a0b6ed9cc491d1f9777b" -> "472f6d754b6b733d2208d18aaa47ea49e3cd8d16"
+"d17b4abf062eee6517d7a0b6ed9cc491d1f9777b" -> "2cf29f7210229401f04042207309343f121e3bf9"
+"d38e975b716bd9efdba12b711ebc0e9f0194f76f" -> "1167142c1c36da8756130303abddf5d3b401b714"
+"d38e975b716bd9efdba12b711ebc0e9f0194f76f" -> "dae26413b4dfd95028ee0a8011a8a3e6d04faf4e"
+"d423b5c080d308a8b1c484a454c1dd73afe8bc3c" [label="d423b5" tooltip="100644 blob 1fdcbda09238e5392026a84b802fe6cda8f0021c	gl.c" fillcolor="skyblue" shape=folder  style=filled]
+"d423b5c080d308a8b1c484a454c1dd73afe8bc3c" -> "1fdcbda09238e5392026a84b802fe6cda8f0021c" [label="gl.c"]
+"d62036630bf570c5cbbb593213c3f301eb9f053e" -> "e91a19797518b7fb8d69123e3d82a2d62f1c6eab"
+"dae26413b4dfd95028ee0a8011a8a3e6d04faf4e" -> "9ead168ec68348556a0dc9f4347f8c6318bd52c4"
+"dae26413b4dfd95028ee0a8011a8a3e6d04faf4e" -> "9f374168be8d2118b6faf16b010b7e43b07078f3"
+"dc177c7af5a61ee36d8f49527056bb48920d33fe" [label="dc177c" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob fe811ec0ea6669041e003afe3651f989bf496df6	.gitmodules
+100644 blob 670220120b47e80167d9656190eda604b45babab	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree 071d0fefae112b8664ed4c9e9d74592aa3f951fa	include
+040000 tree 406447c913eb717ba35e22cc6e7c0b39f52c00c4	libs
+040000 tree b8d13892a8cc3ec4df3339da0d00414652c918c3	shaders
+040000 tree 3ab34b51a8f0f89a3658f0678b3343a85d6f9eb7	src" fillcolor="skyblue" shape=folder  style=filled]
+"dc177c7af5a61ee36d8f49527056bb48920d33fe" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"dc177c7af5a61ee36d8f49527056bb48920d33fe" -> "fe811ec0ea6669041e003afe3651f989bf496df6" [label=".gitmodules"]
+"dc177c7af5a61ee36d8f49527056bb48920d33fe" -> "670220120b47e80167d9656190eda604b45babab" [label="CMakeLists.txt"]
+"dc177c7af5a61ee36d8f49527056bb48920d33fe" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"dc177c7af5a61ee36d8f49527056bb48920d33fe" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"dc177c7af5a61ee36d8f49527056bb48920d33fe" -> "071d0fefae112b8664ed4c9e9d74592aa3f951fa" [label="include"]
+"dc177c7af5a61ee36d8f49527056bb48920d33fe" -> "406447c913eb717ba35e22cc6e7c0b39f52c00c4" [label="libs"]
+"dc177c7af5a61ee36d8f49527056bb48920d33fe" -> "b8d13892a8cc3ec4df3339da0d00414652c918c3" [label="shaders"]
+"dc177c7af5a61ee36d8f49527056bb48920d33fe" -> "3ab34b51a8f0f89a3658f0678b3343a85d6f9eb7" [label="src"]
+"ddd5e3c21e33fc30205a08c38baefd0966d7f3d6" -> "ce6e093abd1ad0d4d11eeef25171716924649a68"
+"ddd5e3c21e33fc30205a08c38baefd0966d7f3d6" -> "d17b4abf062eee6517d7a0b6ed9cc491d1f9777b"
+"e599119770dedee22b1ee28116b9b918ad33f490" -> "7f846608a7818a8062874b9ce125dd1180d44f39"
+"e599119770dedee22b1ee28116b9b918ad33f490" -> "d38e975b716bd9efdba12b711ebc0e9f0194f76f"
+"e975e2d533f9356953af17dea7373840197166f8" -> "1573011856271752143ac3be70cb5107e35460a8"
+"e975e2d533f9356953af17dea7373840197166f8" -> "ceece7ab4c97c7b8ee16dca2827ced3f62e48d3e"
+"e91a19797518b7fb8d69123e3d82a2d62f1c6eab" [label="e91a19" tooltip="100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE" fillcolor="skyblue" shape=folder  style=filled]
+"e91a19797518b7fb8d69123e3d82a2d62f1c6eab" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"f3d0d1167d84b4b8923d7d12f61dc53f5e6f4e4c" -> "80ffc017b04119c502e31134013cd0219fa7ac6c"
+"f3d0d1167d84b4b8923d7d12f61dc53f5e6f4e4c" -> "c71d3a12e4d5f1debaeb9cc532c3616f9dac9366"
+"f8d7b832f9f4d712d5976cbc2b6315e31e8b910b" [label="f8d7b8" tooltip="100644 blob 0e422af601ac24944accaee7a2d90cdf76b77b59	.gitignore
+100644 blob f8aaf2138d9535bb37e81a0fb17f11b5aa98b78b	.gitmodules
+100644 blob 670220120b47e80167d9656190eda604b45babab	CMakeLists.txt
+100644 blob 639c0145fb8cb2bff6b625654fdc68140b60cb2c	LICENSE
+100644 blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391	README.md
+040000 tree 77fd025d986b364bb1a15dc431593a268e5227d5	libs
+040000 tree b8d13892a8cc3ec4df3339da0d00414652c918c3	shaders
+040000 tree aa8357554db0dc78df8ea2a555b88d2ce02d514f	src" fillcolor="skyblue" shape=folder  style=filled]
+"f8d7b832f9f4d712d5976cbc2b6315e31e8b910b" -> "0e422af601ac24944accaee7a2d90cdf76b77b59" [label=".gitignore"]
+"f8d7b832f9f4d712d5976cbc2b6315e31e8b910b" -> "f8aaf2138d9535bb37e81a0fb17f11b5aa98b78b" [label=".gitmodules"]
+"f8d7b832f9f4d712d5976cbc2b6315e31e8b910b" -> "670220120b47e80167d9656190eda604b45babab" [label="CMakeLists.txt"]
+"f8d7b832f9f4d712d5976cbc2b6315e31e8b910b" -> "639c0145fb8cb2bff6b625654fdc68140b60cb2c" [label="LICENSE"]
+"f8d7b832f9f4d712d5976cbc2b6315e31e8b910b" -> "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391" [label="README.md"]
+"f8d7b832f9f4d712d5976cbc2b6315e31e8b910b" -> "77fd025d986b364bb1a15dc431593a268e5227d5" [label="libs"]
+"f8d7b832f9f4d712d5976cbc2b6315e31e8b910b" -> "b8d13892a8cc3ec4df3339da0d00414652c918c3" [label="shaders"]
+"f8d7b832f9f4d712d5976cbc2b6315e31e8b910b" -> "aa8357554db0dc78df8ea2a555b88d2ce02d514f" [label="src"]
+"f997b91713d3ae7acd02d4b3901c682553b2c501" -> "dc177c7af5a61ee36d8f49527056bb48920d33fe"
+"f997b91713d3ae7acd02d4b3901c682553b2c501" -> "ddd5e3c21e33fc30205a08c38baefd0966d7f3d6"
+"fc8e961b00368cbac4a366c0fcd005b73cb5c85f" -> "515775300deedf43eb6a4121ad2d5f81b5806cd0"
+"fc8e961b00368cbac4a366c0fcd005b73cb5c85f" -> "9a54ddc300fc0927ad5c419e5cb199d230565089"
+"ff06896aab8ecf229f0e39234855f790ede2c3dc" [label="ff0689" tooltip="160000 commit e7ea71be039836da3a98cea55ae5569cb5eb885c	glfw
+160000 commit 77f1d3b317c400c34ee02fe9a5354d0d757b55ca	imgui" fillcolor="skyblue" shape=folder  style=filled]
+"ff06896aab8ecf229f0e39234855f790ede2c3dc" -> "e7ea71be039836da3a98cea55ae5569cb5eb885c" [label="glfw"]
+"ff06896aab8ecf229f0e39234855f790ede2c3dc" -> "77f1d3b317c400c34ee02fe9a5354d0d757b55ca" [label="imgui"]
+}

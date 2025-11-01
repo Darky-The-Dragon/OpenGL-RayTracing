@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include "glad/gl.h"
 
 Shader::Shader(const char* vertexPath, const char* fragmentPath) {
     std::ifstream vFile(vertexPath);
@@ -52,15 +53,15 @@ void Shader::use() const {
     glUseProgram(ID);
 }
 
-void Shader::setBool(const std::string& name, bool value) const {
-    glUniform1i(glGetUniformLocation(ID, name.c_str()), (int)value);
+void Shader::setBool(const std::string &name, const bool value) const {
+    glUniform1i(glGetUniformLocation(ID, name.c_str()), static_cast<int>(value));
 }
 
-void Shader::setInt(const std::string& name, int value) const {
+void Shader::setInt(const std::string &name, const int value) const {
     glUniform1i(glGetUniformLocation(ID, name.c_str()), value);
 }
 
-void Shader::setFloat(const std::string& name, float value) const {
+void Shader::setFloat(const std::string &name, const float value) const {
     glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
 }
 
@@ -72,7 +73,7 @@ void Shader::setVec3(const std::string& name, const glm::vec3& value) const {
     glUniform3f(glGetUniformLocation(ID, name.c_str()), value.x, value.y, value.z);
 }
 
-void Shader::checkCompileErrors(unsigned int shader, const std::string& type) {
+void Shader::checkCompileErrors(const unsigned int shader, const std::string &type) {
     int success;
     char infoLog[1024];
 

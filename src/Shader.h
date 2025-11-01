@@ -2,7 +2,6 @@
 
 #include <string>
 #include <glm/glm.hpp>
-#include <glad/gl.h>
 
 class Shader {
 public:
@@ -18,5 +17,5 @@ public:
     void setVec3(const std::string& name, const glm::vec3& value) const;
 
 private:
-    void checkCompileErrors(unsigned int shader, const std::string& type);
+    static void checkCompileErrors(unsigned int shader, const std::string &type);
 };
