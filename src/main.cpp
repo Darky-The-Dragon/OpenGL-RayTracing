@@ -14,7 +14,13 @@
 // ===============================
 static bool gRayMode = true; // F2 toggles; start in ray mode
 static int gFrameIndex = 0; // reset to 0 on any camera/scene change
-static bool gPrevF2 = false, gPrevR = false;
+static bool gPrevF2 = false, gPrevR = false, gPrevF3 = false;
+
+// Per-frame sampling
+static int gSppPerFrame = 1; // 1/2/4/8 via hotkeys or F3 cycle
+
+// Exposure (for tonemapper)
+static float gExposure = 1.0f;
 
 // Ping-pong accumulation targets
 static GLuint gAccumTex[2] = {0, 0};
@@ -170,6 +176,34 @@ int main() {
         if (nowR && !gPrevR) { gFrameIndex = 0; }
         gPrevR = nowR;
 
+        // SPP hotkeys: 1/2/3/4 set to 1/2/4/8; F3 cycles
+        if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
+            gSppPerFrame = 2;
+            gFrameIndex = 0;
+        }
+        if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
+            gSppPerFrame = 4;
+            gFrameIndex = 0;
+        }
+        if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) {
+            gSppPerFrame = 8;
+            gFrameIndex = 0;
+        }
+        if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) {
+            gSppPerFrame = 16;
+            gFrameIndex = 0;
+        }
+        const bool nowF3 = glfwGetKey(window, GLFW_KEY_F3) == GLFW_PRESS;
+        if (nowF3 && !gPrevF3) {
+            gSppPerFrame = (gSppPerFrame == 2) ? 4 : (gSppPerFrame == 4) ? 8 : (gSppPerFrame == 8) ? 16 : 1;
+            gFrameIndex = 0;
+        }
+        gPrevF3 = nowF3;
+
+        // Exposure hotkeys: [ to decrease, ] to increase (clamped)
+        if (glfwGetKey(window, GLFW_KEY_LEFT_BRACKET) == GLFW_PRESS) { gExposure = std::max(0.05f, gExposure * 0.97f); }
+        if (glfwGetKey(window, GLFW_KEY_RIGHT_BRACKET) == GLFW_PRESS) { gExposure = std::min(8.0f, gExposure * 1.03f); }
+
         // Detect camera change and reset accumulation
         if (glm::distance(prevPos, camera.Position) > 1e-6f || std::fabs(prevFov - camera.Fov) > 1e-6f) {
             gFrameIndex = 0;
@@ -216,8 +250,8 @@ int main() {
             gRtShader->setFloat("uTanHalfFov", tanHalfFov);
             gRtShader->setFloat("uAspect", camera.AspectRatio);
             gRtShader->setInt("uFrameIndex", gFrameIndex);
+            gRtShader->setInt("uSpp", gSppPerFrame);
 
-            // If your Shader lacks setVec2, use raw glUniform2f:
             if (const GLint locRes = glGetUniformLocation(gRtShader->ID, "uResolution"); locRes >= 0)
                 glUniform2f(locRes, static_cast<float>(fbw), static_cast<float>(fbh));
 
@@ -236,6 +270,7 @@ int main() {
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gAccumTex[gWriteIdx]);
             gPresentShader->setInt("uTex", 0);
+            gPresentShader->setFloat("uExposure", gExposure); // NEW
             glBindVertexArray(gFsVao);
             glDrawArrays(GL_TRIANGLES, 0, 3);
 

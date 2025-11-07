@@ -13,10 +13,11 @@ uniform float uAspect;
 uniform int   uFrameIndex;
 uniform vec2  uResolution;
 uniform sampler2D uPrevAccum;
+uniform int uSpp;
 
 // ----------- Params you can tweak -----------
-#define SOFT_SHADOW_SAMPLES 4      // spp per frame toward area light (converges over time)
-#define ENABLE_MIRROR_BOUNCE 1     // 1 = one perfect reflection bounce
+#define SOFT_SHADOW_SAMPLES 4
+#define ENABLE_MIRROR_BOUNCE 1
 const float EPS = 1e-4;
 const float PI  = 3.1415926535;
 const float INF = 1e30;
@@ -24,15 +25,13 @@ const float INF = 1e30;
 // ----------- Scene & materials -----------
 struct Hit { float t; vec3 p; vec3 n; int mat; };
 
-// Materials: 0=diffuse gray, 1=red, 2=green, 3=mirror
 vec3 materialAlbedo(int id) {
     if (id == 1) return vec3(0.85, 0.25, 0.25);
     if (id == 2) return vec3(0.25, 0.85, 0.35);
-    if (id == 3) return vec3(0.95); // mirror color multiplier
+    if (id == 3) return vec3(0.95);
     return vec3(0.8);
 }
 
-// Plane: dot(n, x) + d = 0  (assume n normalized)
 bool intersectPlane(vec3 ro, vec3 rd, vec3 n, float d, out Hit h, int matId) {
     float denom = dot(n, rd);
     if (abs(denom) < 1e-6) return false;
@@ -74,7 +73,7 @@ bool traceScene(vec3 ro, vec3 rd, out Hit hit) {
 const vec3  kLightCenter = vec3(0.0, 5.0, -3.0);
 const vec3  kLightN      = normalize(vec3(0.0, -1.0, 0.2));
 const float kLightRadius = 1.2;
-const vec3  kLightCol    = vec3(18.0); // intensity
+const vec3 kLightCol = vec3(18.0);
 
 // Concentric disk mapping
 vec2 concentricSample(vec2 u) {
@@ -93,7 +92,9 @@ uint hash2(uvec2 v) {
     v = v * 1664525u + 1013904223u;
     return v.x ^ v.y;
 }
-float rand(vec2 p, int frame) { return float(hash2(uvec2(p) ^ uvec2(frame, frame*1663))) / 4294967296.0; }
+float rand(vec2 p, int frame) {
+    return float(hash2(uvec2(p) ^ uvec2(frame, frame * 1663))) / 4294967296.0;
+}
 
 // distance-scaled epsilon to reduce self-shadow acne on far tests
 float epsForDist(float d) { return max(1e-4, 1e-3 * d); }
@@ -107,12 +108,10 @@ bool occludedToward(vec3 p, vec3 q) {
     return false;
 }
 
-// Direct lighting from the disk area light (Next Event Estimation)
 vec3 directLight(Hit h, int frame) {
     vec3 N = h.n;
     vec3 sum = vec3(0.0);
 
-    // Light ONB
     vec3 t = normalize(abs(kLightN.y) < 0.99 ? cross(kLightN, vec3(0,1,0)) : cross(kLightN, vec3(1,0,0)));
     vec3 b = cross(kLightN, t);
 
@@ -124,7 +123,7 @@ vec3 directLight(Hit h, int frame) {
 
         vec3 L  = normalize(xL - h.p);
         float ndl = max(dot(N, L), 0.0);
-        float cosThetaL = max(dot(-kLightN, L), 0.0); // light faces the point
+        float cosThetaL = max(dot(-kLightN, L), 0.0);
 
         float r2 = max(dot(xL - h.p, xL - h.p), 1e-4);
         float geom = (ndl * cosThetaL) / r2;
@@ -181,53 +180,77 @@ vec3 indirectDiffuseBounce(Hit h, int frame) {
     }
 }
 
+// --- Luminance clamp to fight rare fireflies
+vec3 clampLuminance(vec3 c, float maxLum) {
+    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+    if (lum > maxLum) c *= (maxLum / max(lum, 1e-6));
+    return c;
+}
+
 // ================== MAIN ==================
 void main() {
-    // Subpixel jitter (AA that converges over time)
-    vec2 jitter = vec2(rand(gl_FragCoord.xy, uFrameIndex),
-    rand(gl_FragCoord.yx, uFrameIndex*13)) - 0.5;
-    vec2 uv = (gl_FragCoord.xy + jitter) / uResolution;
+    vec3 frameSum = vec3(0.0);
 
-    // Ray generation
-    vec2 ndc = uv * 2.0 - 1.0;
-    vec3 dir = normalize(
-        uCamFwd +
-        ndc.x * uCamRight * (uTanHalfFov * uAspect) +
-        ndc.y * uCamUp    *  uTanHalfFov
-    );
+    // Multi-sample per frame: reduces visible noise while moving
+    for (int s = 0; s < max(uSpp, 1); ++s) {
+        int seed = uFrameIndex * max(uSpp, 1) + s;
 
-    Hit  h;
-    vec3 radiance = vec3(0.0);
+        // Subpixel jitter per sample
+        vec2 jitter = vec2(
+        rand(gl_FragCoord.xy + float(s), seed),
+        rand(gl_FragCoord.yx + float(13 + 31 * s), seed)
+        ) - 0.5;
 
-    if (traceScene(uCamPos, dir, h)) {
-        // Direct light (soft shadows)
-        radiance = directLight(h, uFrameIndex);
+        vec2 uv = (gl_FragCoord.xy + jitter) / uResolution;
 
-        // Add one indirect diffuse bounce for non-mirror surfaces
-        if (h.mat != 3) {
-            radiance += indirectDiffuseBounce(h, uFrameIndex);
-        }
+        // Ray generation
+        vec2 ndc = uv * 2.0 - 1.0;
+        vec3 dir = normalize(
+            uCamFwd +
+            ndc.x * uCamRight * (uTanHalfFov * uAspect) +
+            ndc.y * uCamUp * uTanHalfFov
+        );
 
-        #if ENABLE_MIRROR_BOUNCE
-        if (h.mat == 3) {
-            // Single perfect specular bounce
-            vec3 rdir = reflect(dir, h.n);
-            Hit h2;
-            if (traceScene(h.p + h.n*EPS, rdir, h2)) {
-                radiance += 0.9 * directLight(h2, uFrameIndex); // 0.9 = mirror tint
-            } else {
-                radiance += 0.9 * sky(rdir);
+        Hit h;
+        vec3 radiance = vec3(0.0);
+
+        if (traceScene(uCamPos, dir, h)) {
+            // Direct light (soft shadows)
+            radiance = directLight(h, seed);
+
+            // Add one indirect diffuse bounce for non-mirror surfaces
+            if (h.mat != 3) {
+                radiance += indirectDiffuseBounce(h, seed);
             }
+
+            #if ENABLE_MIRROR_BOUNCE
+            if (h.mat == 3) {
+                vec3 rdir = reflect(dir, h.n);
+                Hit h2;
+                if (traceScene(h.p + h.n * EPS, rdir, h2)) {
+                    radiance += 0.9 * directLight(h2, seed);
+                } else {
+                    radiance += 0.9 * sky(rdir);
+                }
+            }
+            #endif
+        } else {
+            radiance = sky(dir);
         }
-        #endif
-    } else {
-        radiance = sky(dir);
+
+        // Clamp rare outliers a bit (keeps highlights; avoids big spikes)
+        radiance = clampLuminance(radiance, 10.0);
+
+        frameSum += radiance;
     }
 
-    // -------- Accumulate in LINEAR space --------
+    // Average this frame’s SPP
+    vec3 frameAvg = frameSum / float(max(uSpp, 1));
+
+    // Running average in LINEAR space
     vec3 prev = texture(uPrevAccum, vUV).rgb;
     float n   = float(uFrameIndex);
-    vec3 accum = (prev * n + radiance) / (n + 1.0);
+    vec3 accum = (prev * n + frameAvg) / (n + 1.0);
 
     fragColor = vec4(accum, 1.0); // store LINEAR; gamma is applied in rt_present.frag
 }
