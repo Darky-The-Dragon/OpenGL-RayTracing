@@ -52,6 +52,8 @@ add_executable(OpenGLRayTracing
         src/Camera.h
         src/Shader.cpp
         src/Shader.h
+        src/main.cpp
+        src/bvh.cpp
 )
 
 # ------------------------------------------------------------
@@ -60,11 +62,11 @@ add_executable(OpenGLRayTracing
 
 target_link_libraries(OpenGLRayTracing glfw glad imgui assimp)
 
-if(APPLE)
+if (APPLE)
     target_link_libraries(OpenGLRayTracing "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
-endif()
+endif ()
 
-if(WIN32 OR UNIX AND NOT APPLE)
+if (WIN32 OR UNIX AND NOT APPLE)
     find_package(OpenGL REQUIRED)
     target_link_libraries(OpenGLRayTracing OpenGL::GL)
-endif()
+endif ()

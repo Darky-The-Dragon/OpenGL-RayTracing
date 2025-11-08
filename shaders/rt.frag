@@ -1,88 +1,82 @@
 #version 410 core
-
 in vec2 vUV;
 out vec4 fragColor;
 
-// --- Uniforms from C++ (must match your main.cpp) ---
-uniform vec3  uCamPos;
-uniform vec3  uCamRight;
-uniform vec3  uCamUp;
-uniform vec3  uCamFwd;
+// Camera & accumulation
+uniform vec3 uCamPos;
+uniform vec3 uCamRight;
+uniform vec3 uCamUp;
+uniform vec3 uCamFwd;
 uniform float uTanHalfFov;
 uniform float uAspect;
-uniform int   uFrameIndex;
-uniform vec2  uResolution;
+uniform int uFrameIndex;
+uniform vec2 uResolution;
 uniform sampler2D uPrevAccum;
 uniform int uSpp;
 
-// ----------- Params you can tweak -----------
+// Scene mode
+uniform int uUseBVH;     // 0 = analytic (plane+spheres), 1 = BVH triangle scene
+uniform int uNodeCount;
+uniform int uTriCount;
+
+// BVH TBOs (only used if uUseBVH==1)
+uniform samplerBuffer uBvhNodes;
+uniform samplerBuffer uBvhTris;
+
+// Params
 #define SOFT_SHADOW_SAMPLES 4
 #define ENABLE_MIRROR_BOUNCE 1
 const float EPS = 1e-4;
-const float PI  = 3.1415926535;
+const float PI = 3.1415926535;
 const float INF = 1e30;
 
-// ----------- Scene & materials -----------
+// ---------------- Materials (analytic) -------------
 struct Hit { float t; vec3 p; vec3 n; int mat; };
-
 vec3 materialAlbedo(int id) {
     if (id == 1) return vec3(0.85, 0.25, 0.25);
     if (id == 2) return vec3(0.25, 0.85, 0.35);
-    if (id == 3) return vec3(0.95);
+    if (id == 3) return vec3(0.95); // mirror
     return vec3(0.8);
 }
 
+// -------- Analytic intersections --------
 bool intersectPlane(vec3 ro, vec3 rd, vec3 n, float d, out Hit h, int matId) {
     float denom = dot(n, rd);
     if (abs(denom) < 1e-6) return false;
     float t = -(dot(n, ro) + d) / denom;
     if (t < EPS) return false;
-    h.t = t; h.p = ro + rd*t; h.n = n; h.mat = matId; return true;
+    h.t = t; h.p = ro + rd * t; h.n = n; h.mat = matId; return true;
 }
-
 bool intersectSphere(vec3 ro, vec3 rd, vec3 c, float r, out Hit h, int matId) {
     vec3 oc = ro - c;
     float b = dot(oc, rd);
-    float c2 = dot(oc, oc) - r*r;
-    float disc = b*b - c2;
+    float c2 = dot(oc, oc) - r * r;
+    float disc = b * b - c2;
     if (disc < 0.0) return false;
     float s = sqrt(disc);
-    float t = -b - s;
-    if (t < EPS) t = -b + s;
-    if (t < EPS) return false;
-    h.t = t; h.p = ro + rd*t; h.n = normalize(h.p - c); h.mat = matId; return true;
+    float t = -b - s; if (t < EPS) t = -b + s; if (t < EPS) return false;
+    h.t = t; h.p = ro + rd * t; h.n = normalize(h.p - c); h.mat = matId; return true;
 }
-
-bool traceScene(vec3 ro, vec3 rd, out Hit hit) {
-    hit.t = INF;
-    Hit h;
-
-    // Ground y=0
-    if (intersectPlane(ro, rd, vec3(0,1,0), 0.0, h, 0) && h.t < hit.t) hit = h;
-
-    // Left sphere (diffuse red)
+bool traceAnalytic(vec3 ro, vec3 rd, out Hit hit) {
+    hit.t = INF; Hit h;
+    if (intersectPlane(ro, rd, vec3(0, 1, 0), 0.0, h, 0) && h.t < hit.t) hit = h;
     if (intersectSphere(ro, rd, vec3(-1.2, 1.0, -3.5), 1.0, h, 1) && h.t < hit.t) hit = h;
-
-    // Right sphere (mirror)
-    if (intersectSphere(ro, rd, vec3( 1.2, 0.7, -2.5), 0.7, h, 3) && h.t < hit.t) hit = h;
-
+    if (intersectSphere(ro, rd, vec3(1.2, 0.7, -2.5), 0.7, h, 3) && h.t < hit.t) hit = h;
     return hit.t < INF;
 }
 
-// ----------- Area light (disk) -----------
-const vec3  kLightCenter = vec3(0.0, 5.0, -3.0);
-const vec3  kLightN      = normalize(vec3(0.0, -1.0, 0.2));
+// ------------- Light --------------
+const vec3 kLightCenter = vec3(0.0, 5.0, -3.0);
+const vec3 kLightN = normalize(vec3(0.0, -1.0, 0.2));
 const float kLightRadius = 1.2;
 const vec3 kLightCol = vec3(18.0);
 
-// Concentric disk mapping
 vec2 concentricSample(vec2 u) {
-    float a = 2.0*u.x - 1.0;
-    float b = 2.0*u.y - 1.0;
+    float a = 2.0 * u.x - 1.0; float b = 2.0 * u.y - 1.0;
     float r, phi;
     if (a == 0.0 && b == 0.0) { r = 0.0; phi = 0.0; }
-    else if (abs(a) > abs(b)) { r = a; phi = (PI/4.0) * (b/a); }
-    else { r = b; phi = (PI/2.0) - (PI/4.0) * (a/b); }
+    else if (abs(a) > abs(b)) { r = a; phi = (PI / 4.0) * (b / a); }
+    else { r = b; phi = (PI / 2.0) - (PI / 4.0) * (a / b); }
     return r * vec2(cos(phi), sin(phi));
 }
 
@@ -95,92 +89,223 @@ uint hash2(uvec2 v) {
 float rand(vec2 p, int frame) {
     return float(hash2(uvec2(p) ^ uvec2(frame, frame * 1663))) / 4294967296.0;
 }
-
-// distance-scaled epsilon to reduce self-shadow acne on far tests
+// distance-scaled epsilon
 float epsForDist(float d) { return max(1e-4, 1e-3 * d); }
 
-bool occludedToward(vec3 p, vec3 q) {
-    vec3 rd = normalize(q - p);
-    float maxT = length(q - p);
-    float eps  = epsForDist(maxT);
-    Hit h;
-    if (traceScene(p + rd * eps, rd, h) && h.t < maxT - eps) return true;
+// -------- Sky ----------
+vec3 sky(vec3 d) {
+    float t = clamp(0.5 * (d.y + 1.0), 0.0, 1.0);
+    return mix(vec3(0.7, 0.8, 1.0) * 0.6, vec3(0.1, 0.2, 0.5), 1.0 - t);
+}
+
+// -------- BVH fetch helpers ----------
+struct TriSOA { vec3 v0; vec3 e1; vec3 e2; };
+TriSOA triFetch(int triIdx) {
+    int base = triIdx * 3;
+    vec4 t0 = texelFetch(uBvhTris, base + 0);
+    vec4 t1 = texelFetch(uBvhTris, base + 1);
+    vec4 t2 = texelFetch(uBvhTris, base + 2);
+    TriSOA T; T.v0 = t0.xyz; T.e1 = t1.xyz; T.e2 = t2.xyz; return T;
+}
+struct NodeSOA {
+    vec3 bmin; int left;
+    vec3 bmax; int right;
+    int first; int count;
+};
+NodeSOA nodeFetch(int nodeIdx) {
+    int base = nodeIdx * 3;
+    vec4 n0 = texelFetch(uBvhNodes, base + 0);
+    vec4 n1 = texelFetch(uBvhNodes, base + 1);
+    vec4 n2 = texelFetch(uBvhNodes, base + 2);
+    NodeSOA N;
+    N.bmin = n0.xyz; N.left = int(n0.w + 0.5);
+    N.bmax = n1.xyz; N.right = int(n1.w + 0.5);
+    N.first = int(n2.x + 0.5);
+    N.count = int(n2.y + 0.5);
+    return N;
+}
+
+// Ray-AABB
+bool aabbHit(vec3 ro, vec3 rdInv, vec3 bmin, vec3 bmax, out float tminOut, out float tmaxOut) {
+    vec3 t0 = (bmin - ro) * rdInv;
+    vec3 t1 = (bmax - ro) * rdInv;
+    vec3 tsm = min(t0, t1);
+    vec3 tbg = max(t0, t1);
+    float tmin = max(max(tsm.x, tsm.y), max(tsm.z, 0.0));
+    float tmax = min(min(tbg.x, tbg.y), tbg.z);
+    tminOut = tmin; tmaxOut = tmax;
+    return tmax >= tmin;
+}
+
+// Ray-tri Möller–Trumbore with precomputed v0,e1,e2
+bool triHit(vec3 ro, vec3 rd, TriSOA T, float tMax, out float t, out vec3 n) {
+    vec3 pvec = cross(rd, T.e2);
+    float det = dot(T.e1, pvec);
+    if (abs(det) < 1e-8) return false;
+    float invDet = 1.0 / det;
+    vec3 tvec = ro - T.v0;
+    float u = dot(tvec, pvec) * invDet; if (u < 0.0 || u > 1.0) return false;
+    vec3 qvec = cross(tvec, T.e1);
+    float v = dot(rd, qvec) * invDet; if (v < 0.0 || u + v > 1.0) return false;
+    float tt = dot(T.e2, qvec) * invDet; if (tt < EPS || tt > tMax) return false;
+    t = tt;
+    n = normalize(cross(T.e1, T.e2));
+    return true;
+}
+
+// BVH traversal (closest-hit)
+bool traceBVH(vec3 ro, vec3 rd, out Hit hitOut) {
+    if (uNodeCount <= 0 || uTriCount <= 0) return false;
+    hitOut.t = INF; hitOut.n = vec3(0); hitOut.mat = 1; // diffuse default
+    float tminBox, tmaxBox;
+    vec3 rdInv = 1.0 / rd;
+
+    int stack[64];
+    int sp = 0; stack[sp++] = 0;
+
+    while (sp > 0) {
+        int ni = stack[--sp];
+        NodeSOA N = nodeFetch(ni);
+        if (!aabbHit(ro, rdInv, N.bmin, N.bmax, tminBox, tmaxBox) || tminBox > hitOut.t) continue;
+
+        if (N.count > 0) {
+            for (int i = 0; i < N.count; ++i) {
+                int triIdx = N.first + i;
+                TriSOA T = triFetch(triIdx);
+                float t; vec3 n;
+                if (triHit(ro, rd, T, hitOut.t, t, n)) {
+                    hitOut.t = t;
+                    hitOut.p = ro + rd * t;
+                    hitOut.n = n;
+                    hitOut.mat = 1; // triangles = diffuse
+                }
+            }
+        } else {
+            NodeSOA L = nodeFetch(N.left);
+            NodeSOA R = nodeFetch(N.right);
+            float tminL, tmaxL, tminR, tmaxR;
+            bool hitL = aabbHit(ro, rdInv, L.bmin, L.bmax, tminL, tmaxL) && tminL <= hitOut.t;
+            bool hitR = aabbHit(ro, rdInv, R.bmin, R.bmax, tminR, tmaxR) && tminR <= hitOut.t;
+            if (hitL && hitR) {
+                bool leftFirst = tminL < tminR;
+                stack[sp++] = leftFirst ? N.right : N.left;
+                stack[sp++] = leftFirst ? N.left : N.right;
+            } else if (hitL) {
+                stack[sp++] = N.left;
+            } else if (hitR) {
+                stack[sp++] = N.right;
+            }
+        }
+    }
+    return hitOut.t < INF;
+}
+
+// BVH traversal (shadow ray, early-out)
+bool traceBVHShadow(vec3 ro, vec3 rd, float tMax) {
+    if (uNodeCount <= 0 || uTriCount <= 0) return false; // no occluders
+    float tminBox, tmaxBox;
+    vec3 rdInv = 1.0 / rd;
+
+    int stack[64];
+    int sp = 0; stack[sp++] = 0;
+
+    while (sp > 0) {
+        int ni = stack[--sp];
+        NodeSOA N = nodeFetch(ni);
+        if (!aabbHit(ro, rdInv, N.bmin, N.bmax, tminBox, tmaxBox) || tminBox > tMax) continue;
+
+        if (N.count > 0) {
+            for (int i = 0; i < N.count; ++i) {
+                int triIdx = N.first + i;
+                TriSOA T = triFetch(triIdx);
+                float t; vec3 n;
+                if (triHit(ro, rd, T, tMax, t, n)) {
+                    // any hit before light → occluded
+                    return true;
+                }
+            }
+        } else {
+            NodeSOA L = nodeFetch(N.left);
+            NodeSOA R = nodeFetch(N.right);
+            float tminL, tmaxL, tminR, tmaxR;
+            bool hitL = aabbHit(ro, rdInv, L.bmin, L.bmax, tminL, tmaxL) && tminL <= tMax;
+            bool hitR = aabbHit(ro, rdInv, R.bmin, R.bmax, tminR, tmaxR) && tminR <= tMax;
+            if (hitL && hitR) {
+                bool leftFirst = tminL < tminR;
+                stack[sp++] = leftFirst ? N.right : N.left;
+                stack[sp++] = leftFirst ? N.left : N.right;
+            } else if (hitL) {
+                stack[sp++] = N.left;
+            } else if (hitR) {
+                stack[sp++] = N.right;
+            }
+        }
+    }
     return false;
 }
 
+// Unified shadow test for both modes
+bool occludedToward(vec3 p, vec3 q) {
+    vec3 rd = normalize(q - p);
+    float maxT = length(q - p);
+    float eps = epsForDist(maxT);
+    if (uUseBVH == 1) {
+        // BVH triangles scene
+        return traceBVHShadow(p + rd * eps, rd, maxT - eps);
+    } else {
+        // Analytic scene
+        Hit h;
+        if (traceAnalytic(p + rd * eps, rd, h) && h.t < maxT - eps) return true;
+        return false;
+    }
+}
+
+// Direct lighting (analytic)
 vec3 directLight(Hit h, int frame) {
     vec3 N = h.n;
     vec3 sum = vec3(0.0);
-
-    vec3 t = normalize(abs(kLightN.y) < 0.99 ? cross(kLightN, vec3(0,1,0)) : cross(kLightN, vec3(1,0,0)));
+    vec3 t = normalize(abs(kLightN.y) < 0.99 ? cross(kLightN, vec3(0, 1, 0)) : cross(kLightN, vec3(1, 0, 0)));
     vec3 b = cross(kLightN, t);
-
-    for (int i=0; i<SOFT_SHADOW_SAMPLES; ++i) {
+    for (int i = 0; i < SOFT_SHADOW_SAMPLES; ++i) {
         vec2 u = vec2(rand(gl_FragCoord.xy + float(i), frame),
-        rand(gl_FragCoord.yx + float(31*i+7), frame));
-        vec2 d  = concentricSample(u) * kLightRadius;
-        vec3 xL = kLightCenter + t*d.x + b*d.y;
-
-        vec3 L  = normalize(xL - h.p);
+        rand(gl_FragCoord.yx + float(31 * i + 7), frame));
+        vec2 d = concentricSample(u) * kLightRadius;
+        vec3 xL = kLightCenter + t * d.x + b * d.y;
+        vec3 L = normalize(xL - h.p);
         float ndl = max(dot(N, L), 0.0);
         float cosThetaL = max(dot(-kLightN, L), 0.0);
-
         float r2 = max(dot(xL - h.p, xL - h.p), 1e-4);
         float geom = (ndl * cosThetaL) / r2;
-
         float vis = occludedToward(h.p, xL) ? 0.0 : 1.0;
         sum += materialAlbedo(h.mat) * kLightCol * geom * vis / PI;
     }
     return sum / float(SOFT_SHADOW_SAMPLES);
 }
 
-// ----------- Sky -----------
-vec3 sky(vec3 d) {
-    float t = clamp(0.5*(d.y + 1.0), 0.0, 1.0);
-    return mix(vec3(0.7, 0.8, 1.0)*0.6, vec3(0.1,0.2,0.5), 1.0 - t);
-}
-
-// ----------- GI helpers (Option A) -----------
-// Stable ONB (Pixar style)
-void buildONB(in vec3 n, out vec3 t, out vec3 b) {
-    float sign = n.z >= 0.0 ? 1.0 : -1.0;
-    float a = -1.0 / (sign + n.z);
-    float bb = n.x * n.y * a;
-    t = normalize(vec3(1.0 + sign*n.x*n.x*a, sign*bb, -sign*n.x));
-    b = normalize(vec3(bb, sign + n.y*n.y*a, -n.y));
-}
-
-// Cosine-weighted hemisphere sample in world space
-vec3 cosineSampleHemisphere(vec2 u, vec3 n) {
-    float r = sqrt(u.x);
-    float theta = 6.28318530718 * u.y;
-    float x = r * cos(theta), y = r * sin(theta);
-    float z = sqrt(max(0.0, 1.0 - x*x - y*y));
-    vec3 t,b; buildONB(n,t,b);
-    return normalize(x*t + y*b + z*n);
-}
-
-// Tiny RNG distinct from rand()
-uint hash1(uvec2 v){ v=v*1664525u+1013904223u; v^=v>>16; v=v*1664525u+1013904223u; return v.x^v.y; }
-float rand01(uvec2 p){ return float(hash1(p))*2.3283064365386963e-10; }
-
-// One cheap indirect bounce: cosine hemisphere to next hit, then take direct light there
-vec3 indirectDiffuseBounce(Hit h, int frame) {
-    vec2 xi = vec2(rand01(uvec2(gl_FragCoord.xy) ^ uvec2(frame, 97)),
-    rand01(uvec2(gl_FragCoord.yx) ^ uvec2(17, frame*31)));
-    vec3 wi = cosineSampleHemisphere(xi, h.n);
-
-    Hit h2;
-    if (traceScene(h.p + wi*EPS, wi, h2)) {
-        vec3 Li = directLight(h2, frame + 1234);
-        return materialAlbedo(h.mat) * Li; // BRDF*cos/pdf simplifies to albedo
-    } else {
-        vec3 Li = sky(wi);
-        return materialAlbedo(h.mat) * Li;
+// Direct-light for BVH hit (diffuse triangles)
+vec3 directLightBVH(Hit h, int frame) {
+    vec3 N = h.n;
+    vec3 sum = vec3(0.0);
+    vec3 t = normalize(abs(kLightN.y) < 0.99 ? cross(kLightN, vec3(0, 1, 0)) : cross(kLightN, vec3(1, 0, 0)));
+    vec3 b = cross(kLightN, t);
+    for (int i = 0; i < SOFT_SHADOW_SAMPLES; ++i) {
+        vec2 u = vec2(rand(gl_FragCoord.xy + float(i), frame),
+        rand(gl_FragCoord.yx + float(31 * i + 7), frame));
+        vec2 d = concentricSample(u) * kLightRadius;
+        vec3 xL = kLightCenter + t * d.x + b * d.y;
+        vec3 L = normalize(xL - h.p);
+        float ndl = max(dot(N, L), 0.0);
+        float cosThetaL = max(dot(-kLightN, L), 0.0);
+        float r2 = max(dot(xL - h.p, xL - h.p), 1e-4);
+        float geom = (ndl * cosThetaL) / r2;
+        float vis = occludedToward(h.p, xL) ? 0.0 : 1.0;  // NOW uses BVH shadows
+        vec3 albedo = vec3(0.8);
+        sum += albedo * kLightCol * geom * vis / PI;
     }
+    return sum / float(SOFT_SHADOW_SAMPLES);
 }
 
-// --- Luminance clamp to fight rare fireflies
+// --------- Luminance clamp ----------
 vec3 clampLuminance(vec3 c, float maxLum) {
     float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
     if (lum > maxLum) c *= (maxLum / max(lum, 1e-6));
@@ -190,67 +315,46 @@ vec3 clampLuminance(vec3 c, float maxLum) {
 // ================== MAIN ==================
 void main() {
     vec3 frameSum = vec3(0.0);
+    int SPP = max(uSpp, 1);
 
-    // Multi-sample per frame: reduces visible noise while moving
-    for (int s = 0; s < max(uSpp, 1); ++s) {
-        int seed = uFrameIndex * max(uSpp, 1) + s;
-
-        // Subpixel jitter per sample
+    for (int s = 0; s < SPP; ++s) {
+        int seed = uFrameIndex * SPP + s;
         vec2 jitter = vec2(
         rand(gl_FragCoord.xy + float(s), seed),
         rand(gl_FragCoord.yx + float(13 + 31 * s), seed)
         ) - 0.5;
 
         vec2 uv = (gl_FragCoord.xy + jitter) / uResolution;
-
-        // Ray generation
         vec2 ndc = uv * 2.0 - 1.0;
-        vec3 dir = normalize(
-            uCamFwd +
-            ndc.x * uCamRight * (uTanHalfFov * uAspect) +
-            ndc.y * uCamUp * uTanHalfFov
-        );
+        vec3 dir = normalize(uCamFwd
+                             + ndc.x * uCamRight * (uTanHalfFov * uAspect)
+        + ndc.y * uCamUp * uTanHalfFov);
 
-        Hit h;
         vec3 radiance = vec3(0.0);
 
-        if (traceScene(uCamPos, dir, h)) {
-            // Direct light (soft shadows)
-            radiance = directLight(h, seed);
-
-            // Add one indirect diffuse bounce for non-mirror surfaces
-            if (h.mat != 3) {
-                radiance += indirectDiffuseBounce(h, seed);
+        if (uUseBVH == 1) {
+            Hit hb;
+            if (traceBVH(uCamPos, dir, hb)) {
+                radiance = directLightBVH(hb, seed);
+            } else {
+                radiance = sky(dir);
             }
-
-            #if ENABLE_MIRROR_BOUNCE
-            if (h.mat == 3) {
-                vec3 rdir = reflect(dir, h.n);
-                Hit h2;
-                if (traceScene(h.p + h.n * EPS, rdir, h2)) {
-                    radiance += 0.9 * directLight(h2, seed);
-                } else {
-                    radiance += 0.9 * sky(rdir);
-                }
-            }
-            #endif
         } else {
-            radiance = sky(dir);
+            Hit ha;
+            if (traceAnalytic(uCamPos, dir, ha)) {
+                radiance = directLight(ha, seed);
+            } else {
+                radiance = sky(dir);
+            }
         }
 
-        // Clamp rare outliers a bit (keeps highlights; avoids big spikes)
         radiance = clampLuminance(radiance, 10.0);
-
         frameSum += radiance;
     }
 
-    // Average this frame’s SPP
-    vec3 frameAvg = frameSum / float(max(uSpp, 1));
-
-    // Running average in LINEAR space
+    vec3 frameAvg = frameSum / float(SPP);
     vec3 prev = texture(uPrevAccum, vUV).rgb;
-    float n   = float(uFrameIndex);
+    float n = float(uFrameIndex);
     vec3 accum = (prev * n + frameAvg) / (n + 1.0);
-
-    fragColor = vec4(accum, 1.0); // store LINEAR; gamma is applied in rt_present.frag
+    fragColor = vec4(accum, 1.0);
 }

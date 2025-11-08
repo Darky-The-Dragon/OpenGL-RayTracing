@@ -8,7 +8,7 @@ class Camera {
 public:
     Camera(glm::vec3 position, float yaw, float pitch, float fov, float aspectRatio);
 
-    void ProcessKeyboardInput(GLFWwindow* window, float deltaTime);
+    void ProcessKeyboardInput(GLFWwindow *window, float deltaTime);
 
     void ProcessMouseMovement(float xOffset, float yOffset);
 

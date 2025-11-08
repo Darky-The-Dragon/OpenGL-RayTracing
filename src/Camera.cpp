@@ -2,17 +2,17 @@
 #include <GLFW/glfw3.h>
 
 Camera::Camera(glm::vec3 position, float yaw, float pitch, float fov, float aspectRatio)
-        : Position(position),
-          Yaw(yaw),
-          Pitch(pitch),
-          Fov(fov),
-          AspectRatio(aspectRatio),
-          MovementSpeed(2.5f),
-          WorldUp(glm::vec3(0.0f, 1.0f, 0.0f)) {
+    : Position(position),
+      Yaw(yaw),
+      Pitch(pitch),
+      Fov(fov),
+      AspectRatio(aspectRatio),
+      MovementSpeed(2.5f),
+      WorldUp(glm::vec3(0.0f, 1.0f, 0.0f)) {
     UpdateCameraVectors();
 }
 
-void Camera::ProcessKeyboardInput(GLFWwindow* window, float deltaTime) {
+void Camera::ProcessKeyboardInput(GLFWwindow *window, float deltaTime) {
     const float velocity = MovementSpeed * deltaTime;
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -53,8 +53,8 @@ void Camera::UpdateCameraVectors() {
     front.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
     Front = glm::normalize(front);
 
-    Right = glm::normalize(glm::cross(Front, WorldUp));  // Normalize the vectors
-    Up    = glm::normalize(glm::cross(Right, Front));
+    Right = glm::normalize(glm::cross(Front, WorldUp)); // Normalize the vectors
+    Up = glm::normalize(glm::cross(Right, Front));
 }
 
 glm::mat4 Camera::GetViewMatrix() const {

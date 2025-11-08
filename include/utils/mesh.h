@@ -47,17 +47,18 @@ public:
     GLuint VAO{};
 
     // Disable copy constructor and copy assignment (move-only)
-    Mesh(const Mesh&) = delete;
-    Mesh& operator=(const Mesh&) = delete;
+    Mesh(const Mesh &) = delete;
+
+    Mesh &operator=(const Mesh &) = delete;
 
     // Constructor (takes ownership of vertex/index data)
-    Mesh(vector<Vertex>& vertices, vector<GLuint>& indices) noexcept
+    Mesh(vector<Vertex> &vertices, vector<GLuint> &indices) noexcept
         : vertices(std::move(vertices)), indices(std::move(indices)) {
         setupMesh();
     }
 
     // Move constructor
-    Mesh(Mesh&& move) noexcept
+    Mesh(Mesh &&move) noexcept
         : vertices(std::move(move.vertices)),
           indices(std::move(move.indices)),
           VAO(move.VAO), VBO(move.VBO), EBO(move.EBO) {
@@ -65,7 +66,7 @@ public:
     }
 
     // Move assignment
-    Mesh& operator=(Mesh&& move) noexcept {
+    Mesh &operator=(Mesh &&move) noexcept {
         freeGPUResources();
         if (move.VAO) {
             vertices = std::move(move.vertices);
@@ -120,15 +121,18 @@ private:
 
         // Texture coordinate attribute (layout = 2)
         glEnableVertexAttribArray(2);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void *>(offsetof(Vertex, TexCoords)));
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                              reinterpret_cast<void *>(offsetof(Vertex, TexCoords)));
 
         // Tangent (layout = 3)
         glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void *>(offsetof(Vertex, Tangent)));
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                              reinterpret_cast<void *>(offsetof(Vertex, Tangent)));
 
         // Bitangent (layout = 4)
         glEnableVertexAttribArray(4);
-        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void *>(offsetof(Vertex, Bitangent)));
+        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                              reinterpret_cast<void *>(offsetof(Vertex, Bitangent)));
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0); // EBO remains bound to VAO

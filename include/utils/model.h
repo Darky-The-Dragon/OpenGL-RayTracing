@@ -41,30 +41,32 @@ public:
     vector<Mesh> meshes;
 
     // Disable copying (move-only class)
-    Model(const Model&) = delete;
-    Model& operator=(const Model&) = delete;
+    Model(const Model &) = delete;
+
+    Model &operator=(const Model &) = delete;
 
     // Enable move operations
-    Model(Model&&) = default;
-    Model& operator=(Model&&) noexcept = default;
+    Model(Model &&) = default;
+
+    Model &operator=(Model &&) noexcept = default;
 
     // Constructor loads the model
-    explicit Model(const string& path) {
+    explicit Model(const string &path) {
         loadModel(path);
     }
 
     // Renders all meshes in the model
     void Draw() const {
-        for (auto& mesh : meshes)
+        for (auto &mesh: meshes)
             mesh.Draw();
     }
 
 private:
     // Loads a model file using Assimp
-    void loadModel(const string& path) {
+    void loadModel(const string &path) {
         Assimp::Importer importer;
 
-        const aiScene* scene = importer.ReadFile(
+        const aiScene *scene = importer.ReadFile(
             path,
             aiProcess_Triangulate |
             aiProcess_JoinIdenticalVertices |
@@ -84,7 +86,7 @@ private:
     // Recursively processes nodes in the Assimp scene graph
     void processNode(const aiNode *node, const aiScene *scene) {
         for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
-            aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+            aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
             meshes.emplace_back(processMesh(mesh));
         }
 
@@ -142,7 +144,7 @@ private:
 
         // Extract vertex indices for each face
         for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
-            aiFace& face = mesh->mFaces[i];
+            aiFace &face = mesh->mFaces[i];
             for (unsigned int j = 0; j < face.mNumIndices; ++j)
                 indices.emplace_back(face.mIndices[j]);
         }

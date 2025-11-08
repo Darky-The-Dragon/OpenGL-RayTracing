@@ -4,15 +4,15 @@
 #include <iostream>
 #include "glad/gl.h"
 
-Shader::Shader(const char* vertexPath, const char* fragmentPath) {
+Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     std::ifstream vFile(vertexPath);
     std::ifstream fFile(fragmentPath);
     std::stringstream vStream, fStream;
 
     if (!vFile || !fFile) {
         std::cerr << "ERROR: Could not open shader files:\n"
-                  << "Vertex: " << vertexPath << "\n"
-                  << "Fragment: " << fragmentPath << std::endl;
+                << "Vertex: " << vertexPath << "\n"
+                << "Fragment: " << fragmentPath << std::endl;
     }
 
     vStream << vFile.rdbuf();
@@ -23,8 +23,8 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath) {
     std::cout << "[DEBUG] Vertex Shader Length: " << vCode.size() << std::endl;
     std::cout << "[DEBUG] Fragment Shader Length: " << fCode.size() << std::endl;
 
-    const char* vShaderCode = vCode.c_str();
-    const char* fShaderCode = fCode.c_str();
+    const char *vShaderCode = vCode.c_str();
+    const char *fShaderCode = fCode.c_str();
 
     // Compile vertex shader
     unsigned int vertex = glCreateShader(GL_VERTEX_SHADER);
@@ -65,11 +65,11 @@ void Shader::setFloat(const std::string &name, const float value) const {
     glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
 }
 
-void Shader::setMat4(const std::string& name, const glm::mat4& mat) const {
+void Shader::setMat4(const std::string &name, const glm::mat4 &mat) const {
     glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
 }
 
-void Shader::setVec3(const std::string& name, const glm::vec3& value) const {
+void Shader::setVec3(const std::string &name, const glm::vec3 &value) const {
     glUniform3f(glGetUniformLocation(ID, name.c_str()), value.x, value.y, value.z);
 }
 
