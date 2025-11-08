@@ -3,7 +3,9 @@
 #include "Camera.h"
 #include "Shader.h"
 #include "utils/model.h"
-#include "bvh.h" // NEW
+#include "rt/accum.h"
+#include "bvh.h"
+#include "io/input.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -13,18 +15,14 @@
 // ===============================
 // Ray mode & accumulation state
 // ===============================
+static rt::Accum gAccum; // holds FBO, ping-pong textures, writeIdx, frameIndex
 static bool gRayMode = true; // F2: raster <-> ray
-static int gFrameIndex = 0;
-static bool gPrevF2 = false, gPrevR = false, gPrevF5 = false;
 
-// SPP & exposure (you already had these)
+// SPP & exposure (driven by io::InputState)
 static int gSppPerFrame = 1;
 static float gExposure = 1.0f;
 
-// Ping-pong accumulation targets
-static GLuint gAccumTex[2] = {0, 0};
-static GLuint gAccumFbo = 0;
-static int gWriteIdx = 0;
+// Fullscreen triangle VAO
 static GLuint gFsVao = 0;
 
 // Shaders
@@ -32,9 +30,7 @@ static Shader *gRtShader = nullptr;
 static Shader *gPresentShader = nullptr;
 
 // Camera
-float lastX = 400, lastY = 300;
 float deltaTime = 0.0f, lastFrame = 0.0f;
-bool firstMouse = true;
 Camera camera(glm::vec3(0.0f, 2.0f, 8.0f), -90.0f, -10.0f, 60.0f, 800.0f / 600.0f);
 
 // Raster path (unchanged)
@@ -44,62 +40,20 @@ static Model *gBunny = nullptr;
 static Model *gSphere = nullptr;
 
 // BVH data & toggle
-static bool gUseBVH = false; // F5 toggles this
+static bool gUseBVH = false; // toggled via input module
 static GLuint gBvhNodeTex = 0, gBvhNodeBuf = 0;
 static GLuint gBvhTriTex = 0, gBvhTriBuf = 0;
 static int gBvhNodeCount = 0, gBvhTriCount = 0;
 
-// ===============================
-static GLuint createAccumTex(int w, int h) {
-    GLuint t = 0;
-    glGenTextures(1, &t);
-    glBindTexture(GL_TEXTURE_2D, t);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_HALF_FLOAT, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    return t;
-}
-
-static void createAccumTargets(int w, int h) {
-    if (!gAccumFbo)
-        glGenFramebuffers(1, &gAccumFbo);
-    if (gAccumTex[0])
-        glDeleteTextures(1, &gAccumTex[0]);
-    if (gAccumTex[1])
-        glDeleteTextures(1, &gAccumTex[1]);
-    gAccumTex[0] = createAccumTex(w, h);
-    gAccumTex[1] = createAccumTex(w, h);
-    gWriteIdx = 0;
-    gFrameIndex = 0;
-}
+// Centralized input state
+static io::InputState gInput;
 
 // ===============================
 // Callbacks
 static void framebuffer_size_callback(GLFWwindow *, int width, int height) {
     glViewport(0, 0, width, height);
     if (height > 0) camera.AspectRatio = float(width) / float(height);
-    createAccumTargets(width, height);
-}
-
-static void mouse_callback(GLFWwindow *, double xpos, double ypos) {
-    if (firstMouse) {
-        lastX = float(xpos);
-        lastY = float(ypos);
-        firstMouse = false;
-    }
-    float dx = float(xpos) - lastX, dy = lastY - float(ypos);
-    lastX = float(xpos);
-    lastY = float(ypos);
-    camera.ProcessMouseMovement(dx, dy);
-    gFrameIndex = 0;
-}
-
-static void scroll_callback(GLFWwindow *, double, double yoff) {
-    camera.Fov -= float(yoff) * 2.0f;
-    camera.Fov = glm::clamp(camera.Fov, 20.0f, 90.0f);
-    gFrameIndex = 0;
+    gAccum.recreate(width, height); // rebuild ping-pong & reset frameIndex
 }
 
 // ===============================
@@ -120,9 +74,10 @@ int main() {
     gladLoadGL(glfwGetProcAddress);
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(window, mouse_callback);
-    glfwSetScrollCallback(window, scroll_callback);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+
+    // Route mouse + scroll to io module (it will reset accumulation via gAccum.frameIndex*)
+    io::attach_callbacks(window, &camera, &gAccum.frameIndex, &gInput);
 
     glEnable(GL_DEPTH_TEST);
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
@@ -131,12 +86,13 @@ int main() {
     gRtShader = new Shader("../shaders/rt_fullscreen.vert", "../shaders/rt.frag");
     gPresentShader = new Shader("../shaders/rt_fullscreen.vert", "../shaders/rt_present.frag");
 
+    // Accum + FS triangle
     int fbw, fbh;
     glfwGetFramebufferSize(window, &fbw, &fbh);
-    createAccumTargets(fbw, fbh);
+    gAccum.recreate(fbw, fbh); // create ping-pong targets + reset
     glGenVertexArrays(1, &gFsVao);
 
-    // Raster scene (unchanged)
+    // Raster scene
     gRasterShader = new Shader("../shaders/basic.vert", "../shaders/basic.frag");
     gGround = new Model("../models/plane.obj");
     gBunny = new Model("../models/bunny_lp.obj");
@@ -147,8 +103,7 @@ int main() {
 
     // ---- Build BVH from the bunny (CPU), upload as TBOs ----
     std::vector<CPU_Triangle> triCPU;
-    // transform: center a bit and scale
-    glm::mat4 M = glm::mat4(1.0f);
+    glm::mat4 M(1.0f);
     M = glm::translate(M, glm::vec3(0.0f, 1.0f, -3.0f));
     M = glm::scale(M, glm::vec3(1.0f));
     gather_model_triangles(*gBunny, M, triCPU);
@@ -161,8 +116,10 @@ int main() {
                     gBvhNodeTex, gBvhNodeBuf,
                     gBvhTriTex, gBvhTriBuf);
 
-    // Fullscreen triangle VAO (no VBO)
-    // (already created)
+    // Input init
+    gInput.sppPerFrame = gSppPerFrame;
+    gInput.exposure = gExposure;
+    io::init(gInput);
 
     glm::vec3 prevPos = camera.Position;
     float prevFov = camera.Fov;
@@ -170,104 +127,65 @@ int main() {
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
-        // ESC
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-            glfwSetWindowShouldClose(window, GLFW_TRUE);
-
+        // Time
         float tnow = float(glfwGetTime());
         deltaTime = tnow - lastFrame;
         lastFrame = tnow;
 
+        // Camera movement
         camera.ProcessKeyboardInput(window, deltaTime);
 
-        // Toggles
-        bool nowF2 = (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS);
-        if (nowF2 && !gPrevF2) {
-            gRayMode = !gRayMode;
-            gFrameIndex = 0;
+        // --- Centralized input update ---
+        const bool anyChanged = io::update(gInput, window, deltaTime);
+
+        // ESC
+        if (gInput.quitRequested) {
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
         }
-        gPrevF2 = nowF2;
 
-        bool nowR = (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS);
-        if (nowR && !gPrevR) { gFrameIndex = 0; }
-        gPrevR = nowR;
-
-        bool nowF5 = (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS);
-        if (nowF5 && !gPrevF5) {
-            gUseBVH = !gUseBVH;
-            gFrameIndex = 0;
-            std::cout << "[SCENE] BVH mode " << (gUseBVH ? "ON" : "OFF")
-                    << "  (nodes=" << gBvhNodeCount << ", tris=" << gBvhTriCount << ")\n";
-        }
-        gPrevF5 = nowF5;
-
-        // ---- Input: SPP (↑/↓) and Exposure ([ / ]) with simple debounce ----
-        static float keyRepeat = 0.0f;
-        keyRepeat += deltaTime;
-        const float repeatStep = 0.10f; // seconds between repeats while holding
-
-        if (keyRepeat >= repeatStep) {
-            // Increase SPP per frame (1 -> 2 -> 4 -> 8 -> 16)
-            if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-                int old = gSppPerFrame;
-                if      (gSppPerFrame < 2)  gSppPerFrame = 2;
-                else if (gSppPerFrame < 4)  gSppPerFrame = 4;
-                else if (gSppPerFrame < 8)  gSppPerFrame = 8;
-                else if (gSppPerFrame < 16) gSppPerFrame = 16;
-                if (gSppPerFrame != old) {
-                    gFrameIndex = 0; // restart accumulation for new SPP
-                    std::cout << "[INPUT] SPP per frame = " << gSppPerFrame << "\n";
-                    keyRepeat = 0.0f;
-                }
+        // Apply input events (and print like before)
+        if (anyChanged) {
+            if (gInput.toggledRayMode) {
+                gRayMode = !gRayMode;
+                gAccum.reset();
             }
-            // Decrease SPP per frame (16 -> 8 -> 4 -> 2 -> 1)
-            if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-                int old = gSppPerFrame;
-                if      (gSppPerFrame > 8)  gSppPerFrame = 8;
-                else if (gSppPerFrame > 4)  gSppPerFrame = 4;
-                else if (gSppPerFrame > 2)  gSppPerFrame = 2;
-                else                        gSppPerFrame = 1;
-                if (gSppPerFrame != old) {
-                    gFrameIndex = 0; // restart accumulation for new SPP
-                    std::cout << "[INPUT] SPP per frame = " << gSppPerFrame << "\n";
-                    keyRepeat = 0.0f;
-                }
+            if (gInput.resetAccum) {
+                gAccum.reset();
             }
-            // Exposure down: '['
-            if (glfwGetKey(window, GLFW_KEY_LEFT_BRACKET) == GLFW_PRESS) {
-                float old = gExposure;
-                gExposure = std::max(0.05f, gExposure * 0.97f);
-                if (gExposure != old) {
-                    std::cout << "[INPUT] Exposure = " << gExposure << "\n";
-                    keyRepeat = 0.0f;
-                }
+            if (gInput.toggledBVH) {
+                gUseBVH = !gUseBVH;
+                gAccum.reset();
+                std::cout << "[SCENE] BVH mode " << (gUseBVH ? "ON" : "OFF")
+                        << "  (nodes=" << gBvhNodeCount << ", tris=" << gBvhTriCount << ")\n";
             }
-            // Exposure up: ']'
-            if (glfwGetKey(window, GLFW_KEY_RIGHT_BRACKET) == GLFW_PRESS) {
-                float old = gExposure;
-                gExposure = std::min(8.0f, gExposure * 1.03f);
-                if (gExposure != old) {
-                    std::cout << "[INPUT] Exposure = " << gExposure << "\n";
-                    keyRepeat = 0.0f;
-                }
+            if (gInput.changedSPP) {
+                gSppPerFrame = gInput.sppPerFrame;
+                gAccum.reset();
+                std::cout << "[INPUT] SPP per frame = " << gSppPerFrame << "\n";
+            }
+            if (gExposure != gInput.exposure) {
+                gExposure = gInput.exposure;
+                std::cout << "[INPUT] Exposure = " << gExposure << "\n";
             }
         }
 
+        // Reset accumulation on camera/FOV change
         if (glm::distance(prevPos, camera.Position) > 1e-6f || std::fabs(prevFov - camera.Fov) > 1e-6f) {
-            gFrameIndex = 0;
+            gAccum.reset();
             prevPos = camera.Position;
             prevFov = camera.Fov;
         }
 
+        // Clear
         glClearColor(0.1f, 0.0f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glfwGetFramebufferSize(window, &fbw, &fbh);
 
         if (gRayMode) {
-            glBindFramebuffer(GL_FRAMEBUFFER, gAccumFbo);
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gAccumTex[gWriteIdx], 0);
-            static const GLenum bufs[1] = {GL_COLOR_ATTACHMENT0};
-            glDrawBuffers(1, bufs);
+            // ===============================
+            // Ray mode: render into accum tex
+            // ===============================
+            gAccum.bindWriteFBO(); // binds FBO and color0 = writeTex()
             glViewport(0, 0, fbw, fbh);
             glDisable(GL_DEPTH_TEST);
 
@@ -286,7 +204,7 @@ int main() {
             gRtShader->setVec3("uCamFwd", fwd);
             gRtShader->setFloat("uTanHalfFov", tanHalfFov);
             gRtShader->setFloat("uAspect", camera.AspectRatio);
-            gRtShader->setInt("uFrameIndex", gFrameIndex);
+            gRtShader->setInt("uFrameIndex", gAccum.frameIndex);
             gRtShader->setInt("uSpp", gSppPerFrame);
             gRtShader->setInt("uUseBVH", gUseBVH ? 1 : 0);
             gRtShader->setInt("uNodeCount", gBvhNodeCount);
@@ -295,10 +213,9 @@ int main() {
             if (GLint locRes = glGetUniformLocation(gRtShader->ID, "uResolution"); locRes >= 0)
                 glUniform2f(locRes, float(fbw), float(fbh));
 
-            // Bind accumulation read
-            int readIdx = 1 - gWriteIdx;
+            // Bind previous accumulation (read texture)
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, gAccumTex[readIdx]);
+            glBindTexture(GL_TEXTURE_2D, gAccum.readTex());
             gRtShader->setInt("uPrevAccum", 0);
 
             // Bind BVH TBOs (only used if uUseBVH==1)
@@ -318,16 +235,18 @@ int main() {
             glViewport(0, 0, fbw, fbh);
             gPresentShader->use();
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, gAccumTex[gWriteIdx]);
+            glBindTexture(GL_TEXTURE_2D, gAccum.writeTex()); // show what we just rendered to
             gPresentShader->setInt("uTex", 0);
             gPresentShader->setFloat("uExposure", gExposure);
             glBindVertexArray(gFsVao);
             glDrawArrays(GL_TRIANGLES, 0, 3);
 
-            gFrameIndex++;
-            gWriteIdx = readIdx;
+            // Advance accumulation & ping-pong
+            gAccum.swapAfterFrame();
         } else {
+            // ===============================
             // Raster path (unchanged)
+            // ===============================
             glEnable(GL_DEPTH_TEST);
             gRasterShader->use();
             glm::mat4 view = camera.GetViewMatrix();
@@ -359,12 +278,6 @@ int main() {
     // Cleanup
     if (gFsVao)
         glDeleteVertexArrays(1, &gFsVao);
-    if (gAccumTex[0])
-        glDeleteTextures(1, &gAccumTex[0]);
-    if (gAccumTex[1])
-        glDeleteTextures(1, &gAccumTex[1]);
-    if (gAccumFbo)
-        glDeleteFramebuffers(1, &gAccumFbo);
 
     if (gBvhNodeTex)
         glDeleteTextures(1, &gBvhNodeTex);

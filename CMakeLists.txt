@@ -42,19 +42,19 @@ include_directories(libs/assimp/include)
 # Project Sources
 # ------------------------------------------------------------
 
-include_directories(include include/utils)
+# Add public and local headers
+include_directories(
+        include
+        include/utils
+        include/io
+        src
+        src/io
+        src/rt
+)
 
 file(GLOB_RECURSE SRC_FILES src/*.cpp)
 
-add_executable(OpenGLRayTracing
-        ${SRC_FILES}
-        src/Camera.cpp
-        src/Camera.h
-        src/Shader.cpp
-        src/Shader.h
-        src/main.cpp
-        src/bvh.cpp
-)
+add_executable(OpenGLRayTracing ${SRC_FILES})
 
 # ------------------------------------------------------------
 # Linking
@@ -63,10 +63,11 @@ add_executable(OpenGLRayTracing
 target_link_libraries(OpenGLRayTracing glfw glad imgui assimp)
 
 if (APPLE)
-    target_link_libraries(OpenGLRayTracing "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
+    target_link_libraries(OpenGLRayTracing
+            "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
 endif ()
 
-if (WIN32 OR UNIX AND NOT APPLE)
+if ((WIN32 OR UNIX) AND NOT APPLE)
     find_package(OpenGL REQUIRED)
     target_link_libraries(OpenGLRayTracing OpenGL::GL)
 endif ()
