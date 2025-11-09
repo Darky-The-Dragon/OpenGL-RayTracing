@@ -34,6 +34,12 @@ namespace rt {
         // Bind FBO to write the current frame (color0 = writeTex()).
         void bindWriteFBO() const;
 
+        // Bind FBO with multiple render targets:
+        //  - COLOR0 = accumulation write
+        //  - COLOR1 = gbuffer position (WS)
+        //  - COLOR2 = gbuffer normal (WS)
+        void bindWriteFBO_MRT(GLuint posTex, GLuint nrmTex) const;
+
         // Clear current write target to 0 (useful after recreate or when nuking history).
         void clear() const;
 

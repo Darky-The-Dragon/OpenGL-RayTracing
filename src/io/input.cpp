@@ -1,8 +1,7 @@
 // src/io/input.cpp
 #include "io/input.h"
-#include "../Camera.h"          // for Camera::ProcessMouseMovement / Fov
+#include "camera/Camera.h"
 #include <algorithm>
-#include <glm/glm.hpp>
 
 namespace io {
     // ====== keyboard update (unchanged from your version; keep your logic here) ======

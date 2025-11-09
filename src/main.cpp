@@ -1,6 +1,6 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
-#include "Camera.h"
+#include "../include/camera/Camera.h"
 #include "Shader.h"
 #include "utils/model.h"
 #include "rt/accum.h"
@@ -13,16 +13,20 @@
 #include <cmath>
 
 // ===============================
-// Ray mode & accumulation state
+// Global state
 // ===============================
-static rt::Accum gAccum; // holds FBO, ping-pong textures, writeIdx, frameIndex
+static rt::Accum gAccum; // accumulation ping-pong + frame counter
 static bool gRayMode = true; // F2: raster <-> ray
 
 // SPP & exposure (driven by io::InputState)
 static int gSppPerFrame = 1;
 static float gExposure = 1.0f;
 
-// Fullscreen triangle VAO
+// Motion debug (F6) – local toggle only
+static bool gShowMotion = false;
+static bool gPrevF6 = false;
+
+// Fullscreen triangle
 static GLuint gFsVao = 0;
 
 // Shaders
@@ -30,8 +34,8 @@ static Shader *gRtShader = nullptr;
 static Shader *gPresentShader = nullptr;
 
 // Camera
-float deltaTime = 0.0f, lastFrame = 0.0f;
-Camera camera(glm::vec3(0.0f, 2.0f, 8.0f), -90.0f, -10.0f, 60.0f, 800.0f / 600.0f);
+static float deltaTime = 0.0f, lastFrame = 0.0f;
+static Camera camera(glm::vec3(0.0f, 2.0f, 8.0f), -90.0f, -10.0f, 60.0f, 800.0f / 600.0f);
 
 // Raster path (unchanged)
 static Shader *gRasterShader = nullptr;
@@ -40,7 +44,7 @@ static Model *gBunny = nullptr;
 static Model *gSphere = nullptr;
 
 // BVH data & toggle
-static bool gUseBVH = false; // toggled via input module
+static bool gUseBVH = false; // toggled via F5 from io::update()
 static GLuint gBvhNodeTex = 0, gBvhNodeBuf = 0;
 static GLuint gBvhTriTex = 0, gBvhTriBuf = 0;
 static int gBvhNodeCount = 0, gBvhTriCount = 0;
@@ -48,12 +52,16 @@ static int gBvhNodeCount = 0, gBvhTriCount = 0;
 // Centralized input state
 static io::InputState gInput;
 
+// Matrices for motion vectors
+static glm::mat4 gPrevViewProj(1.0f);
+
 // ===============================
 // Callbacks
+// ===============================
 static void framebuffer_size_callback(GLFWwindow *, int width, int height) {
     glViewport(0, 0, width, height);
     if (height > 0) camera.AspectRatio = float(width) / float(height);
-    gAccum.recreate(width, height); // rebuild ping-pong & reset frameIndex
+    gAccum.recreate(width, height); // rebuild accumulation targets + reset counters
 }
 
 // ===============================
@@ -61,9 +69,9 @@ int main() {
     if (!glfwInit()) return -1;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-    glfwWindowHint(GLFW_OPENGL_PROFILE,GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT,GL_TRUE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
     GLFWwindow *window = glfwCreateWindow(800, 600, "OpenGL Ray/Path Tracing - Darky", nullptr, nullptr);
     if (!window) {
@@ -76,7 +84,7 @@ int main() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    // Route mouse + scroll to io module (it will reset accumulation via gAccum.frameIndex*)
+    // route mouse + scroll to io module (resets accumulation inside)
     io::attach_callbacks(window, &camera, &gAccum.frameIndex, &gInput);
 
     glEnable(GL_DEPTH_TEST);
@@ -86,13 +94,14 @@ int main() {
     gRtShader = new Shader("../shaders/rt_fullscreen.vert", "../shaders/rt.frag");
     gPresentShader = new Shader("../shaders/rt_fullscreen.vert", "../shaders/rt_present.frag");
 
-    // Accum + FS triangle
     int fbw, fbh;
     glfwGetFramebufferSize(window, &fbw, &fbh);
-    gAccum.recreate(fbw, fbh); // create ping-pong targets + reset
+    gAccum.recreate(fbw, fbh);
+
+    // Fullscreen triangle VAO (no VBO)
     glGenVertexArrays(1, &gFsVao);
 
-    // Raster scene
+    // Raster scene (unchanged)
     gRasterShader = new Shader("../shaders/basic.vert", "../shaders/basic.frag");
     gGround = new Model("../models/plane.obj");
     gBunny = new Model("../models/bunny_lp.obj");
@@ -121,6 +130,9 @@ int main() {
     gInput.exposure = gExposure;
     io::init(gInput);
 
+    // Initialize prev VP to current so motion starts ~zero
+    gPrevViewProj = camera.GetProjectionMatrix() * camera.GetViewMatrix();
+
     glm::vec3 prevPos = camera.Position;
     float prevFov = camera.Fov;
 
@@ -135,7 +147,7 @@ int main() {
         // Camera movement
         camera.ProcessKeyboardInput(window, deltaTime);
 
-        // --- Centralized input update ---
+        // Centralized input update
         const bool anyChanged = io::update(gInput, window, deltaTime);
 
         // ESC
@@ -143,7 +155,16 @@ int main() {
             glfwSetWindowShouldClose(window, GLFW_TRUE);
         }
 
-        // Apply input events (and print like before)
+        // Local F6 toggle for motion debug (doesn't touch InputState)
+        const bool nowF6 = (glfwGetKey(window, GLFW_KEY_F6) == GLFW_PRESS);
+        if (nowF6 && !gPrevF6) {
+            gShowMotion = !gShowMotion;
+            gAccum.reset();
+            std::cout << "[DEBUG] Show Motion = " << (gShowMotion ? "ON" : "OFF") << "\n";
+        }
+        gPrevF6 = nowF6;
+
+        // Apply input events
         if (anyChanged) {
             if (gInput.toggledRayMode) {
                 gRayMode = !gRayMode;
@@ -170,7 +191,8 @@ int main() {
         }
 
         // Reset accumulation on camera/FOV change
-        if (glm::distance(prevPos, camera.Position) > 1e-6f || std::fabs(prevFov - camera.Fov) > 1e-6f) {
+        if (glm::distance(prevPos, camera.Position) > 1e-6f ||
+            std::fabs(prevFov - camera.Fov) > 1e-6f) {
             gAccum.reset();
             prevPos = camera.Position;
             prevFov = camera.Fov;
@@ -181,21 +203,25 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glfwGetFramebufferSize(window, &fbw, &fbh);
 
+        // Precompute matrices for motion vectors
+        const glm::mat4 currView = camera.GetViewMatrix();
+        const glm::mat4 currProj = camera.GetProjectionMatrix();
+        const glm::mat4 currVP = currProj * currView;
+
         if (gRayMode) {
             // ===============================
             // Ray mode: render into accum tex
             // ===============================
-            gAccum.bindWriteFBO(); // binds FBO and color0 = writeTex()
+            gAccum.bindWriteFBO();
             glViewport(0, 0, fbw, fbh);
             glDisable(GL_DEPTH_TEST);
 
             gRtShader->use();
 
             // Camera basis
-            glm::mat4 V = camera.GetViewMatrix();
-            glm::vec3 right = glm::normalize(glm::vec3(V[0][0], V[1][0], V[2][0]));
-            glm::vec3 up = glm::normalize(glm::vec3(V[0][1], V[1][1], V[2][1]));
-            glm::vec3 fwd = -glm::normalize(glm::vec3(V[0][2], V[1][2], V[2][2]));
+            glm::vec3 right = glm::normalize(glm::vec3(currView[0][0], currView[1][0], currView[2][0]));
+            glm::vec3 up = glm::normalize(glm::vec3(currView[0][1], currView[1][1], currView[2][1]));
+            glm::vec3 fwd = -glm::normalize(glm::vec3(currView[0][2], currView[1][2], currView[2][2]));
             float tanHalfFov = std::tanf(glm::radians(camera.Fov) * 0.5f);
 
             gRtShader->setVec3("uCamPos", camera.Position);
@@ -205,20 +231,25 @@ int main() {
             gRtShader->setFloat("uTanHalfFov", tanHalfFov);
             gRtShader->setFloat("uAspect", camera.AspectRatio);
             gRtShader->setInt("uFrameIndex", gAccum.frameIndex);
-            gRtShader->setInt("uSpp", gSppPerFrame);
+            gRtShader->setInt("uSpp", gShowMotion ? 1 : gSppPerFrame); // 1 spp in motion debug
             gRtShader->setInt("uUseBVH", gUseBVH ? 1 : 0);
             gRtShader->setInt("uNodeCount", gBvhNodeCount);
             gRtShader->setInt("uTriCount", gBvhTriCount);
+            gRtShader->setInt("uShowMotion", gShowMotion ? 1 : 0);
+
+            // Motion matrices
+            gRtShader->setMat4("uPrevViewProj", gPrevViewProj);
+            gRtShader->setMat4("uCurrViewProj", currVP);
 
             if (GLint locRes = glGetUniformLocation(gRtShader->ID, "uResolution"); locRes >= 0)
                 glUniform2f(locRes, float(fbw), float(fbh));
 
-            // Bind previous accumulation (read texture)
+            // Accum input
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gAccum.readTex());
             gRtShader->setInt("uPrevAccum", 0);
 
-            // Bind BVH TBOs (only used if uUseBVH==1)
+            // BVH TBOs (shader will use if uUseBVH==1 and traversal exists)
             glActiveTexture(GL_TEXTURE1);
             glBindTexture(GL_TEXTURE_BUFFER, gBvhNodeTex);
             gRtShader->setInt("uBvhNodes", 1);
@@ -235,7 +266,7 @@ int main() {
             glViewport(0, 0, fbw, fbh);
             gPresentShader->use();
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, gAccum.writeTex()); // show what we just rendered to
+            glBindTexture(GL_TEXTURE_2D, gAccum.writeTex());
             gPresentShader->setInt("uTex", 0);
             gPresentShader->setFloat("uExposure", gExposure);
             glBindVertexArray(gFsVao);
@@ -243,16 +274,17 @@ int main() {
 
             // Advance accumulation & ping-pong
             gAccum.swapAfterFrame();
+
+            // After presenting, current becomes previous for next frame motion
+            gPrevViewProj = currVP;
         } else {
             // ===============================
             // Raster path (unchanged)
             // ===============================
             glEnable(GL_DEPTH_TEST);
             gRasterShader->use();
-            glm::mat4 view = camera.GetViewMatrix();
-            glm::mat4 proj = camera.GetProjectionMatrix();
-            gRasterShader->setMat4("view", view);
-            gRasterShader->setMat4("projection", proj);
+            gRasterShader->setMat4("view", currView);
+            gRasterShader->setMat4("projection", currProj);
 
             auto model = glm::mat4(1.0f);
             gRasterShader->setMat4("model", model);

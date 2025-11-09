@@ -2,32 +2,37 @@
 in vec2 vUV;
 out vec4 fragColor;
 
-// Camera & accumulation
-uniform vec3 uCamPos;
-uniform vec3 uCamRight;
-uniform vec3 uCamUp;
-uniform vec3 uCamFwd;
+// ---- Camera & accumulation
+uniform vec3  uCamPos;
+uniform vec3  uCamRight;
+uniform vec3  uCamUp;
+uniform vec3  uCamFwd;
 uniform float uTanHalfFov;
 uniform float uAspect;
-uniform int uFrameIndex;
-uniform vec2 uResolution;
+uniform int   uFrameIndex;
+uniform vec2  uResolution;
 uniform sampler2D uPrevAccum;
-uniform int uSpp;
+uniform int   uSpp;
 
-// Scene mode
-uniform int uUseBVH;     // 0 = analytic (plane+spheres), 1 = BVH triangle scene
-uniform int uNodeCount;
-uniform int uTriCount;
+// ---- Scene mode
+uniform int   uUseBVH;     // 0 = analytic (plane+spheres), 1 = BVH triangle scene
+uniform int   uNodeCount;
+uniform int   uTriCount;
 
-// BVH TBOs (only used if uUseBVH==1)
+// ---- BVH TBOs (only used if uUseBVH==1)
 uniform samplerBuffer uBvhNodes;
 uniform samplerBuffer uBvhTris;
 
-// Params
+// ---- Motion debug (F6)
+uniform int   uShowMotion;               // 0 = normal, 1 = visualize motion
+uniform mat4  uPrevViewProj;
+uniform mat4  uCurrViewProj;
+
+// ---- Params
 #define SOFT_SHADOW_SAMPLES 4
 #define ENABLE_MIRROR_BOUNCE 1
 const float EPS = 1e-4;
-const float PI = 3.1415926535;
+const float PI  = 3.1415926535;
 const float INF = 1e30;
 
 // ---------------- Materials (analytic) -------------
@@ -65,21 +70,13 @@ bool traceAnalytic(vec3 ro, vec3 rd, out Hit hit) {
     return hit.t < INF;
 }
 
-// ------------- Light --------------
-const vec3 kLightCenter = vec3(0.0, 5.0, -3.0);
-const vec3 kLightN = normalize(vec3(0.0, -1.0, 0.2));
-const float kLightRadius = 1.2;
-const vec3 kLightCol = vec3(18.0);
-
-vec2 concentricSample(vec2 u) {
-    float a = 2.0 * u.x - 1.0; float b = 2.0 * u.y - 1.0;
-    float r, phi;
-    if (a == 0.0 && b == 0.0) { r = 0.0; phi = 0.0; }
-    else if (abs(a) > abs(b)) { r = a; phi = (PI / 4.0) * (b / a); }
-    else { r = b; phi = (PI / 2.0) - (PI / 4.0) * (a / b); }
-    return r * vec2(cos(phi), sin(phi));
+// -------- Sky ----------
+vec3 sky(vec3 d) {
+    float t = clamp(0.5 * (d.y + 1.0), 0.0, 1.0);
+    return mix(vec3(0.7, 0.8, 1.0) * 0.6, vec3(0.1, 0.2, 0.5), 1.0 - t);
 }
 
+// -------- Random & helpers ----------
 uint hash2(uvec2 v) {
     v = v * 1664525u + 1013904223u;
     v.x ^= v.y >> 16; v.y ^= v.x << 5;
@@ -89,14 +86,23 @@ uint hash2(uvec2 v) {
 float rand(vec2 p, int frame) {
     return float(hash2(uvec2(p) ^ uvec2(frame, frame * 1663))) / 4294967296.0;
 }
-// distance-scaled epsilon
 float epsForDist(float d) { return max(1e-4, 1e-3 * d); }
 
-// -------- Sky ----------
-vec3 sky(vec3 d) {
-    float t = clamp(0.5 * (d.y + 1.0), 0.0, 1.0);
-    return mix(vec3(0.7, 0.8, 1.0) * 0.6, vec3(0.1, 0.2, 0.5), 1.0 - t);
+// ---- Disk sample (area light)
+vec2 concentricSample(vec2 u) {
+    float a = 2.0 * u.x - 1.0; float b = 2.0 * u.y - 1.0;
+    float r, phi;
+    if (a == 0.0 && b == 0.0) { r = 0.0; phi = 0.0; }
+    else if (abs(a) > abs(b)) { r = a; phi = (PI / 4.0) * (b / a); }
+    else { r = b; phi = (PI / 2.0) - (PI / 4.0) * (a / b); }
+    return r * vec2(cos(phi), sin(phi));
 }
+
+// ------------- Light --------------
+const vec3  kLightCenter = vec3(0.0, 5.0, -3.0);
+const vec3  kLightN      = normalize(vec3(0.0, -1.0, 0.2));
+const float kLightRadius = 1.2;
+const vec3  kLightCol    = vec3(18.0);
 
 // -------- BVH fetch helpers ----------
 struct TriSOA { vec3 v0; vec3 e1; vec3 e2; };
@@ -244,23 +250,21 @@ bool traceBVHShadow(vec3 ro, vec3 rd, float tMax) {
     return false;
 }
 
-// Unified shadow test for both modes
+// ---- Unified shadow test for both modes
 bool occludedToward(vec3 p, vec3 q) {
     vec3 rd = normalize(q - p);
     float maxT = length(q - p);
     float eps = epsForDist(maxT);
     if (uUseBVH == 1) {
-        // BVH triangles scene
         return traceBVHShadow(p + rd * eps, rd, maxT - eps);
     } else {
-        // Analytic scene
         Hit h;
         if (traceAnalytic(p + rd * eps, rd, h) && h.t < maxT - eps) return true;
         return false;
     }
 }
 
-// Direct lighting (analytic)
+// ---- Direct lighting (analytic & BVH)
 vec3 directLight(Hit h, int frame) {
     vec3 N = h.n;
     vec3 sum = vec3(0.0);
@@ -282,7 +286,6 @@ vec3 directLight(Hit h, int frame) {
     return sum / float(SOFT_SHADOW_SAMPLES);
 }
 
-// Direct-light for BVH hit (diffuse triangles)
 vec3 directLightBVH(Hit h, int frame) {
     vec3 N = h.n;
     vec3 sum = vec3(0.0);
@@ -298,24 +301,41 @@ vec3 directLightBVH(Hit h, int frame) {
         float cosThetaL = max(dot(-kLightN, L), 0.0);
         float r2 = max(dot(xL - h.p, xL - h.p), 1e-4);
         float geom = (ndl * cosThetaL) / r2;
-        float vis = occludedToward(h.p, xL) ? 0.0 : 1.0;  // NOW uses BVH shadows
+        float vis = occludedToward(h.p, xL) ? 0.0 : 1.0;
         vec3 albedo = vec3(0.8);
         sum += albedo * kLightCol * geom * vis / PI;
     }
     return sum / float(SOFT_SHADOW_SAMPLES);
 }
 
-// --------- Luminance clamp ----------
+// ---- Luminance clamp
 vec3 clampLuminance(vec3 c, float maxLum) {
     float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
     if (lum > maxLum) c *= (maxLum / max(lum, 1e-6));
     return c;
 }
 
+// ---- Motion helpers
+vec2 ndcFromWorld(vec3 p, mat4 VP) {
+    vec4 clip = VP * vec4(p, 1.0);
+    vec3 ndc = clip.xyz / max(clip.w, 1e-6);
+    return ndc.xy; // [-1,1]
+}
+vec3 visualizeMotion(vec2 m) {
+    m = clamp(m, vec2(-1.0), vec2(1.0));
+    vec2 vis = m * 0.5 + 0.5;
+    float mag = clamp(length(m), 0.0, 1.0);
+    return vec3(vis, mag);
+}
+
+// ---- Optional wrappers (to satisfy code expecting these names)
+bool traceSceneBVH(vec3 ro, vec3 rd, out Hit hit)      { return traceBVH(ro, rd, hit); }
+bool traceSceneAnalytic(vec3 ro, vec3 rd, out Hit hit) { return traceAnalytic(ro, rd, hit); }
+
 // ================== MAIN ==================
 void main() {
     vec3 frameSum = vec3(0.0);
-    int SPP = max(uSpp, 1);
+    int  SPP = max(uSpp, 1);
 
     for (int s = 0; s < SPP; ++s) {
         int seed = uFrameIndex * SPP + s;
@@ -324,28 +344,46 @@ void main() {
         rand(gl_FragCoord.yx + float(13 + 31 * s), seed)
         ) - 0.5;
 
-        vec2 uv = (gl_FragCoord.xy + jitter) / uResolution;
+        vec2 uv  = (gl_FragCoord.xy + jitter) / uResolution;
         vec2 ndc = uv * 2.0 - 1.0;
         vec3 dir = normalize(uCamFwd
                              + ndc.x * uCamRight * (uTanHalfFov * uAspect)
-        + ndc.y * uCamUp * uTanHalfFov);
+        + ndc.y * uCamUp    *  uTanHalfFov);
 
-        vec3 radiance = vec3(0.0);
+        // Choose scene
+        Hit h;
+        bool hitAny = (uUseBVH == 1) ? traceBVH(uCamPos, dir, h)
+        : traceAnalytic(uCamPos, dir, h);
 
-        if (uUseBVH == 1) {
-            Hit hb;
-            if (traceBVH(uCamPos, dir, hb)) {
-                radiance = directLightBVH(hb, seed);
+        // --- Motion debug path (no accumulation)
+        if (uShowMotion == 1) {
+            if (hitAny) {
+                vec2 pN = ndcFromWorld(h.p, uPrevViewProj);
+                vec2 cN = ndcFromWorld(h.p, uCurrViewProj);
+                vec2 m  = cN - pN;
+                frameSum += visualizeMotion(m);
             } else {
-                radiance = sky(dir);
+                frameSum += vec3(0.0);
             }
+            continue;
+        }
+
+        // --- Normal lighting
+        vec3 radiance;
+        if (hitAny) {
+            radiance = (uUseBVH == 1) ? directLightBVH(h, seed)
+            : directLight(h,    seed);
+            #if ENABLE_MIRROR_BOUNCE
+            if (h.mat == 3) {
+                vec3 rdir = reflect(dir, h.n);
+                Hit h2; bool hit2 = (uUseBVH == 1) ? traceBVH(h.p + h.n * EPS, rdir, h2)
+                : traceAnalytic(h.p + h.n * EPS, rdir, h2);
+                radiance += hit2 ? (0.9 * ((uUseBVH==1)?directLightBVH(h2, seed):directLight(h2, seed)))
+                : (0.9 * sky(rdir));
+            }
+            #endif
         } else {
-            Hit ha;
-            if (traceAnalytic(uCamPos, dir, ha)) {
-                radiance = directLight(ha, seed);
-            } else {
-                radiance = sky(dir);
-            }
+            radiance = sky(dir);
         }
 
         radiance = clampLuminance(radiance, 10.0);
@@ -353,8 +391,16 @@ void main() {
     }
 
     vec3 frameAvg = frameSum / float(SPP);
+
+    // In motion debug: show per-frame directly (no accumulation)
+    if (uShowMotion == 1) {
+        fragColor = vec4(frameAvg, 1.0);
+        return;
+    }
+
+    // Normal accumulation in linear space
     vec3 prev = texture(uPrevAccum, vUV).rgb;
-    float n = float(uFrameIndex);
+    float n   = float(uFrameIndex);
     vec3 accum = (prev * n + frameAvg) / (n + 1.0);
     fragColor = vec4(accum, 1.0);
 }

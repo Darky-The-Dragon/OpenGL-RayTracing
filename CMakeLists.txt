@@ -45,6 +45,7 @@ include_directories(libs/assimp/include)
 # Add public and local headers
 include_directories(
         include
+        include/camera
         include/utils
         include/io
         src
