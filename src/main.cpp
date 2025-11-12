@@ -210,9 +210,9 @@ int main() {
 
         if (gRayMode) {
             // ===============================
-            // Ray mode: render into accum tex
+            // Ray mode: render into accum tex + motion
             // ===============================
-            gAccum.bindWriteFBO();
+            gAccum.bindWriteFBO_ColorAndMotion(); // attaches COLOR0 = writeTex(), COLOR1 = motionTex (RG16F)
             glViewport(0, 0, fbw, fbh);
             glDisable(GL_DEPTH_TEST);
 
@@ -231,7 +231,7 @@ int main() {
             gRtShader->setFloat("uTanHalfFov", tanHalfFov);
             gRtShader->setFloat("uAspect", camera.AspectRatio);
             gRtShader->setInt("uFrameIndex", gAccum.frameIndex);
-            gRtShader->setInt("uSpp", gShowMotion ? 1 : gSppPerFrame); // 1 spp in motion debug
+            gRtShader->setInt("uSpp", gShowMotion ? 1 : gSppPerFrame);
             gRtShader->setInt("uUseBVH", gUseBVH ? 1 : 0);
             gRtShader->setInt("uNodeCount", gBvhNodeCount);
             gRtShader->setInt("uTriCount", gBvhTriCount);
@@ -249,7 +249,7 @@ int main() {
             glBindTexture(GL_TEXTURE_2D, gAccum.readTex());
             gRtShader->setInt("uPrevAccum", 0);
 
-            // BVH TBOs (shader will use if uUseBVH==1 and traversal exists)
+            // BVH TBOs
             glActiveTexture(GL_TEXTURE1);
             glBindTexture(GL_TEXTURE_BUFFER, gBvhNodeTex);
             gRtShader->setInt("uBvhNodes", 1);
@@ -265,10 +265,20 @@ int main() {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glViewport(0, 0, fbw, fbh);
             gPresentShader->use();
+
+            // COLOR0 (accumulated linear)
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gAccum.writeTex());
             gPresentShader->setInt("uTex", 0);
             gPresentShader->setFloat("uExposure", gExposure);
+
+            // COLOR1 (motion vectors, RG16F)
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, gAccum.motionTex); // <- ensure Accum exposes motionTex
+            gPresentShader->setInt("uMotionTex", 1);
+            gPresentShader->setInt("uShowMotion", gShowMotion ? 1 : 0);
+            gPresentShader->setFloat("uMotionScale", 4.0f);
+
             glBindVertexArray(gFsVao);
             glDrawArrays(GL_TRIANGLES, 0, 3);
 

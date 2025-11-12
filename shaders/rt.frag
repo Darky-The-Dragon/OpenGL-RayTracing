@@ -1,6 +1,7 @@
 #version 410 core
 in vec2 vUV;
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;   // accumulated linear color
+layout(location = 1) out vec2 outMotion;   // NDC motion (currentNDC - prevNDC)
 
 // ---- Camera & accumulation
 uniform vec3  uCamPos;
@@ -24,7 +25,7 @@ uniform samplerBuffer uBvhNodes;
 uniform samplerBuffer uBvhTris;
 
 // ---- Motion debug (F6)
-uniform int   uShowMotion;               // 0 = normal, 1 = visualize motion
+uniform int   uShowMotion;               // 0 = normal, 1 = visualize motion (present-time)
 uniform mat4  uPrevViewProj;
 uniform mat4  uCurrViewProj;
 
@@ -87,6 +88,15 @@ float rand(vec2 p, int frame) {
     return float(hash2(uvec2(p) ^ uvec2(frame, frame * 1663))) / 4294967296.0;
 }
 float epsForDist(float d) { return max(1e-4, 1e-3 * d); }
+
+// Halton (low-discrepancy per-frame jitter)
+float halton(int i, int b) {
+    float f = 1.0, r = 0.0;
+    int n = i;
+    while (n > 0) { f /= float(b); r += f * float(n % b); n /= b; }
+    return r;
+}
+vec2 ld2(int i) { return vec2(halton(i + 1, 2), halton(i + 1, 3)); }
 
 // ---- Disk sample (area light)
 vec2 concentricSample(vec2 u) {
@@ -226,8 +236,7 @@ bool traceBVHShadow(vec3 ro, vec3 rd, float tMax) {
                 TriSOA T = triFetch(triIdx);
                 float t; vec3 n;
                 if (triHit(ro, rd, T, tMax, t, n)) {
-                    // any hit before light → occluded
-                    return true;
+                    return true; // any hit before light → occluded
                 }
             }
         } else {
@@ -264,23 +273,47 @@ bool occludedToward(vec3 p, vec3 q) {
     }
 }
 
-// ---- Direct lighting (analytic & BVH)
+// ---- Direct lighting (analytic & BVH) with per-pixel CP rotation + frame LD rotation
+vec2 cpOffset(vec2 pix, int frame) {
+    // Per-pixel hash → [0,1)^2
+    vec2 h = vec2(
+    rand(pix, frame * 911),
+    rand(pix.yx, frame * 577)
+    );
+    // Per-frame low-discrepancy rotation
+    vec2 ld = ld2(frame);
+    return fract(h + ld);
+}
+
 vec3 directLight(Hit h, int frame) {
     vec3 N = h.n;
     vec3 sum = vec3(0.0);
+
+    // Orthonormal basis for disk light
     vec3 t = normalize(abs(kLightN.y) < 0.99 ? cross(kLightN, vec3(0, 1, 0)) : cross(kLightN, vec3(1, 0, 0)));
     vec3 b = cross(kLightN, t);
+
+    vec2 rot = cpOffset(gl_FragCoord.xy, uFrameIndex);
+
     for (int i = 0; i < SOFT_SHADOW_SAMPLES; ++i) {
-        vec2 u = vec2(rand(gl_FragCoord.xy + float(i), frame),
-        rand(gl_FragCoord.yx + float(31 * i + 7), frame));
+        // base random
+        vec2 u = vec2(
+        rand(gl_FragCoord.xy + float(i), frame),
+        rand(gl_FragCoord.yx + float(31 * i + 7), frame)
+        );
+        // Cranley–Patterson rotation + wrap
+        u = fract(u + rot);
+
         vec2 d = concentricSample(u) * kLightRadius;
         vec3 xL = kLightCenter + t * d.x + b * d.y;
-        vec3 L = normalize(xL - h.p);
+
+        vec3 L  = normalize(xL - h.p);
         float ndl = max(dot(N, L), 0.0);
         float cosThetaL = max(dot(-kLightN, L), 0.0);
         float r2 = max(dot(xL - h.p, xL - h.p), 1e-4);
         float geom = (ndl * cosThetaL) / r2;
-        float vis = occludedToward(h.p, xL) ? 0.0 : 1.0;
+        float vis  = occludedToward(h.p, xL) ? 0.0 : 1.0;
+
         sum += materialAlbedo(h.mat) * kLightCol * geom * vis / PI;
     }
     return sum / float(SOFT_SHADOW_SAMPLES);
@@ -289,95 +322,89 @@ vec3 directLight(Hit h, int frame) {
 vec3 directLightBVH(Hit h, int frame) {
     vec3 N = h.n;
     vec3 sum = vec3(0.0);
+
     vec3 t = normalize(abs(kLightN.y) < 0.99 ? cross(kLightN, vec3(0, 1, 0)) : cross(kLightN, vec3(1, 0, 0)));
     vec3 b = cross(kLightN, t);
+
+    vec2 rot = cpOffset(gl_FragCoord.xy, uFrameIndex);
+
     for (int i = 0; i < SOFT_SHADOW_SAMPLES; ++i) {
-        vec2 u = vec2(rand(gl_FragCoord.xy + float(i), frame),
-        rand(gl_FragCoord.yx + float(31 * i + 7), frame));
+        vec2 u = vec2(
+        rand(gl_FragCoord.xy + float(i), frame),
+        rand(gl_FragCoord.yx + float(31 * i + 7), frame)
+        );
+        u = fract(u + rot);
+
         vec2 d = concentricSample(u) * kLightRadius;
         vec3 xL = kLightCenter + t * d.x + b * d.y;
-        vec3 L = normalize(xL - h.p);
+
+        vec3 L  = normalize(xL - h.p);
         float ndl = max(dot(N, L), 0.0);
         float cosThetaL = max(dot(-kLightN, L), 0.0);
         float r2 = max(dot(xL - h.p, xL - h.p), 1e-4);
         float geom = (ndl * cosThetaL) / r2;
-        float vis = occludedToward(h.p, xL) ? 0.0 : 1.0;
+        float vis  = occludedToward(h.p, xL) ? 0.0 : 1.0;
+
         vec3 albedo = vec3(0.8);
         sum += albedo * kLightCol * geom * vis / PI;
     }
     return sum / float(SOFT_SHADOW_SAMPLES);
 }
 
-// ---- Luminance clamp
-vec3 clampLuminance(vec3 c, float maxLum) {
-    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    if (lum > maxLum) c *= (maxLum / max(lum, 1e-6));
-    return c;
-}
-
 // ---- Motion helpers
 vec2 ndcFromWorld(vec3 p, mat4 VP) {
     vec4 clip = VP * vec4(p, 1.0);
-    vec3 ndc = clip.xyz / max(clip.w, 1e-6);
+    vec3 ndc  = clip.xyz / max(clip.w, 1e-6);
     return ndc.xy; // [-1,1]
 }
-vec3 visualizeMotion(vec2 m) {
-    m = clamp(m, vec2(-1.0), vec2(1.0));
-    vec2 vis = m * 0.5 + 0.5;
-    float mag = clamp(length(m), 0.0, 1.0);
-    return vec3(vis, mag);
-}
-
-// ---- Optional wrappers (to satisfy code expecting these names)
-bool traceSceneBVH(vec3 ro, vec3 rd, out Hit hit)      { return traceBVH(ro, rd, hit); }
-bool traceSceneAnalytic(vec3 ro, vec3 rd, out Hit hit) { return traceAnalytic(ro, rd, hit); }
 
 // ================== MAIN ==================
 void main() {
     vec3 frameSum = vec3(0.0);
     int  SPP = max(uSpp, 1);
 
-    for (int s = 0; s < SPP; ++s) {
-        int seed = uFrameIndex * SPP + s;
-        vec2 jitter = vec2(
-        rand(gl_FragCoord.xy + float(s), seed),
-        rand(gl_FragCoord.yx + float(13 + 31 * s), seed)
-        ) - 0.5;
+    // default motion = 0 (miss)
+    vec2 motionOut = vec2(0.0);
 
-        vec2 uv  = (gl_FragCoord.xy + jitter) / uResolution;
+    // --- Per-frame camera jitter (constant within the frame)
+    vec2 camJit = ld2(uFrameIndex) - 0.5;
+
+    for (int s = 0; s < SPP; ++s) {
+        // keep seed unique per frame & optional per-sample
+        int seed = uFrameIndex * max(1, SPP) + s;
+
+        // use per-frame jitter (stable within frame)
+        vec2 uv  = (gl_FragCoord.xy + camJit) / uResolution;
         vec2 ndc = uv * 2.0 - 1.0;
-        vec3 dir = normalize(uCamFwd
-                             + ndc.x * uCamRight * (uTanHalfFov * uAspect)
-        + ndc.y * uCamUp    *  uTanHalfFov);
+
+        vec3 dir = normalize(
+            uCamFwd
+            + ndc.x * uCamRight * (uTanHalfFov * uAspect)
+            + ndc.y * uCamUp    *  uTanHalfFov
+        );
 
         // Choose scene
         Hit h;
         bool hitAny = (uUseBVH == 1) ? traceBVH(uCamPos, dir, h)
         : traceAnalytic(uCamPos, dir, h);
 
-        // --- Motion debug path (no accumulation)
-        if (uShowMotion == 1) {
-            if (hitAny) {
-                vec2 pN = ndcFromWorld(h.p, uPrevViewProj);
-                vec2 cN = ndcFromWorld(h.p, uCurrViewProj);
-                vec2 m  = cN - pN;
-                frameSum += visualizeMotion(m);
-            } else {
-                frameSum += vec3(0.0);
-            }
-            continue;
-        }
-
-        // --- Normal lighting
         vec3 radiance;
         if (hitAny) {
+            // compute current/prev NDC for the hit point (primary hit)
+            vec2 pN = ndcFromWorld(h.p, uPrevViewProj);
+            vec2 cN = ndcFromWorld(h.p, uCurrViewProj);
+            motionOut = cN - pN;
+
             radiance = (uUseBVH == 1) ? directLightBVH(h, seed)
             : directLight(h,    seed);
+
             #if ENABLE_MIRROR_BOUNCE
             if (h.mat == 3) {
                 vec3 rdir = reflect(dir, h.n);
-                Hit h2; bool hit2 = (uUseBVH == 1) ? traceBVH(h.p + h.n * EPS, rdir, h2)
-                : traceAnalytic(h.p + h.n * EPS, rdir, h2);
+                // offset along reflection direction to avoid self-hit acne
+                vec3 rorg = h.p + rdir * EPS;
+                Hit h2; bool hit2 = (uUseBVH == 1) ? traceBVH(rorg, rdir, h2)
+                : traceAnalytic(rorg, rdir, h2);
                 radiance += hit2 ? (0.9 * ((uUseBVH==1)?directLightBVH(h2, seed):directLight(h2, seed)))
                 : (0.9 * sky(rdir));
             }
@@ -386,21 +413,17 @@ void main() {
             radiance = sky(dir);
         }
 
-        radiance = clampLuminance(radiance, 10.0);
         frameSum += radiance;
     }
 
     vec3 frameAvg = frameSum / float(SPP);
 
-    // In motion debug: show per-frame directly (no accumulation)
-    if (uShowMotion == 1) {
-        fragColor = vec4(frameAvg, 1.0);
-        return;
-    }
-
     // Normal accumulation in linear space
     vec3 prev = texture(uPrevAccum, vUV).rgb;
     float n   = float(uFrameIndex);
     vec3 accum = (prev * n + frameAvg) / (n + 1.0);
+
+    // Write outputs
     fragColor = vec4(accum, 1.0);
-}
+    outMotion = motionOut;  // NDC delta; present can visualize when F6 is ON
+}s

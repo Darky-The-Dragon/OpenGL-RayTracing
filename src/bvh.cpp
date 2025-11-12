@@ -5,19 +5,19 @@
 #include <cassert>
 
 // -------- AABB helpers -----------
-static inline glm::vec3 tri_min(const CPU_Triangle &t) {
+static glm::vec3 tri_min(const CPU_Triangle &t) {
     glm::vec3 v1 = t.v0 + t.e1;
     glm::vec3 v2 = t.v0 + t.e2;
     return glm::min(t.v0, glm::min(v1, v2));
 }
 
-static inline glm::vec3 tri_max(const CPU_Triangle &t) {
+static glm::vec3 tri_max(const CPU_Triangle &t) {
     glm::vec3 v1 = t.v0 + t.e1;
     glm::vec3 v2 = t.v0 + t.e2;
     return glm::max(t.v0, glm::max(v1, v2));
 }
 
-static inline glm::vec3 tri_centroid(const CPU_Triangle &t) {
+static glm::vec3 tri_centroid(const CPU_Triangle &t) {
     glm::vec3 v1 = t.v0 + t.e1;
     glm::vec3 v2 = t.v0 + t.e2;
     return (t.v0 + v1 + v2) * (1.0f / 3.0f);
@@ -29,10 +29,8 @@ struct BuildRef {
     glm::vec3 c; // centroid
 };
 
-static int build_recursive(std::vector<BVHNode> &nodes,
-                           const std::vector<CPU_Triangle> &tris,
-                           std::vector<BuildRef> &refs,
-                           int begin, int end, int leafMax = 8) {
+static int build_recursive(std::vector<BVHNode> &nodes, const std::vector<CPU_Triangle> &tris,
+                           std::vector<BuildRef> &refs, int begin, int end, int leafMax = 8) {
     BVHNode node{};
     glm::vec3 bmin(1e30f), bmax(-1e30f);
     for (int i = begin; i < end; ++i) {
@@ -73,7 +71,7 @@ static int build_recursive(std::vector<BVHNode> &nodes,
     return myIndex;
 }
 
-std::vector<BVHNode> build_bvh(const std::vector<CPU_Triangle> &tris) {
+std::vector<BVHNode> build_bvh(std::vector<CPU_Triangle> &tris) {
     std::vector<BVHNode> nodes;
     if (tris.empty()) return nodes;
 
@@ -113,8 +111,7 @@ std::vector<BVHNode> build_bvh(const std::vector<CPU_Triangle> &tris) {
             stack.push_back(node.right);
         }
     }
-    // replace triangles vector
-    const_cast<std::vector<CPU_Triangle> &>(tris) = remapped; // (we won't use original anymore)
+    tris = remapped;
 
     return nodes;
 }
