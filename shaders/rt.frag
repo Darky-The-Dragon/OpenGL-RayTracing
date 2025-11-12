@@ -426,4 +426,4 @@ void main() {
     // Write outputs
     fragColor = vec4(accum, 1.0);
     outMotion = motionOut;  // NDC delta; present can visualize when F6 is ON
-}s
+}

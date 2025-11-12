@@ -12,6 +12,8 @@ namespace rt {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
         return t;
     }
 
@@ -24,6 +26,8 @@ namespace rt {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
         return t;
     }
 
@@ -81,6 +85,14 @@ namespace rt {
     }
 
     // --- API ---------------------------------------------------------------------
+
+    // Start-over without reallocating: zero current write ping + motion and rewind counters.
+    void Accum::reset() {
+        frameIndex = 0;
+        writeIdx = 0;
+        clear(); // clears COLOR0 (current write ping) + motion
+    }
+
     void Accum::recreate(int w, int h) {
         if (w <= 0 || h <= 0) return;
 
@@ -113,6 +125,22 @@ namespace rt {
 
         width = w;
         height = h;
+
+        // --- Bootstrap: clear both ping targets + motion so history starts clean ---
+        bindWriteFBO_ColorAndMotion(); {
+            const float zero4[4] = {0.f, 0.f, 0.f, 0.f};
+            glClearBufferfv(GL_COLOR, 0, zero4); // accum write target
+            glClearBufferfv(GL_COLOR, 1, zero4); // motion (RG16F) – extra components ignored
+        }
+        // Clear the other ping as well
+        swapAfterFrame();
+        bindWriteFBO_ColorAndMotion(); {
+            const float zero4[4] = {0.f, 0.f, 0.f, 0.f};
+            glClearBufferfv(GL_COLOR, 0, zero4);
+            glClearBufferfv(GL_COLOR, 1, zero4);
+        }
+
+        // Reset indices for first frame after recreate
         writeIdx = 0;
         frameIndex = 0;
     }

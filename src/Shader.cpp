@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iostream>
 #include "glad/gl.h"
+#include <glm/gtc/type_ptr.hpp>
 
 Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     std::ifstream vFile(vertexPath);
@@ -71,6 +72,10 @@ void Shader::setMat4(const std::string &name, const glm::mat4 &mat) const {
 
 void Shader::setVec3(const std::string &name, const glm::vec3 &value) const {
     glUniform3f(glGetUniformLocation(ID, name.c_str()), value.x, value.y, value.z);
+}
+
+void Shader::setVec2(const std::string &name, const glm::vec2 &value) const {
+    glUniform2fv(glGetUniformLocation(ID, name.c_str()), 1, glm::value_ptr(value));
 }
 
 void Shader::checkCompileErrors(const unsigned int shader, const std::string &type) {

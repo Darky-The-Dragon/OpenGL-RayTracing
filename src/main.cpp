@@ -11,12 +11,14 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 #include <cmath>
+#include <algorithm>
 
 // ===============================
 // Global state
 // ===============================
 static rt::Accum gAccum; // accumulation ping-pong + frame counter
 static bool gRayMode = true; // F2: raster <-> ray
+static bool gResized = false;  // set by framebuffer callback
 
 // SPP & exposure (driven by io::InputState)
 static int gSppPerFrame = 1;
@@ -59,9 +61,18 @@ static glm::mat4 gPrevViewProj(1.0f);
 // Callbacks
 // ===============================
 static void framebuffer_size_callback(GLFWwindow *, int width, int height) {
+    // Guard: zero-sized framebuffer can briefly happen on resize/minimize
+    if (width <= 0 || height <= 0) return;
+
+    // Update viewport and scissor to the new size
     glViewport(0, 0, width, height);
-    if (height > 0) camera.AspectRatio = float(width) / float(height);
-    gAccum.recreate(width, height); // rebuild accumulation targets + reset counters
+    glScissor(0, 0, width, height);
+
+    // Keep the camera aspect in sync
+    camera.AspectRatio = static_cast<float>(width) / static_cast<float>(height);
+
+    // Rebuild accumulation targets and reset counters/history
+    gAccum.recreate(width, height);
 }
 
 // ===============================
@@ -80,6 +91,19 @@ int main() {
     }
     glfwMakeContextCurrent(window);
     gladLoadGL(glfwGetProcAddress);
+
+    // Enable scissor so clears during resizes are well-defined (macOS/GL4.1 safe)
+    glEnable(GL_SCISSOR_TEST);
+
+    // Initialize viewport + scissor to current framebuffer size
+    {
+        int initW = 0, initH = 0;
+        glfwGetFramebufferSize(window, &initW, &initH);
+        if (initW > 0 && initH > 0) {
+            glViewport(0, 0, initW, initH);
+            glScissor(0, 0, initW, initH);
+        }
+    }
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
@@ -180,12 +204,14 @@ int main() {
                         << "  (nodes=" << gBvhNodeCount << ", tris=" << gBvhTriCount << ")\n";
             }
             if (gInput.changedSPP) {
-                gSppPerFrame = gInput.sppPerFrame;
+                // keep it sane (tweak upper bound to taste)
+                gSppPerFrame = std::max(1, std::min(gInput.sppPerFrame, 64));
                 gAccum.reset();
                 std::cout << "[INPUT] SPP per frame = " << gSppPerFrame << "\n";
             }
             if (gExposure != gInput.exposure) {
-                gExposure = gInput.exposure;
+                // avoid zero/negative exposure and silly highs
+                gExposure = std::max(0.01f, std::min(gInput.exposure, 8.0f));
                 std::cout << "[INPUT] Exposure = " << gExposure << "\n";
             }
         }
@@ -198,10 +224,13 @@ int main() {
             prevFov = camera.Fov;
         }
 
-        // Clear
+        // Query current framebuffer size, update viewport & scissor, then clear
+        glfwGetFramebufferSize(window, &fbw, &fbh);
+        glViewport(0, 0, fbw, fbh);
+        glScissor(0, 0, fbw, fbh);
+
         glClearColor(0.1f, 0.0f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glfwGetFramebufferSize(window, &fbw, &fbh);
 
         // Precompute matrices for motion vectors
         const glm::mat4 currView = camera.GetViewMatrix();
@@ -214,6 +243,7 @@ int main() {
             // ===============================
             gAccum.bindWriteFBO_ColorAndMotion(); // attaches COLOR0 = writeTex(), COLOR1 = motionTex (RG16F)
             glViewport(0, 0, fbw, fbh);
+            glDepthMask(GL_FALSE);
             glDisable(GL_DEPTH_TEST);
 
             gRtShader->use();
@@ -240,9 +270,7 @@ int main() {
             // Motion matrices
             gRtShader->setMat4("uPrevViewProj", gPrevViewProj);
             gRtShader->setMat4("uCurrViewProj", currVP);
-
-            if (GLint locRes = glGetUniformLocation(gRtShader->ID, "uResolution"); locRes >= 0)
-                glUniform2f(locRes, float(fbw), float(fbh));
+            gRtShader->setVec2("uResolution", glm::vec2(fbw, fbh));
 
             // Accum input
             glActiveTexture(GL_TEXTURE0);
@@ -291,6 +319,7 @@ int main() {
             // ===============================
             // Raster path (unchanged)
             // ===============================
+            glDepthMask(GL_TRUE);
             glEnable(GL_DEPTH_TEST);
             gRasterShader->use();
             gRasterShader->setMat4("view", currView);
@@ -318,24 +347,42 @@ int main() {
     }
 
     // Cleanup
-    if (gFsVao)
-        glDeleteVertexArrays(1, &gFsVao);
-
-    if (gBvhNodeTex)
-        glDeleteTextures(1, &gBvhNodeTex);
-    if (gBvhTriTex)
-        glDeleteTextures(1, &gBvhTriTex);
-    if (gBvhNodeBuf)
-        glDeleteBuffers(1, &gBvhNodeBuf);
-    if (gBvhTriBuf)
-        glDeleteBuffers(1, &gBvhTriBuf);
-
     delete gRtShader;
+    gRtShader = nullptr;
     delete gPresentShader;
+    gPresentShader = nullptr;
     delete gRasterShader;
+    gRasterShader = nullptr;
+
+    // Models (own VAOs/VBOs internally)
     delete gGround;
+    gGround = nullptr;
     delete gBunny;
+    gBunny = nullptr;
     delete gSphere;
+    gSphere = nullptr;
+
+    // Raw GL objects
+    if (gFsVao) {
+        glDeleteVertexArrays(1, &gFsVao);
+        gFsVao = 0;
+    }
+    if (gBvhNodeTex) {
+        glDeleteTextures(1, &gBvhNodeTex);
+        gBvhNodeTex = 0;
+    }
+    if (gBvhTriTex) {
+        glDeleteTextures(1, &gBvhTriTex);
+        gBvhTriTex = 0;
+    }
+    if (gBvhNodeBuf) {
+        glDeleteBuffers(1, &gBvhNodeBuf);
+        gBvhNodeBuf = 0;
+    }
+    if (gBvhTriBuf) {
+        glDeleteBuffers(1, &gBvhTriBuf);
+        gBvhTriBuf = 0;
+    }
 
     glfwTerminate();
     return 0;

@@ -26,11 +26,11 @@ namespace rt {
 
         Accum &operator=(Accum &&other) noexcept;
 
+        // Reset accumulation (e.g., camera moved, params changed).
+        void reset();
+
         // Create/Recreate accumulation targets (also resets counters).
         void recreate(int w, int h);
-
-        // Reset accumulation (e.g., camera moved, params changed).
-        inline void reset() { frameIndex = 0; }
 
         // Bind FBO to write the current frame (COLOR0 = writeTex()).
         void bindWriteFBO() const;
@@ -48,14 +48,14 @@ namespace rt {
         void clear() const;
 
         // After presenting, advance frame and swap ping-pong.
-        inline void swapAfterFrame() {
+        void swapAfterFrame() {
             frameIndex++;
             writeIdx = 1 - writeIdx;
         }
 
         // Helpers
-        inline GLuint readTex() const { return tex[1 - writeIdx]; }
-        inline GLuint writeTex() const { return tex[writeIdx]; }
+        GLuint readTex() const { return tex[1 - writeIdx]; }
+        GLuint writeTex() const { return tex[writeIdx]; }
 
     private:
         static GLuint createAccumTex(int w, int h); // RGBA16F

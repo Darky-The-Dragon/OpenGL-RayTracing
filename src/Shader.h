@@ -21,6 +21,8 @@ public:
 
     void setVec3(const std::string &name, const glm::vec3 &value) const;
 
+    void setVec2(const std::string &name, const glm::vec2 &value) const;
+
 private:
     static void checkCompileErrors(unsigned int shader, const std::string &type);
 };
