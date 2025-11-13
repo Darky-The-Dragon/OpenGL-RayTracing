@@ -390,10 +390,12 @@ void main() {
 
         vec3 radiance;
         if (hitAny) {
-            // compute current/prev NDC for the hit point (primary hit)
-            vec2 pN = ndcFromWorld(h.p, uPrevViewProj);
-            vec2 cN = ndcFromWorld(h.p, uCurrViewProj);
-            motionOut = cN - pN;
+            // Only write motion once (first sample) to keep it stable
+            if (s == 0) {
+                vec2 pN = ndcFromWorld(h.p, uPrevViewProj);
+                vec2 cN = ndcFromWorld(h.p, uCurrViewProj);
+                motionOut = cN - pN;
+            }
 
             radiance = (uUseBVH == 1) ? directLightBVH(h, seed)
             : directLight(h,    seed);
@@ -416,14 +418,70 @@ void main() {
         frameSum += radiance;
     }
 
-    vec3 frameAvg = frameSum / float(SPP);
+    // Average current frame samples
+    vec3 curr = frameSum / float(SPP);
 
-    // Normal accumulation in linear space
-    vec3 prev = texture(uPrevAccum, vUV).rgb;
-    float n   = float(uFrameIndex);
-    vec3 accum = (prev * n + frameAvg) / (n + 1.0);
+    // Current UV (what we are shading now)
+    vec2 uvCurr = vUV;
 
-    // Write outputs
-    fragColor = vec4(accum, 1.0);
-    outMotion = motionOut;  // NDC delta; present can visualize when F6 is ON
+    // --- First frame: no history yet, just output current ---
+    if (uFrameIndex == 0) {
+        fragColor = vec4(curr, 1.0);
+        outMotion = motionOut;
+        return;
+    }
+
+    // Motion magnitude in NDC (how fast this pixel is moving)
+    float motMag = length(motionOut);
+
+    // === CASE 1: Camera effectively still → use true running average ===
+    // This gives you "infinite" convergence when nothing moves.
+    const float STILL_THRESH = 1e-4;
+    if (motMag < STILL_THRESH) {
+        vec3 prev = texture(uPrevAccum, uvCurr).rgb;
+        float n   = float(uFrameIndex);
+        vec3 accum = (prev * n + curr) / (n + 1.0);
+
+        fragColor = vec4(accum, 1.0);
+        outMotion = motionOut;
+        return;
+    }
+
+    // === CASE 2: Pixel is moving → use motion-vector TAA ===
+
+    // Reproject into previous frame using motionOut (NDC -> UV)
+    vec2 uvPrev = uvCurr - motionOut * 0.5;
+
+    // Out-of-bounds => disocclusion: trust current
+    bool oob =
+    any(lessThan(uvPrev, vec2(0.0))) ||
+    any(greaterThan(uvPrev, vec2(1.0)));
+
+    vec3 history = oob ? curr : texture(uPrevAccum, uvPrev).rgb;
+
+    // Base history weight:
+    //  - moving pixels keep some history but not too much (avoid trails)
+    float wHist;
+    if (oob) {
+        wHist = 0.0;                     // disocclusion: no history
+    } else {
+        // 1.0 when motMag ≈ 0, fades toward 0 when motMag grows
+        wHist = 1.0 - smoothstep(0.02, 0.25, motMag);
+        // Clamp so history never fully dominates
+        wHist = clamp(wHist, 0.0, 0.96);
+    }
+    float wCurr = 1.0 - wHist;
+
+    // --- History clamping box around current ---
+    float box = 0.12; // tweak: 0.08–0.15 usually works well
+    vec3 lo = curr - vec3(box);
+    vec3 hi = curr + vec3(box);
+    history = clamp(history, lo, hi);
+
+    // Final TAA color
+    vec3 taa = wHist * history + wCurr * curr;
+
+    // Outputs
+    fragColor = vec4(taa, 1.0);
+    outMotion = motionOut;  // still write motion for debug / future passes
 }
