@@ -115,8 +115,8 @@ int main() {
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 
     // Shaders
-    gRtShader = new Shader("../shaders/rt_fullscreen.vert", "../shaders/rt.frag");
-    gPresentShader = new Shader("../shaders/rt_fullscreen.vert", "../shaders/rt_present.frag");
+    gRtShader = new Shader("../shaders/rt/rt_fullscreen.vert", "../shaders/rt/rt.frag");
+    gPresentShader = new Shader("../shaders/rt/rt_fullscreen.vert", "../shaders/rt/rt_present.frag");
 
     int fbw, fbh;
     glfwGetFramebufferSize(window, &fbw, &fbh);

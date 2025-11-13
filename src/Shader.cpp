@@ -1,9 +1,63 @@
+#include <algorithm>
 #include "Shader.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include "glad/gl.h"
 #include <glm/gtc/type_ptr.hpp>
+
+namespace {
+// Helper: get directory from path, including trailing slash (if any), else empty string
+std::string getDirectory(const std::string& path) {
+    size_t pos = path.find_last_of('/');
+    if (pos != std::string::npos) {
+        return path.substr(0, pos + 1);
+    }
+    return "";
+}
+
+// Helper: preprocess GLSL #include "..." recursively
+std::string preprocessShaderSource(const std::string& source, const std::string& baseDir, int depth = 0) {
+    if (depth > 16) {
+        std::cerr << "[WARNING] Shader include depth > 16, possible include cycle. Aborting further includes." << std::endl;
+        return source;
+    }
+    std::istringstream input(source);
+    std::ostringstream output;
+    std::string line;
+    while (std::getline(input, line)) {
+        // Trim leading whitespace
+        size_t first_non_ws = line.find_first_not_of(" \t");
+        std::string trimmed = (first_non_ws == std::string::npos) ? "" : line.substr(first_non_ws);
+        if (trimmed.rfind("#include", 0) == 0) {
+            size_t q1 = trimmed.find('\"');
+            size_t q2 = (q1 != std::string::npos) ? trimmed.find('\"', q1 + 1) : std::string::npos;
+            if (q1 != std::string::npos && q2 != std::string::npos && q2 > q1 + 1) {
+                std::string incPath = trimmed.substr(q1 + 1, q2 - q1 - 1);
+                std::string fullPath = baseDir + incPath;
+                std::ifstream incFile(fullPath);
+                if (!incFile) {
+                    std::cerr << "ERROR: Could not open included shader file: \"" << incPath << "\" (full path: " << fullPath << ")" << std::endl;
+                    output << line << '\n';
+                    continue;
+                }
+                std::stringstream incStream;
+                incStream << incFile.rdbuf();
+                std::string incSrc = incStream.str();
+                output << "// --- begin include: " << incPath << " ---\n";
+                output << preprocessShaderSource(incSrc, getDirectory(fullPath), depth + 1);
+                output << "// --- end include: " << incPath << " ---\n";
+            } else {
+                // Malformed include, just emit as-is
+                output << line << '\n';
+            }
+        } else {
+            output << line << '\n';
+        }
+    }
+    return output.str();
+}
+} // end unnamed namespace
 
 Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     std::ifstream vFile(vertexPath);
@@ -19,10 +73,15 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     vStream << vFile.rdbuf();
     fStream << fFile.rdbuf();
 
-    std::string vCode = vStream.str();
-    std::string fCode = fStream.str();
-    std::cout << "[DEBUG] Vertex Shader Length: " << vCode.size() << std::endl;
-    std::cout << "[DEBUG] Fragment Shader Length: " << fCode.size() << std::endl;
+    std::string vRaw = vStream.str();
+    std::string fRaw = fStream.str();
+
+    // Preprocess GLSL-style #include "..." directives using the directory of each shader
+    std::string vCode = preprocessShaderSource(vRaw, getDirectory(vertexPath));
+    std::string fCode = preprocessShaderSource(fRaw, getDirectory(fragmentPath));
+
+    std::cout << "[DEBUG] Vertex Shader Length (preprocessed): " << vCode.size() << std::endl;
+    std::cout << "[DEBUG] Fragment Shader Length (preprocessed): " << fCode.size() << std::endl;
 
     const char *vShaderCode = vCode.c_str();
     const char *fShaderCode = fCode.c_str();
