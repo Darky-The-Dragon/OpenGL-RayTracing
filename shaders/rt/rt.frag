@@ -54,13 +54,13 @@ void main() {
         int seed = uFrameIndex * max(1, SPP) + s;
 
         // use per-frame jitter (stable within frame)
-        vec2 uv  = (gl_FragCoord.xy + camJit) / uResolution;
+        vec2 uv = (gl_FragCoord.xy + camJit) / uResolution;
         vec2 ndc = uv * 2.0 - 1.0;
 
         vec3 dir = normalize(
             uCamFwd
             + ndc.x * uCamRight * (uTanHalfFov * uAspect)
-            + ndc.y * uCamUp    *  uTanHalfFov
+            + ndc.y * uCamUp * uTanHalfFov
         );
 
         // Choose scene
@@ -81,10 +81,26 @@ void main() {
             // View direction from hit to camera
             vec3 V = -dir;
 
-            // Primary lighting
+            // Primary lighting: direct from area light
             radiance = (uUseBVH == 1)
             ? directLightBVH(h, seed, V)
-            : directLight(h,    seed, V);
+            : directLight(h, seed, V);
+
+            // -----------------------------------------------------------------
+            // One-bounce diffuse GI (indirect lighting)
+            // -----------------------------------------------------------------
+            {
+                const float giScale = 0.35; // overall strength, tweak to taste
+
+                if (uUseBVH == 1) {
+                    radiance += giScale * oneBounceGIBVH(h, uFrameIndex, seed);
+                } else {
+                    MaterialProps m0 = getMaterial(h.mat);
+                    if (m0.type == 0) { // skip mirrors for GI
+                                        radiance += giScale * oneBounceGIAnalytic(h, uFrameIndex, seed);
+                    }
+                }
+            }
 
             #if ENABLE_MIRROR_BOUNCE
             if (h.mat == 3) {
@@ -101,7 +117,7 @@ void main() {
                     vec3 V2 = -rdir;
                     vec3 bounced = (uUseBVH == 1)
                     ? directLightBVH(h2, seed, V2)
-                    : directLight(h2,    seed, V2);
+                    : directLight(h2, seed, V2);
 
                     radiance += 0.9 * bounced;
                 } else {
@@ -109,6 +125,13 @@ void main() {
                 }
             }
             #endif
+
+            // -----------------------------------------------------------------
+            // Ambient Occlusion modulation (subtle)
+            // -----------------------------------------------------------------
+            float ao = computeAO(h, uFrameIndex);
+            radiance *= ao;
+
         } else {
             radiance = sky(dir);
         }

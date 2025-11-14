@@ -22,6 +22,40 @@ bool occludedToward(vec3 p, vec3 q) {
     }
 }
 
+// ============================================================================
+// Basis & sampling utilities
+// ============================================================================
+
+// Build an orthonormal basis (T,B,N) from a normal
+void buildONB(in vec3 N, out vec3 T, out vec3 B) {
+    vec3 up = (abs(N.y) < 0.99) ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+    T = normalize(cross(up, N));
+    B = cross(N, T);
+}
+
+// Cosine-weighted hemisphere sample around normal N using shared helpers.
+// u in [0,1]^2.
+vec3 sampleHemisphereCosine(vec3 N, vec2 u) {
+    // cosine-weighted sample in local space (around +Y)
+    float phi = 2.0 * PI * u.x;
+    float r   = sqrt(u.y);
+    float x   = r * cos(phi);
+    float z   = r * sin(phi);
+    float y   = sqrt(max(0.0, 1.0 - u.y));
+    vec3 l    = vec3(x, y, z); // local (+Y hemisphere)
+
+    // build tangent frame once
+    vec3 T, B;
+    buildONB(normalize(N), T, B);
+
+    // Map local sample into world space oriented around N
+    return normalize(l.x * T + l.z * B + l.y * N);
+}
+
+// ============================================================================
+// Direct lighting
+// ============================================================================
+
 // ---- Direct lighting (analytic & BVH) with per-pixel CP rotation + frame LD rotation
 vec2 cpOffset(vec2 pix, int frame) {
     // Per-pixel hash → [0,1)^2
@@ -139,6 +173,121 @@ vec3 directLightBVH(Hit h, int frame, vec3 Vdir) {
         sum += (diffuse + spec) * Li;
     }
     return sum / float(SOFT_SHADOW_SAMPLES);
+}
+
+// ============================================================================
+// One-bounce diffuse GI (indirect lighting)
+// ============================================================================
+
+// Analytic scene: one diffuse bounce from primary hit h0
+vec3 oneBounceGIAnalytic(Hit h0, int frame, int seed) {
+    MaterialProps mat0 = getMaterial(h0.mat);
+    vec3 albedo0 = mat0.albedo;
+
+    // Random sample on hemisphere (per-pixel, per-seed)
+    vec2 u = vec2(
+    rand(gl_FragCoord.xy + float(seed * 13), frame),
+    rand(gl_FragCoord.yx + float(seed * 37), frame)
+    );
+
+    vec3 wi = sampleHemisphereCosine(normalize(h0.n), u);
+    float cosTheta = max(dot(normalize(h0.n), wi), 0.0);
+    if (cosTheta <= 0.0) return vec3(0.0);
+
+    // Trace from the hit along wi
+    Hit h1;
+    bool hit1 = traceAnalytic(h0.p + wi * EPS, wi, h1);
+
+    vec3 Li;
+    if (hit1) {
+        // Direct lighting at the secondary point
+        vec3 V1 = -wi;
+        Li = directLight(h1, frame, V1);
+    } else {
+        // Bounce to sky
+        Li = sky(wi);
+    }
+
+    // Lambertian throughput: albedo0 * (cosTheta / PI)
+    return albedo0 * (cosTheta / PI) * Li;
+}
+
+// BVH scene: one diffuse bounce from primary triangle hit
+vec3 oneBounceGIBVH(Hit h0, int frame, int seed) {
+    // Hard-coded BVH albedo (same spirit as directLightBVH)
+    const vec3 albedo0 = vec3(0.85);
+
+    vec2 u = vec2(
+    rand(gl_FragCoord.xy + float(seed * 19), frame),
+    rand(gl_FragCoord.yx + float(seed * 41), frame)
+    );
+
+    vec3 N0 = normalize(h0.n);
+    vec3 wi = sampleHemisphereCosine(N0, u);
+    float cosTheta = max(dot(N0, wi), 0.0);
+    if (cosTheta <= 0.0) return vec3(0.0);
+
+    Hit h1;
+    bool hit1 = traceBVH(h0.p + wi * EPS, wi, h1);
+
+    vec3 Li;
+    if (hit1) {
+        vec3 V1 = -wi;
+        Li = directLightBVH(h1, frame, V1);
+    } else {
+        Li = sky(wi);
+    }
+
+    return albedo0 * (cosTheta / PI) * Li;
+}
+
+// ---------------------------------------------------------------------------
+// Ambient Occlusion (AO)
+// Returns a factor in [0,1] (1 = fully open, 0 = fully occluded).
+// Designed to be *subtle* so it doesn't nuke the lighting.
+// ---------------------------------------------------------------------------
+float computeAO(Hit h, int frame)
+{
+    const int   AO_SAMPLES = 4;    // 4–6 is usually enough for a hint of AO
+    const float AO_RADIUS  = 0.8;  // how far we search for occluders (world units)
+    const float AO_BIAS    = 2e-3; // push-off distance to avoid self-intersection
+
+    vec3 N = normalize(h.n);
+    int occludedCount = 0;
+
+    for (int i = 0; i < AO_SAMPLES; ++i) {
+        // deterministic but decorrelated per-pixel/per-sample noise
+        vec2 u = vec2(
+        rand(gl_FragCoord.xy + float(37 * i + 3),  frame),
+        rand(gl_FragCoord.yx + float(19 * i + 11), frame)
+        );
+
+        // cosine-weighted world-space direction around N
+        vec3 dir = sampleHemisphereCosine(N, u);
+
+        // ray origin slightly above the surface
+        vec3 org = h.p + dir * AO_BIAS;
+
+        Hit tmp;
+        bool hitAny =
+        (uUseBVH == 1)
+        ? traceBVH(org, dir, tmp)
+        : traceAnalytic(org, dir, tmp);
+
+        // count as occluded only if something is reasonably close
+        if (hitAny && tmp.t < AO_RADIUS) {
+            occludedCount++;
+        }
+    }
+
+    float occ = float(occludedCount) / float(AO_SAMPLES); // 0..1
+    float ao  = 1.0 - occ;                                // 1=open, 0=closed
+
+    // Keep a minimum so nothing goes pitch-black
+    const float AO_MIN = 0.45;      // tweak 0.3–0.5
+    ao = clamp(mix(AO_MIN, 1.0, ao), AO_MIN, 1.0);
+
+    return ao;
 }
 
 #endif // RT_LIGHTING_GLSL

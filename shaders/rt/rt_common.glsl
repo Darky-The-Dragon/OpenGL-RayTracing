@@ -5,6 +5,8 @@
 // ---- Params / constants ----
 #define SOFT_SHADOW_SAMPLES 4
 #define ENABLE_MIRROR_BOUNCE 1
+#define ENABLE_INDIRECT_BOUNCE 1
+#define GLOBAL_ILLUMINATION_SCALE 0.6
 
 const float EPS = 1e-4;
 const float PI  = 3.1415926535;

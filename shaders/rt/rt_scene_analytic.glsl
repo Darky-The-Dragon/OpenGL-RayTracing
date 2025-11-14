@@ -44,7 +44,10 @@ bool traceAnalytic(vec3 ro, vec3 rd, out Hit hit) {
 // -------- Sky ----------
 vec3 sky(vec3 d) {
     float t = clamp(0.5 * (d.y + 1.0), 0.0, 1.0);
-    return mix(vec3(0.7, 0.8, 1.0) * 0.6, vec3(0.1, 0.2, 0.5), 1.0 - t);
+    vec3 col = mix(vec3(0.6, 0.7, 0.9) * 0.3,
+                   vec3(0.1, 0.15, 0.3) * 0.3,
+                   1.0 - t);
+    return col;
 }
 
 #endif // RT_SCENE_ANALYTIC_GLSL
