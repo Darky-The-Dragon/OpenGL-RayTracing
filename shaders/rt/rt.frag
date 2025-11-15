@@ -90,14 +90,15 @@ void main() {
             // One-bounce diffuse GI (indirect lighting)
             // -----------------------------------------------------------------
             {
-                const float giScale = 0.35; // overall strength, tweak to taste
+                const float giScaleAnalytic = 0.35;
+                const float giScaleBVH      = 0.25;  // a bit lower, BVH is noisier
 
                 if (uUseBVH == 1) {
-                    radiance += giScale * oneBounceGIBVH(h, uFrameIndex, seed);
+                    radiance += giScaleBVH * oneBounceGIBVH(h, uFrameIndex, seed);
                 } else {
                     MaterialProps m0 = getMaterial(h.mat);
                     if (m0.type == 0) { // skip mirrors for GI
-                                        radiance += giScale * oneBounceGIAnalytic(h, uFrameIndex, seed);
+                                        radiance += giScaleAnalytic * oneBounceGIAnalytic(h, uFrameIndex, seed);
                     }
                 }
             }
@@ -136,6 +137,13 @@ void main() {
             radiance = sky(dir);
         }
 
+        // -----------------------------------------------------------------
+        // Final per-sample clamp to avoid fireflies / insane outliers
+        // -----------------------------------------------------------------
+        // You can tweak this. Try 8.0–15.0 depending on how bright you want things.
+        const float RADIANCE_CLAMP = 10.0;
+        radiance = clamp(radiance, vec3(0.0), vec3(RADIANCE_CLAMP));
+
         frameSum += radiance;
     }
 
@@ -145,9 +153,9 @@ void main() {
     // Current UV (what we are shading now)
     vec2 uvCurr = vUV;
 
-    // TAA resolve using motion vectors + history
-    vec3 taa = resolveTAA(curr, uvCurr, motionOut, uPrevAccum, uFrameIndex);
+    // TAA + TVE (variance in alpha)
+    vec4 taaAndVar = resolveTAA(curr, uvCurr, motionOut, uPrevAccum, uFrameIndex);
 
-    fragColor = vec4(taa, 1.0);
-    outMotion = motionOut;  // still write motion for debug / future passes
+    fragColor = taaAndVar;      // rgb = color, a = variance
+    outMotion = motionOut;      // for debug / future passes
 }

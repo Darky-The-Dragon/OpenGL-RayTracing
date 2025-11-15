@@ -306,6 +306,7 @@ int main() {
             gPresentShader->setInt("uMotionTex", 1);
             gPresentShader->setInt("uShowMotion", gShowMotion ? 1 : 0);
             gPresentShader->setFloat("uMotionScale", 4.0f);
+            gPresentShader->setVec2("uResolution", glm::vec2(fbw, fbh));
 
             glBindVertexArray(gFsVao);
             glDrawArrays(GL_TRIANGLES, 0, 3);

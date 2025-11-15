@@ -212,23 +212,34 @@ vec3 oneBounceGIAnalytic(Hit h0, int frame, int seed) {
     return albedo0 * (cosTheta / PI) * Li;
 }
 
-// BVH scene: one diffuse bounce from primary triangle hit
-vec3 oneBounceGIBVH(Hit h0, int frame, int seed) {
+// BVH scene: one diffuse bounce from primary triangle hit, with clamping
+vec3 oneBounceGIBVH(Hit h0, int frame, int seed)
+{
     // Hard-coded BVH albedo (same spirit as directLightBVH)
-    const vec3 albedo0 = vec3(0.85);
+    const vec3  albedo0         = vec3(0.85);
+    const float MAX_GI_LUM      = 8.0;   // tweak: 4–12 depending on light power
+    const float MIN_COS_THETA   = 0.1;   // avoid super-grazing bounces
 
+    // Random sample on hemisphere (per-pixel, per-seed)
     vec2 u = vec2(
     rand(gl_FragCoord.xy + float(seed * 19), frame),
     rand(gl_FragCoord.yx + float(seed * 41), frame)
     );
 
     vec3 N0 = normalize(h0.n);
-    vec3 wi = sampleHemisphereCosine(N0, u);
+    vec3 wi = sampleHemisphereCosine(N0, u);   // cosine-weighted around N
     float cosTheta = max(dot(N0, wi), 0.0);
-    if (cosTheta <= 0.0) return vec3(0.0);
 
-    Hit h1;
-    bool hit1 = traceBVH(h0.p + wi * EPS, wi, h1);
+    // Discard very grazing bounces (they cause huge variance on tiny triangles)
+    if (cosTheta <= MIN_COS_THETA)
+    return vec3(0.0);
+
+    // IMPORTANT: offset along the surface normal, not along wi
+    // This is more robust for thin triangles / sharp corners.
+    vec3 origin = h0.p + N0 * EPS;
+
+    Hit  h1;
+    bool hit1 = traceBVH(origin, wi, h1);
 
     vec3 Li;
     if (hit1) {
@@ -238,7 +249,17 @@ vec3 oneBounceGIBVH(Hit h0, int frame, int seed) {
         Li = sky(wi);
     }
 
-    return albedo0 * (cosTheta / PI) * Li;
+    // Raw Lambertian contribution
+    vec3 contrib = albedo0 * (cosTheta / PI) * Li;
+
+    // Luminance-based clamp to kill fireflies
+    float lum = dot(contrib, vec3(0.299, 0.587, 0.114));
+    if (lum > MAX_GI_LUM) {
+        float s = MAX_GI_LUM / max(lum, 1e-6);
+        contrib *= s;
+    }
+
+    return contrib;
 }
 
 // ---------------------------------------------------------------------------
