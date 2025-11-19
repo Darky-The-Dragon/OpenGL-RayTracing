@@ -18,7 +18,6 @@
 // ===============================
 static rt::Accum gAccum; // accumulation ping-pong + frame counter
 static bool gRayMode = true; // F2: raster <-> ray
-static bool gResized = false;  // set by framebuffer callback
 
 // SPP & exposure (driven by io::InputState)
 static int gSppPerFrame = 1;
@@ -108,8 +107,8 @@ int main() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    // route mouse + scroll to io module (resets accumulation inside)
-    io::attach_callbacks(window, &camera, &gAccum.frameIndex, &gInput);
+    // Route mouse + scroll to io module (camera only, accumulation controlled in main)
+    io::attach_callbacks(window, &camera, &gInput);
 
     glEnable(GL_DEPTH_TEST);
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
@@ -157,9 +156,6 @@ int main() {
     // Initialize prev VP to current so motion starts ~zero
     gPrevViewProj = camera.GetProjectionMatrix() * camera.GetViewMatrix();
 
-    glm::vec3 prevPos = camera.Position;
-    float prevFov = camera.Fov;
-
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
@@ -168,10 +164,10 @@ int main() {
         deltaTime = tnow - lastFrame;
         lastFrame = tnow;
 
-        // Camera movement
+        // Camera movement (keyboard)
         camera.ProcessKeyboardInput(window, deltaTime);
 
-        // Centralized input update
+        // Centralized input update (SPP, exposure, BVH toggle, etc.)
         const bool anyChanged = io::update(gInput, window, deltaTime);
 
         // ESC
@@ -179,16 +175,31 @@ int main() {
             glfwSetWindowShouldClose(window, GLFW_TRUE);
         }
 
+        // Precompute matrices for motion vectors (AFTER camera changes this frame)
+        const glm::mat4 currView = camera.GetViewMatrix();
+        const glm::mat4 currProj = camera.GetProjectionMatrix();
+        const glm::mat4 currVP = currProj * currView;
+
+        // Detect ANY camera change (translation OR rotation OR FOV) via VP matrix diff
+        float vpDiff = 0.0f;
+        for (int c = 0; c < 4; ++c) {
+            for (int r = 0; r < 4; ++r) {
+                vpDiff = std::max(vpDiff,
+                                  std::fabs(currVP[c][r] - gPrevViewProj[c][r]));
+            }
+        }
+        const bool cameraMoved = (vpDiff > 1e-5f); // tweak threshold if needed
+
         // Local F6 toggle for motion debug (doesn't touch InputState)
         const bool nowF6 = (glfwGetKey(window, GLFW_KEY_F6) == GLFW_PRESS);
         if (nowF6 && !gPrevF6) {
             gShowMotion = !gShowMotion;
-            gAccum.reset();
+            gAccum.reset(); // history invalid when switching debug view
             std::cout << "[DEBUG] Show Motion = " << (gShowMotion ? "ON" : "OFF") << "\n";
         }
         gPrevF6 = nowF6;
 
-        // Apply input events
+        // Apply input events that affect accumulation
         if (anyChanged) {
             if (gInput.toggledRayMode) {
                 gRayMode = !gRayMode;
@@ -201,7 +212,8 @@ int main() {
                 gUseBVH = !gUseBVH;
                 gAccum.reset();
                 std::cout << "[SCENE] BVH mode " << (gUseBVH ? "ON" : "OFF")
-                        << "  (nodes=" << gBvhNodeCount << ", tris=" << gBvhTriCount << ")\n";
+                        << "  (nodes=" << gBvhNodeCount
+                        << ", tris=" << gBvhTriCount << ")\n";
             }
             if (gInput.changedSPP) {
                 // keep it sane (tweak upper bound to taste)
@@ -216,14 +228,6 @@ int main() {
             }
         }
 
-        // Reset accumulation on camera/FOV change
-        if (glm::distance(prevPos, camera.Position) > 1e-6f ||
-            std::fabs(prevFov - camera.Fov) > 1e-6f) {
-            gAccum.reset();
-            prevPos = camera.Position;
-            prevFov = camera.Fov;
-        }
-
         // Query current framebuffer size, update viewport & scissor, then clear
         glfwGetFramebufferSize(window, &fbw, &fbh);
         glViewport(0, 0, fbw, fbh);
@@ -232,16 +236,11 @@ int main() {
         glClearColor(0.1f, 0.0f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Precompute matrices for motion vectors
-        const glm::mat4 currView = camera.GetViewMatrix();
-        const glm::mat4 currProj = camera.GetProjectionMatrix();
-        const glm::mat4 currVP = currProj * currView;
-
         if (gRayMode) {
             // ===============================
             // Ray mode: render into accum tex + motion
             // ===============================
-            gAccum.bindWriteFBO_ColorAndMotion(); // attaches COLOR0 = writeTex(), COLOR1 = motionTex (RG16F)
+            gAccum.bindWriteFBO_ColorAndMotion(); // COLOR0 = writeTex(), COLOR1 = motionTex (RG16F)
             glViewport(0, 0, fbw, fbh);
             glDepthMask(GL_FALSE);
             glDisable(GL_DEPTH_TEST);
@@ -266,13 +265,14 @@ int main() {
             gRtShader->setInt("uNodeCount", gBvhNodeCount);
             gRtShader->setInt("uTriCount", gBvhTriCount);
             gRtShader->setInt("uShowMotion", gShowMotion ? 1 : 0);
+            gRtShader->setInt("uCameraMoved", cameraMoved ? 1 : 0);
 
             // Motion matrices
             gRtShader->setMat4("uPrevViewProj", gPrevViewProj);
             gRtShader->setMat4("uCurrViewProj", currVP);
             gRtShader->setVec2("uResolution", glm::vec2(fbw, fbh));
 
-            // Accum input
+            // Accum input (history)
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gAccum.readTex());
             gRtShader->setInt("uPrevAccum", 0);
@@ -294,7 +294,7 @@ int main() {
             glViewport(0, 0, fbw, fbh);
             gPresentShader->use();
 
-            // COLOR0 (accumulated linear)
+            // COLOR0 (accumulated linear + M2 in A)
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gAccum.writeTex());
             gPresentShader->setInt("uTex", 0);
@@ -302,7 +302,7 @@ int main() {
 
             // COLOR1 (motion vectors, RG16F)
             glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, gAccum.motionTex); // <- ensure Accum exposes motionTex
+            glBindTexture(GL_TEXTURE_2D, gAccum.motionTex);
             gPresentShader->setInt("uMotionTex", 1);
             gPresentShader->setInt("uShowMotion", gShowMotion ? 1 : 0);
             gPresentShader->setFloat("uMotionScale", 4.0f);

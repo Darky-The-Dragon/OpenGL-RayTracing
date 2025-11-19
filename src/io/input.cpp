@@ -4,7 +4,7 @@
 #include <algorithm>
 
 namespace io {
-    // ====== keyboard update (unchanged from your version; keep your logic here) ======
+    // ====== keyboard update (unchanged) ======
     static inline bool keyDown(GLFWwindow *w, int key) { return glfwGetKey(w, key) == GLFW_PRESS; }
 
     bool update(InputState &s, GLFWwindow *win, float dt) {
@@ -55,9 +55,9 @@ namespace io {
         }
         s.prevF3 = nowF3;
 
-        // Direct SPP hotkeys: ↑/↓ (step set 1/2/4/8/16) and 1..4 = 2/4/8/16
+        // Direct SPP hotkeys: ↑/↓ and 1..4
         if (keyDown(win, GLFW_KEY_UP)) {
-            int old = s.sppPerFrame;
+            const int old = s.sppPerFrame;
             s.sppPerFrame = (old < 2) ? 2 : (old < 4) ? 4 : (old < 8) ? 8 : (old < 16) ? 16 : 16;
             if (s.sppPerFrame != old) {
                 s.changedSPP = true;
@@ -110,13 +110,12 @@ namespace io {
     // ====== mouse & scroll callbacks ======
     struct CallbackPayload {
         Camera *cam = nullptr;
-        int *frameIndex = nullptr;
         InputState *state = nullptr;
     };
 
     static void mouse_cb(GLFWwindow *w, double xpos, double ypos) {
         auto *p = static_cast<CallbackPayload *>(glfwGetWindowUserPointer(w));
-        if (!p || !p->cam || !p->frameIndex || !p->state) return;
+        if (!p || !p->cam || !p->state) return;
 
         auto &s = *p->state;
         if (s.firstMouse) {
@@ -130,23 +129,22 @@ namespace io {
         s.lastY = static_cast<float>(ypos);
 
         p->cam->ProcessMouseMovement(dx, dy);
-        *p->frameIndex = 0; // reset accumulation
     }
 
     static void scroll_cb(GLFWwindow *w, double /*xoff*/, double yoff) {
         auto *p = static_cast<CallbackPayload *>(glfwGetWindowUserPointer(w));
-        if (!p || !p->cam || !p->frameIndex) return;
+        if (!p || !p->cam) return;
+
         p->cam->Fov -= static_cast<float>(yoff) * 2.0f;
         if (p->cam->Fov < 20.0f) p->cam->Fov = 20.0f;
         if (p->cam->Fov > 90.0f) p->cam->Fov = 90.0f;
-        *p->frameIndex = 0; // reset accumulation
+        // No accumulation reset here either.
     }
 
-    static CallbackPayload gPayload; // single-window app, keep it simple
+    static CallbackPayload gPayload; // single-window app
 
-    void attach_callbacks(GLFWwindow *window, Camera *cam, int *frameIndex, InputState *state) {
+    void attach_callbacks(GLFWwindow *window, Camera *cam, InputState *state) {
         gPayload.cam = cam;
-        gPayload.frameIndex = frameIndex;
         gPayload.state = state;
         glfwSetWindowUserPointer(window, &gPayload);
         glfwSetCursorPosCallback(window, mouse_cb);

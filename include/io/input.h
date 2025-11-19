@@ -34,5 +34,5 @@ namespace io {
     bool update(InputState &s, GLFWwindow *win, float dtSeconds);
 
     // Hook GLFW callbacks for mouse/scroll (uses glfwSetWindowUserPointer under the hood)
-    void attach_callbacks(GLFWwindow *window, Camera *cam, int *frameIndex, InputState *state);
+    void attach_callbacks(GLFWwindow *window, Camera *cam, InputState *state);
 } // namespace io

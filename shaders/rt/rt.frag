@@ -1,33 +1,34 @@
 #version 410 core
 in vec2 vUV;
-layout(location = 0) out vec4 fragColor;   // accumulated linear color
-layout(location = 1) out vec2 outMotion;   // NDC motion (currentNDC - prevNDC)
+layout (location = 0) out vec4 fragColor;   // accumulated linear color
+layout (location = 1) out vec2 outMotion;   // NDC motion (currentNDC - prevNDC)
 
 // ---- Camera & accumulation
-uniform vec3  uCamPos;
-uniform vec3  uCamRight;
-uniform vec3  uCamUp;
-uniform vec3  uCamFwd;
+uniform vec3 uCamPos;
+uniform vec3 uCamRight;
+uniform vec3 uCamUp;
+uniform vec3 uCamFwd;
 uniform float uTanHalfFov;
 uniform float uAspect;
-uniform int   uFrameIndex;
-uniform vec2  uResolution;
+uniform int uFrameIndex;
+uniform vec2 uResolution;
 uniform sampler2D uPrevAccum;
-uniform int   uSpp;
+uniform int uSpp;
 
 // ---- Scene mode
-uniform int   uUseBVH;     // 0 = analytic (plane+spheres), 1 = BVH triangle scene
-uniform int   uNodeCount;
-uniform int   uTriCount;
+uniform int uUseBVH;     // 0 = analytic (plane+spheres), 1 = BVH triangle scene
+uniform int uNodeCount;
+uniform int uTriCount;
 
 // ---- BVH TBOs (only used if uUseBVH==1)
 uniform samplerBuffer uBvhNodes;
 uniform samplerBuffer uBvhTris;
 
 // ---- Motion debug (F6)
-uniform int   uShowMotion;               // 0 = normal, 1 = visualize motion (present-time)
-uniform mat4  uPrevViewProj;
-uniform mat4  uCurrViewProj;
+uniform int uShowMotion;               // 0 = normal, 1 = visualize motion (present-time)
+uniform mat4 uPrevViewProj;
+uniform mat4 uCurrViewProj;
+uniform int uCameraMoved;             // 0 = camera is static, 1 = camera is moving
 
 // Include modular shader chunks.
 // NOTE: these requires CPU-side preprocessing / concatenation in OpenGL 4.1.
@@ -41,13 +42,15 @@ uniform mat4  uCurrViewProj;
 // ================== MAIN ==================
 void main() {
     vec3 frameSum = vec3(0.0);
-    int  SPP      = max(uSpp, 1);
+    int SPP = max(uSpp, 1);
 
-    // default motion = 0 (miss)
+    // Default motion for this pixel:
+    // - If we MISS and camera is static, we want motion = 0 (allow TAA to accumulate).
+    // - If we MISS and camera moved, we'll override it to a large value so TAA kills history.
     vec2 motionOut = vec2(0.0);
 
-    // --- Per-frame camera jitter (constant within the frame)
-    vec2 camJit = ld2(uFrameIndex) - 0.5;
+    // --- Per-frame camera jitter (reduced amplitude to cut residual shimmer)
+    vec2 camJit = (ld2(uFrameIndex) - 0.5) * 0.5;   // half-pixel jitter
 
     for (int s = 0; s < SPP; ++s) {
         // keep seed unique per frame & optional per-sample
@@ -91,9 +94,10 @@ void main() {
             // -----------------------------------------------------------------
             {
                 const float giScaleAnalytic = 0.35;
-                const float giScaleBVH      = 0.25;  // a bit lower, BVH is noisier
+                const float giScaleBVH = 0.20;
 
                 if (uUseBVH == 1) {
+                    // BVH scene GI (more conservative)
                     radiance += giScaleBVH * oneBounceGIBVH(h, uFrameIndex, seed);
                 } else {
                     MaterialProps m0 = getMaterial(h.mat);
@@ -134,15 +138,15 @@ void main() {
             radiance *= ao;
 
         } else {
+            // MISS → sky
             radiance = sky(dir);
-        }
 
-        // -----------------------------------------------------------------
-        // Final per-sample clamp to avoid fireflies / insane outliers
-        // -----------------------------------------------------------------
-        // You can tweak this. Try 8.0–15.0 depending on how bright you want things.
-        const float RADIANCE_CLAMP = 10.0;
-        radiance = clamp(radiance, vec3(0.0), vec3(RADIANCE_CLAMP));
+            // If the camera actually moved this frame, we want this pixel to
+            // be treated as a disocclusion in TAA, to avoid "sphere→sky" smearing.
+            if (uCameraMoved == 1 && s == 0) {
+                motionOut = vec2(4.0, 4.0); // large NDC motion -> uvPrev OOB -> no history
+            }
+        }
 
         frameSum += radiance;
     }
@@ -150,12 +154,16 @@ void main() {
     // Average current frame samples
     vec3 curr = frameSum / float(SPP);
 
-    // Current UV (what we are shading now)
+    // Current UV
     vec2 uvCurr = vUV;
 
-    // TAA + TVE (variance in alpha)
-    vec4 taaAndVar = resolveTAA(curr, uvCurr, motionOut, uPrevAccum, uFrameIndex);
+    // Effective motion for TAA:
+    // - if camera really moved: use motionOut
+    // - if camera is "still": ignore motion so we hit the still-case path
+    vec2 taaMotion = (uCameraMoved == 1) ? motionOut : vec2(0.0);
 
-    fragColor = taaAndVar;      // rgb = color, a = variance
-    outMotion = motionOut;      // for debug / future passes
+    vec4 taa = resolveTAA(curr, uvCurr, taaMotion, uPrevAccum, uFrameIndex);
+
+    fragColor = taa;        // rgb = color, a unused
+    outMotion = motionOut;  // full motion kept for debug view (F6)
 }

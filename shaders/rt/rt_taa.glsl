@@ -4,14 +4,14 @@
 
 // Curr: current frame color (already averaged over SPP)
 // uvCurr: current pixel UV
-// motionOut: NDC motion (currNDC - prevNDC)
-// prevAccum: history texture (RGB = color, A = second moment of luma)
+// motionOut: NDC motion (currNDC - prevNDC) -- *after* camera-moved gating
+// prevAccum: history texture (RGB = color, A = second moment of luma M2)
 // frameIndex: 0,1,2,... (from Accum)
-vec4 resolveTAA(vec3      curr,
-                vec2      uvCurr,
-                vec2      motionOut,
+vec4 resolveTAA(vec3 curr,
+                vec2 uvCurr,
+                vec2 motionOut,
                 sampler2D prevAccum,
-                int       frameIndex)
+                int frameIndex)
 {
     // Luma coefficients (approx. Rec.709)
     const vec3 YCOEFF = vec3(0.299, 0.587, 0.114);
@@ -23,36 +23,33 @@ vec4 resolveTAA(vec3      curr,
     // First frame: no valid history yet
     // ---------------------------------------------
     if (frameIndex == 0) {
-        // Start second moment as lCurr^2, variance will be 0 anyway
+        // Store color + second moment of luma (M2 = E[l^2])
         return vec4(curr, lCurr2);
     }
 
     // Motion magnitude in NDC
     float motMag = length(motionOut);
-    const float STILL_THRESH = 1e-4;
+    const float STILL_THRESH = 1e-5;  // "camera still" epsilon
+    const float HARD_MOVING_THRESH = 0.25;  // above this, we heavily distrust history
 
     // ---------------------------------------------
     // CASE 1: camera/pixel effectively still
-    //   → true running average (best convergence)
+    //   → exponential running average (fast convergence)
     // ---------------------------------------------
     if (motMag < STILL_THRESH) {
         vec4 prevRGBA = texture(prevAccum, uvCurr);
-        vec3 prevCol  = prevRGBA.rgb;
-        float prevM2  = prevRGBA.a;   // previous second moment of luma
+        vec3 prevCol = prevRGBA.rgb;
+        float prevM2 = prevRGBA.a;   // previous second moment of luma
 
-        float n = float(frameIndex);
+        // Slightly stronger history blend for still camera:
+        // 95% history / 5% new = smoother, less residual jitter.
+        const float wHist = 0.95;
+        const float wCurr = 0.05;
 
-        // New running mean in RGB
-        vec3 meanNew = (prevCol * n + curr) / (n + 1.0);
+        vec3 meanNew = prevCol * wHist + curr * wCurr;
+        float m2New = prevM2 * wHist + lCurr2 * wCurr;
 
-        // Running second moment of luma
-        float m2New = (prevM2 * n + lCurr2) / (n + 1.0);
-
-        // Variance in luma: Var[x] = E[x^2] - (E[x])^2
-        float lMeanNew = dot(meanNew, YCOEFF);
-        float varNew   = max(m2New - lMeanNew * lMeanNew, 0.0);
-
-        return vec4(meanNew, varNew);
+        return vec4(meanNew, m2New);
     }
 
     // ---------------------------------------------
@@ -67,12 +64,13 @@ vec4 resolveTAA(vec3      curr,
     any(lessThan(uvPrev, vec2(0.0))) ||
     any(greaterThan(uvPrev, vec2(1.0)));
 
-    // Fetch previous color + stored second moment (in A).
-    // For disocclusions, reset history to current sample.
-    vec4 prevRGBA = oob
-    ? vec4(curr, lCurr2)             // start fresh
-    : texture(prevAccum, uvPrev);
+    // For disocclusions, reset history to current sample
+    if (oob) {
+        return vec4(curr, lCurr2);
+    }
 
+    // Fetch previous color + stored second moment (M2) in A.
+    vec4 prevRGBA = texture(prevAccum, uvPrev);
     vec3 prevCol = prevRGBA.rgb;
     float prevM2 = prevRGBA.a;
 
@@ -80,36 +78,43 @@ vec4 resolveTAA(vec3      curr,
     // History confidence:
     //   - motion-based (fast pixels => less history)
     //   - color-delta-based (large color change => less history)
+    //   - extra disocclusion guard for sky/geometry edges
     // ------------------------------------------------------------------
 
-    float n = float(frameIndex);
-    float wHist;
+    // Base: 1.0 when motMag ≈ 0, fades toward 0 as motMag grows
+    float wHist = 1.0 - smoothstep(0.02, HARD_MOVING_THRESH, motMag);
 
-    if (oob) {
-        wHist = 0.0;   // disocclusion: trust current
-        n     = 0.0;   // reset moment statistics
-    } else {
-        // 1.0 when motMag ≈ 0, fades toward 0 when motMag grows
-        wHist = 1.0 - smoothstep(0.02, 0.25, motMag);
-        wHist = clamp(wHist, 0.0, 0.96);
+    // If motion is really large, just kill history completely
+    if (motMag > HARD_MOVING_THRESH) {
+        wHist = 0.0;
     }
 
-    // Color-based confidence using luma (approx. Rec.709)
-    float lPrev   = dot(prevCol, YCOEFF);
-    float maxL    = max(max(lCurr, lPrev), 1e-3);
+    // Color-based confidence using luma
+    float lPrev = dot(prevCol, YCOEFF);
+    float maxL = max(max(lCurr, lPrev), 1e-3);
     float relDiff = abs(lCurr - lPrev) / maxL;  // 0 = same, >0 = different
 
     // Small relDiff → keep history, large relDiff → shrink history
-    float colorWeight = 1.0 - smoothstep(0.05, 0.3, relDiff);
+    float colorWeight = 1.0 - smoothstep(0.03, 0.25, relDiff);
     wHist *= colorWeight;
 
-    // Clamp so history never fully dominates
-    wHist = clamp(wHist, 0.0, 0.96);
+    // --- Extra kill-switch for strong color changes (sky/geometry edges) ---
+    bool bigColorChange =
+    (motMag > 0.02) &&
+    (relDiff > 0.30);   // sensitive enough to kill plane/sky streaks
+
+    if (bigColorChange) {
+        wHist = 0.0;
+    }
+
+    // Allow a bit more history when moving (was 0.85 before)
+    // This trades a tiny bit of blur for less pure noise.
+    wHist = clamp(wHist, 0.0, 0.90);
     float wCurr = 1.0 - wHist;
 
     // --- History clamping box around current ---
     vec3 historyCol = prevCol;
-    float box = 0.12; // tweak: 0.08–0.15 usually works well
+    float box = 0.06;
     vec3 lo = curr - vec3(box);
     vec3 hi = curr + vec3(box);
     historyCol = clamp(historyCol, lo, hi);
@@ -118,17 +123,11 @@ vec4 resolveTAA(vec3      curr,
     vec3 taaCol = wHist * historyCol + wCurr * curr;
 
     // ------------------------------------------------------------------
-    // Temporal variance estimate (SVGF-style 1D moment)
+    // Temporal second moment estimate (SVGF-style, 1D moment on luma)
     // ------------------------------------------------------------------
-    // We maintain a running second moment of luma (M2) in A:
-    //   M2_new = (M2_prev * n + lCurr^2) / (n + 1)
-    // Then variance:
-    //   Var = M2_new - (E[l])^2, where E[l] ≈ luma of taaCol.
-    float m2New    = (prevM2 * n + lCurr2) / (n + 1.0);
-    float lMeanNew = dot(taaCol, YCOEFF);
-    float varNew   = max(m2New - lMeanNew * lMeanNew, 0.0);
+    float m2New = wHist * prevM2 + wCurr * lCurr2;
 
-    return vec4(taaCol, varNew);
+    return vec4(taaCol, m2New);
 }
 
 #endif // RT_TAA_GLSL
