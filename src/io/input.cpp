@@ -1,20 +1,29 @@
-// src/io/input.cpp
 #include "io/input.h"
 #include "camera/Camera.h"
 #include <algorithm>
 
 namespace io {
-    // ====== keyboard update (unchanged) ======
-    static inline bool keyDown(GLFWwindow *w, int key) { return glfwGetKey(w, key) == GLFW_PRESS; }
+    // ====== keyboard update ======
+    static inline bool keyDown(GLFWwindow *w, int key) {
+        return glfwGetKey(w, key) == GLFW_PRESS;
+    }
 
     bool update(InputState &s, GLFWwindow *win, float dt) {
         bool changed = false;
-        s.toggledRayMode = s.resetAccum = s.cycledSPP = s.toggledBVH = s.changedSPP = false;
+
+        // reset per-frame toggles
+        s.toggledRayMode = false;
+        s.resetAccum = false;
+        s.cycledSPP = false;
+        s.toggledBVH = false;
+        s.changedSPP = false;
+        s.toggledMotionDebug = false;
 
         // ESC → request quit
-        if (keyDown(win, GLFW_KEY_ESCAPE)) s.quitRequested = true;
+        if (keyDown(win, GLFW_KEY_ESCAPE))
+            s.quitRequested = true;
 
-        // F2 toggle
+        // F2 toggle ray/raster
         const bool nowF2 = keyDown(win, GLFW_KEY_F2);
         if (nowF2 && !s.prevF2) {
             s.toggledRayMode = true;
@@ -22,7 +31,7 @@ namespace io {
         }
         s.prevF2 = nowF2;
 
-        // R reset
+        // R reset accumulation
         const bool nowR = keyDown(win, GLFW_KEY_R);
         if (nowR && !s.prevR) {
             s.resetAccum = true;
@@ -37,6 +46,14 @@ namespace io {
             changed = true;
         }
         s.prevF5 = nowF5;
+
+        // F6: motion-debug toggle (TAA / motion visualization)
+        const bool nowF6 = keyDown(win, GLFW_KEY_F6);
+        if (nowF6 && !s.prevF6) {
+            s.toggledMotionDebug = true;
+            changed = true;
+        }
+        s.prevF6 = nowF6;
 
         // F3 cycle SPP 1→2→4→8→16→1
         const bool nowF3 = keyDown(win, GLFW_KEY_F3);
@@ -58,15 +75,29 @@ namespace io {
         // Direct SPP hotkeys: ↑/↓ and 1..4
         if (keyDown(win, GLFW_KEY_UP)) {
             const int old = s.sppPerFrame;
-            s.sppPerFrame = (old < 2) ? 2 : (old < 4) ? 4 : (old < 8) ? 8 : (old < 16) ? 16 : 16;
+            s.sppPerFrame = (old < 2)
+                                ? 2
+                                : (old < 4)
+                                      ? 4
+                                      : (old < 8)
+                                            ? 8
+                                            : (old < 16)
+                                                  ? 16
+                                                  : 16;
             if (s.sppPerFrame != old) {
                 s.changedSPP = true;
                 changed = true;
             }
         }
         if (keyDown(win, GLFW_KEY_DOWN)) {
-            int old = s.sppPerFrame;
-            s.sppPerFrame = (old > 8) ? 8 : (old > 4) ? 4 : (old > 2) ? 2 : 1;
+            const int old = s.sppPerFrame;
+            s.sppPerFrame = (old > 8)
+                                ? 8
+                                : (old > 4)
+                                      ? 4
+                                      : (old > 2)
+                                            ? 2
+                                            : 1;
             if (s.sppPerFrame != old) {
                 s.changedSPP = true;
                 changed = true;

@@ -1,4 +1,3 @@
-// rt_taa.glsl
 #ifndef RT_TAA_GLSL
 #define RT_TAA_GLSL
 
@@ -29,8 +28,12 @@ vec4 resolveTAA(vec3 curr,
 
     // Motion magnitude in NDC
     float motMag = length(motionOut);
-    const float STILL_THRESH = 1e-5;  // "camera still" epsilon
-    const float HARD_MOVING_THRESH = 0.25;  // above this, we heavily distrust history
+
+    // Use CPU-driven params instead of hard-coded constants
+    float STILL_THRESH = uTaaStillThresh;
+    float HARD_MOVING_THRESH = uTaaHardMovingThresh;
+    float MAX_W_HIST = uTaaHistoryMaxWeight;
+    float BOX_SIZE = uTaaHistoryBoxSize;
 
     // ---------------------------------------------
     // CASE 1: camera/pixel effectively still
@@ -39,12 +42,19 @@ vec4 resolveTAA(vec3 curr,
     if (motMag < STILL_THRESH) {
         vec4 prevRGBA = texture(prevAccum, uvCurr);
         vec3 prevCol = prevRGBA.rgb;
-        float prevM2 = prevRGBA.a;   // previous second moment of luma
+        float prevM2 = prevRGBA.a;
 
-        // Slightly stronger history blend for still camera:
-        // 95% history / 5% new = smoother, less residual jitter.
-        const float wHist = 0.95;
-        const float wCurr = 0.05;
+        // More aggressive accumulation when camera is still.
+        // Early frames converge faster, later frames become VERY stable.
+        float wHist;
+        if (frameIndex < 8) {
+            wHist = 0.85;  // warm-up
+        } else if (frameIndex < 32) {
+            wHist = 0.94;
+        } else {
+            wHist = MAX_W_HIST;  // e.g. 0.98 from RenderParams
+        }
+        float wCurr = 1.0 - wHist;
 
         vec3 meanNew = prevCol * wHist + curr * wCurr;
         float m2New = prevM2 * wHist + lCurr2 * wCurr;
@@ -64,7 +74,6 @@ vec4 resolveTAA(vec3 curr,
     any(lessThan(uvPrev, vec2(0.0))) ||
     any(greaterThan(uvPrev, vec2(1.0)));
 
-    // For disocclusions, reset history to current sample
     if (oob) {
         return vec4(curr, lCurr2);
     }
@@ -107,16 +116,14 @@ vec4 resolveTAA(vec3 curr,
         wHist = 0.0;
     }
 
-    // Allow a bit more history when moving (was 0.85 before)
-    // This trades a tiny bit of blur for less pure noise.
-    wHist = clamp(wHist, 0.0, 0.90);
+    // Clamp so history never fully dominates (uses param instead of literal 0.90)
+    wHist = clamp(wHist, 0.0, MAX_W_HIST);
     float wCurr = 1.0 - wHist;
 
-    // --- History clamping box around current ---
+    // --- History clamping box around current (param-driven) ---
     vec3 historyCol = prevCol;
-    float box = 0.06;
-    vec3 lo = curr - vec3(box);
-    vec3 hi = curr + vec3(box);
+    vec3 lo = curr - vec3(BOX_SIZE);
+    vec3 hi = curr + vec3(BOX_SIZE);
     historyCol = clamp(historyCol, lo, hi);
 
     // Final TAA blended color

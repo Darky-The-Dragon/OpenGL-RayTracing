@@ -1,4 +1,3 @@
-// include/io/input.h
 #pragma once
 #include <GLFW/glfw3.h>
 
@@ -11,7 +10,11 @@ namespace io {
         float exposure = 1.0f;
 
         // edge-trigger state
-        bool prevF2 = false, prevR = false, prevF3 = false, prevF5 = false;
+        bool prevF2 = false;
+        bool prevR = false;
+        bool prevF3 = false;
+        bool prevF5 = false;
+        bool prevF6 = false; // local motion-debug toggle (F6)
 
         // toggles from this frame
         bool toggledRayMode = false; // F2
@@ -19,11 +22,13 @@ namespace io {
         bool cycledSPP = false; // F3
         bool toggledBVH = false; // F5
         bool changedSPP = false; // via 1..4/↑/↓
+        bool toggledMotionDebug = false; // F6 – handled in main, but edge-detected here
         bool quitRequested = false; // ESC
 
-        // mouse state (moved here from main)
+        // mouse state
         bool firstMouse = true;
-        float lastX = 400.0f, lastY = 300.0f;
+        float lastX = 400.0f;
+        float lastY = 300.0f;
     };
 
     // Initialize once (placeholder for future use)

@@ -5,9 +5,15 @@ out vec4 fragColor;
 uniform sampler2D uTex;        // history buffer: rgb = color, a = M2 (second moment of luma)
 uniform sampler2D uMotionTex;  // RG16F, NDC motion (currNDC - prevNDC)
 uniform float uExposure;
-uniform int uShowMotion;     // 0 = normal, 1 = visualize motion
-uniform float uMotionScale;    // e.g. 4.0
-uniform vec2 uResolution;     // framebuffer size in pixels
+uniform int uShowMotion;   // 0 = normal, 1 = visualize motion
+uniform float uMotionScale;  // e.g. 4.0
+uniform vec2 uResolution;   // framebuffer size in pixels
+
+// Declared but not used yet (safe)
+uniform float uVarMax;
+uniform float uKVar;
+uniform float uKColor;
+uniform float uSvgfStrength;
 
 // Luma coefficients (approx. Rec.709)
 const vec3 YCOEFF = vec3(0.299, 0.587, 0.114);
@@ -28,8 +34,7 @@ vec3 hsv2rgb(vec3 c) {
 // ------------------------------------------------------------
 // Motion visualization (debug)
 // ------------------------------------------------------------
-vec3 visualizeMotion(vec2 motion, float scale)
-{
+vec3 visualizeMotion(vec2 motion, float scale) {
     vec2 m = motion * scale;
 
     float mag = length(m);
@@ -47,8 +52,7 @@ vec3 visualizeMotion(vec2 motion, float scale)
 // SVGF-lite spatial filter using VARIANCE derived from M2 in alpha
 // Motion-aware: stronger filter when things are moving
 // ------------------------------------------------------------
-vec3 svgfFilter(vec2 uv)
-{
+vec3 svgfFilter(vec2 uv) {
     // Center sample: color + M2 of luma stored in A
     vec4 centerRaw = texture(uTex, uv);
     vec3 cCenter = centerRaw.rgb;
@@ -63,12 +67,10 @@ vec3 svgfFilter(vec2 uv)
     float motMag = length(motion);
 
     // Clamp variance to a reasonable max – prevents insane weights
-    const float VAR_MAX = 0.02;  // tweak: 0.01–0.05
-    varCenter = min(varCenter, VAR_MAX);
+    varCenter = min(varCenter, uVarMax);
 
-    // If variance is essentially zero *and* motion is tiny → already stable
-    // → skip blur completely (sharp and stable).
-    if (varCenter < 1e-8 && motMag < 0.002) {
+    // If variance is essentially tiny *and* motion is tiny → skip blur.
+    if (varCenter < 1e-5 && motMag < 0.0005) {
         return cCenter;
     }
 
@@ -78,18 +80,21 @@ vec3 svgfFilter(vec2 uv)
     float accumW = 0.0;
 
     // ----------------------------------------
-    // Motion-aware filter strength
-    // - When static: conservative (keep detail)
-    // - When moving: stronger smoothing (hide noise)
+    // Motion-aware filter strength, driven by CPU params
+    // uKVar / uKColor control the *overall* sharpness vs blur.
+    // We derive static/moving variants from them.
     // ----------------------------------------
-    const float kVarStatic = 220.0;
-    const float kColorStatic = 22.0;
+    float kVarStatic = uKVar;          // base strength when static
+    float kColorStatic = uKColor;
 
-    const float kVarMoving = 80.0;
-    const float kColorMoving = 8.0;
+    //float kVarMoving = uKVar * 0.4;    // softer when moving
+    //float kColorMoving = uKColor * 0.4;
+
+    const float kVarMoving   = 35.0;
+    const float kColorMoving = 3.0;
 
     // t = 0 → static, t = 1 → fully moving
-    float t = clamp(smoothstep(0.01, 0.08, motMag), 0.0, 1.0);
+    float t = clamp(smoothstep(0.005, 0.05, motMag), 0.0, 1.0);
 
     float kVar = mix(kVarStatic, kVarMoving, t);
     float kColor = mix(kColorStatic, kColorMoving, t);
@@ -101,28 +106,28 @@ vec3 svgfFilter(vec2 uv)
 
             // Avoid sampling outside screen
             if (uvN.x < 0.0 || uvN.x > 1.0 ||
-            uvN.y < 0.0 || uvN.y > 1.0)
-            continue;
+            uvN.y < 0.0 || uvN.y > 1.0) {
+                continue;
+            }
 
             vec4 s = texture(uTex, uvN);
             vec3 c = s.rgb;
             float M2 = s.a;
 
-            // Derive neighbor variance from its color + M2
             float l = dot(c, YCOEFF);
             float v = max(M2 - l * l, 0.0);
-            v = min(v, VAR_MAX);
+            v = min(v, uVarMax);
 
-            // Variance weight: high variance → lower weight
             float wVar = exp(-v * kVar);
 
-            // Color weight: avoid blurring across strong edges
             vec3 dc = c - cCenter;
             float dc2 = dot(dc, dc);
             float wCol = exp(-dc2 * kColor);
 
-            // Slightly favor the center sample
-            float wSpatial = (i == 0 && j == 0) ? 1.0 : 0.8;
+            // Slightly favor center when static; when moving, neighbors matter more
+            float wSpatial = (i == 0 && j == 0)
+            ? 1.0
+            : mix(0.8, 1.1, t);
 
             float w = wVar * wCol * wSpatial;
             accumCol += c * w;
@@ -137,7 +142,6 @@ vec3 svgfFilter(vec2 uv)
 }
 
 void main() {
-    // Pixel-exact UV built from gl_FragCoord to avoid full-screen triangle seams
     ivec2 sz = textureSize(uTex, 0);
     vec2 uv = (gl_FragCoord.xy + vec2(0.5)) / vec2(sz);
 
@@ -149,9 +153,21 @@ void main() {
         return;
     }
 
-    // SVGF-lite: variance-guided spatial filter, then ACES + gamma
+    // Raw TAA result (no spatial filter)
+    vec3 raw = texture(uTex, uv).rgb;
+
+    // SVGF-lite: variance-guided spatial filter
     vec3 filtered = svgfFilter(uv);
-    vec3 mapped = acesTonemap(filtered);
+
+    // Blend between raw and filtered based on uSvgfStrength
+    //  - 0.0 → pure TAA (sharp, noisy)
+    //  - 1.0 → full SVGF (smooth, possibly darker/softer)
+    //  - in-between → compromise
+    float s = clamp(uSvgfStrength, 0.0, 1.0);
+    vec3 linearColor = mix(raw, filtered, s);
+
+    // Tonemap + gamma
+    vec3 mapped  = acesTonemap(linearColor);
     vec3 outSRGB = pow(mapped, vec3(1.0 / 2.2));
 
     fragColor = vec4(outSRGB, 1.0);

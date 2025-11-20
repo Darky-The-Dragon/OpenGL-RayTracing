@@ -4,6 +4,7 @@
 #include "Shader.h"
 #include "utils/model.h"
 #include "rt/accum.h"
+#include "rt/RenderParams.h"
 #include "bvh.h"
 #include "io/input.h"
 #include <glm/glm.hpp>
@@ -18,14 +19,10 @@
 // ===============================
 static rt::Accum gAccum; // accumulation ping-pong + frame counter
 static bool gRayMode = true; // F2: raster <-> ray
-
-// SPP & exposure (driven by io::InputState)
-static int gSppPerFrame = 1;
-static float gExposure = 1.0f;
+static RenderParams gParams; // runtime-tweakable render parameters
 
 // Motion debug (F6) – local toggle only
 static bool gShowMotion = false;
-static bool gPrevF6 = false;
 
 // Fullscreen triangle
 static GLuint gFsVao = 0;
@@ -35,8 +32,15 @@ static Shader *gRtShader = nullptr;
 static Shader *gPresentShader = nullptr;
 
 // Camera
-static float deltaTime = 0.0f, lastFrame = 0.0f;
-static Camera camera(glm::vec3(0.0f, 2.0f, 8.0f), -90.0f, -10.0f, 60.0f, 800.0f / 600.0f);
+static float deltaTime = 0.0f;
+static float lastFrame = 0.0f;
+static Camera camera(
+    glm::vec3(0.0f, 2.0f, 8.0f),
+    -90.0f, // yaw
+    -10.0f, // pitch
+    60.0f, // fov
+    800.0f / 600.0f // aspect
+);
 
 // Raster path (unchanged)
 static Shader *gRasterShader = nullptr;
@@ -60,22 +64,19 @@ static glm::mat4 gPrevViewProj(1.0f);
 // Callbacks
 // ===============================
 static void framebuffer_size_callback(GLFWwindow *, int width, int height) {
-    // Guard: zero-sized framebuffer can briefly happen on resize/minimize
     if (width <= 0 || height <= 0) return;
 
-    // Update viewport and scissor to the new size
     glViewport(0, 0, width, height);
     glScissor(0, 0, width, height);
 
-    // Keep the camera aspect in sync
     camera.AspectRatio = static_cast<float>(width) / static_cast<float>(height);
 
-    // Rebuild accumulation targets and reset counters/history
     gAccum.recreate(width, height);
 }
 
 // ===============================
 int main() {
+    // --- Init GLFW/GL context ---
     if (!glfwInit()) return -1;
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
@@ -83,7 +84,11 @@ int main() {
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
-    GLFWwindow *window = glfwCreateWindow(800, 600, "OpenGL Ray/Path Tracing - Darky", nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow(
+        800, 600,
+        "OpenGL Ray/Path Tracing - Darky",
+        nullptr, nullptr
+    );
     if (!window) {
         glfwTerminate();
         return -1;
@@ -91,11 +96,7 @@ int main() {
     glfwMakeContextCurrent(window);
     gladLoadGL(glfwGetProcAddress);
 
-    // Enable scissor so clears during resizes are well-defined (macOS/GL4.1 safe)
-    glEnable(GL_SCISSOR_TEST);
-
-    // Initialize viewport + scissor to current framebuffer size
-    {
+    glEnable(GL_SCISSOR_TEST); {
         int initW = 0, initH = 0;
         glfwGetFramebufferSize(window, &initW, &initH);
         if (initW > 0 && initH > 0) {
@@ -117,14 +118,15 @@ int main() {
     gRtShader = new Shader("../shaders/rt/rt_fullscreen.vert", "../shaders/rt/rt.frag");
     gPresentShader = new Shader("../shaders/rt/rt_fullscreen.vert", "../shaders/rt/rt_present.frag");
 
-    int fbw, fbh;
+    // Accumulation buffers
+    int fbw = 0, fbh = 0;
     glfwGetFramebufferSize(window, &fbw, &fbh);
     gAccum.recreate(fbw, fbh);
 
     // Fullscreen triangle VAO (no VBO)
     glGenVertexArrays(1, &gFsVao);
 
-    // Raster scene (unchanged)
+    // Raster scene
     gRasterShader = new Shader("../shaders/basic.vert", "../shaders/basic.frag");
     gGround = new Model("../models/plane.obj");
     gBunny = new Model("../models/bunny_lp.obj");
@@ -141,41 +143,46 @@ int main() {
     gather_model_triangles(*gBunny, M, triCPU);
 
     std::vector<BVHNode> nodesCPU = build_bvh(triCPU);
-    gBvhNodeCount = (int) nodesCPU.size();
-    gBvhTriCount = (int) triCPU.size();
+    gBvhNodeCount = static_cast<int>(nodesCPU.size());
+    gBvhTriCount = static_cast<int>(triCPU.size());
 
-    upload_bvh_tbos(nodesCPU, triCPU,
-                    gBvhNodeTex, gBvhNodeBuf,
-                    gBvhTriTex, gBvhTriBuf);
+    upload_bvh_tbos(
+        nodesCPU, triCPU,
+        gBvhNodeTex, gBvhNodeBuf,
+        gBvhTriTex, gBvhTriBuf
+    );
 
-    // Input init
-    gInput.sppPerFrame = gSppPerFrame;
-    gInput.exposure = gExposure;
+    // --- Input + params init ---
+    gInput.sppPerFrame = gParams.sppPerFrame;
+    gInput.exposure = gParams.exposure;
     io::init(gInput);
 
     // Initialize prev VP to current so motion starts ~zero
     gPrevViewProj = camera.GetProjectionMatrix() * camera.GetViewMatrix();
 
+    // ===============================
+    // Main loop
+    // ===============================
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
-        // Time
-        float tnow = float(glfwGetTime());
+        // --- Time update ---
+        float tnow = static_cast<float>(glfwGetTime());
         deltaTime = tnow - lastFrame;
         lastFrame = tnow;
 
-        // Camera movement (keyboard)
+        // --- Camera movement (keyboard) ---
         camera.ProcessKeyboardInput(window, deltaTime);
 
-        // Centralized input update (SPP, exposure, BVH toggle, etc.)
+        // --- Centralized input update (SPP, exposure, BVH toggle, etc.) ---
         const bool anyChanged = io::update(gInput, window, deltaTime);
 
-        // ESC
+        // ESC → quit
         if (gInput.quitRequested) {
             glfwSetWindowShouldClose(window, GLFW_TRUE);
         }
 
-        // Precompute matrices for motion vectors (AFTER camera changes this frame)
+        // --- Matrices for motion vectors (AFTER camera changes this frame) ---
         const glm::mat4 currView = camera.GetViewMatrix();
         const glm::mat4 currProj = camera.GetProjectionMatrix();
         const glm::mat4 currVP = currProj * currView;
@@ -184,51 +191,56 @@ int main() {
         float vpDiff = 0.0f;
         for (int c = 0; c < 4; ++c) {
             for (int r = 0; r < 4; ++r) {
-                vpDiff = std::max(vpDiff,
-                                  std::fabs(currVP[c][r] - gPrevViewProj[c][r]));
+                vpDiff = std::max(
+                    vpDiff,
+                    std::fabs(currVP[c][r] - gPrevViewProj[c][r])
+                );
             }
         }
         const bool cameraMoved = (vpDiff > 1e-5f); // tweak threshold if needed
 
-        // Local F6 toggle for motion debug (doesn't touch InputState)
-        const bool nowF6 = (glfwGetKey(window, GLFW_KEY_F6) == GLFW_PRESS);
-        if (nowF6 && !gPrevF6) {
-            gShowMotion = !gShowMotion;
-            gAccum.reset(); // history invalid when switching debug view
-            std::cout << "[DEBUG] Show Motion = " << (gShowMotion ? "ON" : "OFF") << "\n";
-        }
-        gPrevF6 = nowF6;
-
-        // Apply input events that affect accumulation
+        // --- Apply input events that affect accumulation / params ---
         if (anyChanged) {
             if (gInput.toggledRayMode) {
                 gRayMode = !gRayMode;
                 gAccum.reset();
             }
+
             if (gInput.resetAccum) {
                 gAccum.reset();
             }
+
             if (gInput.toggledBVH) {
                 gUseBVH = !gUseBVH;
                 gAccum.reset();
-                std::cout << "[SCENE] BVH mode " << (gUseBVH ? "ON" : "OFF")
+                std::cout << "[SCENE] BVH mode "
+                        << (gUseBVH ? "ON" : "OFF")
                         << "  (nodes=" << gBvhNodeCount
                         << ", tris=" << gBvhTriCount << ")\n";
             }
+
             if (gInput.changedSPP) {
-                // keep it sane (tweak upper bound to taste)
-                gSppPerFrame = std::max(1, std::min(gInput.sppPerFrame, 64));
+                gParams.sppPerFrame = std::max(1, std::min(gInput.sppPerFrame, 64));
                 gAccum.reset();
-                std::cout << "[INPUT] SPP per frame = " << gSppPerFrame << "\n";
+                std::cout << "[INPUT] SPP per frame = "
+                        << gParams.sppPerFrame << "\n";
             }
-            if (gExposure != gInput.exposure) {
-                // avoid zero/negative exposure and silly highs
-                gExposure = std::max(0.01f, std::min(gInput.exposure, 8.0f));
-                std::cout << "[INPUT] Exposure = " << gExposure << "\n";
+
+            if (gParams.exposure != gInput.exposure) {
+                gParams.exposure = std::max(0.01f, std::min(gInput.exposure, 8.0f));
+                std::cout << "[INPUT] Exposure = "
+                        << gParams.exposure << "\n";
+            }
+
+            if (gInput.toggledMotionDebug) {
+                gShowMotion = !gShowMotion;
+                gAccum.reset(); // history invalid when switching debug view
+                std::cout << "[DEBUG] Show Motion = "
+                          << (gShowMotion ? "ON" : "OFF") << "\n";
             }
         }
 
-        // Query current framebuffer size, update viewport & scissor, then clear
+        // --- Framebuffer size / viewport / clear ---
         glfwGetFramebufferSize(window, &fbw, &fbh);
         glViewport(0, 0, fbw, fbh);
         glScissor(0, 0, fbw, fbh);
@@ -240,7 +252,7 @@ int main() {
             // ===============================
             // Ray mode: render into accum tex + motion
             // ===============================
-            gAccum.bindWriteFBO_ColorAndMotion(); // COLOR0 = writeTex(), COLOR1 = motionTex (RG16F)
+            gAccum.bindWriteFBO_ColorAndMotion();
             glViewport(0, 0, fbw, fbh);
             glDepthMask(GL_FALSE);
             glDisable(GL_DEPTH_TEST);
@@ -248,11 +260,15 @@ int main() {
             gRtShader->use();
 
             // Camera basis
-            glm::vec3 right = glm::normalize(glm::vec3(currView[0][0], currView[1][0], currView[2][0]));
-            glm::vec3 up = glm::normalize(glm::vec3(currView[0][1], currView[1][1], currView[2][1]));
-            glm::vec3 fwd = -glm::normalize(glm::vec3(currView[0][2], currView[1][2], currView[2][2]));
+            glm::vec3 right = glm::normalize(glm::vec3(
+                currView[0][0], currView[1][0], currView[2][0]));
+            glm::vec3 up = glm::normalize(glm::vec3(
+                currView[0][1], currView[1][1], currView[2][1]));
+            glm::vec3 fwd = -glm::normalize(glm::vec3(
+                currView[0][2], currView[1][2], currView[2][2]));
             float tanHalfFov = std::tanf(glm::radians(camera.Fov) * 0.5f);
 
+            // Core camera + accumulation params
             gRtShader->setVec3("uCamPos", camera.Position);
             gRtShader->setVec3("uCamRight", right);
             gRtShader->setVec3("uCamUp", up);
@@ -260,17 +276,38 @@ int main() {
             gRtShader->setFloat("uTanHalfFov", tanHalfFov);
             gRtShader->setFloat("uAspect", camera.AspectRatio);
             gRtShader->setInt("uFrameIndex", gAccum.frameIndex);
-            gRtShader->setInt("uSpp", gShowMotion ? 1 : gSppPerFrame);
+            gRtShader->setInt("uSpp", gShowMotion ? 1 : gParams.sppPerFrame);
+
+            // Scene / BVH
             gRtShader->setInt("uUseBVH", gUseBVH ? 1 : 0);
             gRtShader->setInt("uNodeCount", gBvhNodeCount);
             gRtShader->setInt("uTriCount", gBvhTriCount);
+
+            // TAA params from RenderParams
+            gRtShader->setFloat("uTaaStillThresh",      gParams.taaStillThresh);
+            gRtShader->setFloat("uTaaHardMovingThresh", gParams.taaHardMovingThresh);
+            gRtShader->setFloat("uTaaHistoryMaxWeight", gParams.taaHistoryMaxWeight);
+            gRtShader->setFloat("uTaaHistoryBoxSize",   gParams.taaHistoryBoxSize);
+
+            // GI / AO / mirror toggles + scales (from RenderParams)
+            gRtShader->setFloat("uGiScaleAnalytic", gParams.giScaleAnalytic);
+            gRtShader->setFloat("uGiScaleBVH", gParams.giScaleBVH);
+            gRtShader->setInt("uEnableGI", gParams.enableGI);
+            gRtShader->setInt("uEnableAO", gParams.enableAO);
+            gRtShader->setInt("uEnableMirror", gParams.enableMirror);
+
+            // Motion / TAA
             gRtShader->setInt("uShowMotion", gShowMotion ? 1 : 0);
             gRtShader->setInt("uCameraMoved", cameraMoved ? 1 : 0);
-
-            // Motion matrices
             gRtShader->setMat4("uPrevViewProj", gPrevViewProj);
             gRtShader->setMat4("uCurrViewProj", currVP);
             gRtShader->setVec2("uResolution", glm::vec2(fbw, fbh));
+
+            // SVGF params from RenderParams
+            gPresentShader->setFloat("uVarMax", gParams.svgfVarMax);
+            gPresentShader->setFloat("uKVar",   gParams.svgfKVar);
+            gPresentShader->setFloat("uKColor", gParams.svgfKColor);
+            gPresentShader->setFloat("uSvgfStrength",  gParams.svgfStrength);
 
             // Accum input (history)
             glActiveTexture(GL_TEXTURE0);
@@ -286,10 +323,11 @@ int main() {
             glBindTexture(GL_TEXTURE_BUFFER, gBvhTriTex);
             gRtShader->setInt("uBvhTris", 2);
 
+            // Fullscreen triangle
             glBindVertexArray(gFsVao);
             glDrawArrays(GL_TRIANGLES, 0, 3);
 
-            // Present
+            // --- Present pass ---
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glViewport(0, 0, fbw, fbh);
             gPresentShader->use();
@@ -298,14 +336,14 @@ int main() {
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gAccum.writeTex());
             gPresentShader->setInt("uTex", 0);
-            gPresentShader->setFloat("uExposure", gExposure);
+            gPresentShader->setFloat("uExposure", gParams.exposure);
 
             // COLOR1 (motion vectors, RG16F)
             glActiveTexture(GL_TEXTURE1);
             glBindTexture(GL_TEXTURE_2D, gAccum.motionTex);
             gPresentShader->setInt("uMotionTex", 1);
             gPresentShader->setInt("uShowMotion", gShowMotion ? 1 : 0);
-            gPresentShader->setFloat("uMotionScale", 4.0f);
+            gPresentShader->setFloat("uMotionScale", gParams.motionScale);
             gPresentShader->setVec2("uResolution", glm::vec2(fbw, fbh));
 
             glBindVertexArray(gFsVao);
@@ -347,7 +385,9 @@ int main() {
         glfwSwapBuffers(window);
     }
 
+    // ===============================
     // Cleanup
+    // ===============================
     delete gRtShader;
     gRtShader = nullptr;
     delete gPresentShader;
@@ -355,7 +395,6 @@ int main() {
     delete gRasterShader;
     gRasterShader = nullptr;
 
-    // Models (own VAOs/VBOs internally)
     delete gGround;
     gGround = nullptr;
     delete gBunny;
@@ -363,7 +402,6 @@ int main() {
     delete gSphere;
     gSphere = nullptr;
 
-    // Raw GL objects
     if (gFsVao) {
         glDeleteVertexArrays(1, &gFsVao);
         gFsVao = 0;

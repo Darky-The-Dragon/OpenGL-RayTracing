@@ -1,6 +1,6 @@
 #version 410 core
 in vec2 vUV;
-layout (location = 0) out vec4 fragColor;   // accumulated linear color
+layout (location = 0) out vec4 fragColor;   // accumulated linear color + M2
 layout (location = 1) out vec2 outMotion;   // NDC motion (currentNDC - prevNDC)
 
 // ---- Camera & accumulation
@@ -25,13 +25,25 @@ uniform samplerBuffer uBvhNodes;
 uniform samplerBuffer uBvhTris;
 
 // ---- Motion debug (F6)
-uniform int uShowMotion;               // 0 = normal, 1 = visualize motion (present-time)
+uniform int uShowMotion;      // 0 = normal, 1 = visualize motion (present-time)
 uniform mat4 uPrevViewProj;
 uniform mat4 uCurrViewProj;
-uniform int uCameraMoved;             // 0 = camera is static, 1 = camera is moving
+uniform int uCameraMoved;     // 0 = camera is static, 1 = camera is moving
 
-// Include modular shader chunks.
-// NOTE: these requires CPU-side preprocessing / concatenation in OpenGL 4.1.
+// ---- TAA params (from RenderParams)
+uniform float uTaaStillThresh;
+uniform float uTaaHardMovingThresh;
+uniform float uTaaHistoryMaxWeight;
+uniform float uTaaHistoryBoxSize;
+
+// ---- GI / AO / mirror params (from RenderParams)
+uniform float uGiScaleAnalytic;
+uniform float uGiScaleBVH;
+uniform int uEnableGI;
+uniform int uEnableAO;
+uniform int uEnableMirror;
+
+// Includes
 #include "rt_common.glsl"
 #include "rt_materials.glsl"
 #include "rt_scene_analytic.glsl"
@@ -45,18 +57,15 @@ void main() {
     int SPP = max(uSpp, 1);
 
     // Default motion for this pixel:
-    // - If we MISS and camera is static, we want motion = 0 (allow TAA to accumulate).
-    // - If we MISS and camera moved, we'll override it to a large value so TAA kills history.
     vec2 motionOut = vec2(0.0);
 
-    // --- Per-frame camera jitter (reduced amplitude to cut residual shimmer)
-    vec2 camJit = (ld2(uFrameIndex) - 0.5) * 0.5;   // half-pixel jitter
+    // --- Per-frame camera jitter (reduced when static to remove shimmer)
+    float jitterScale = (uCameraMoved == 1) ? 0.5 : 0.0;   // half-pixel jitter when moving, none when still
+    vec2 camJit = (ld2(uFrameIndex) - 0.5) * jitterScale;
 
     for (int s = 0; s < SPP; ++s) {
-        // keep seed unique per frame & optional per-sample
         int seed = uFrameIndex * max(1, SPP) + s;
 
-        // use per-frame jitter (stable within frame)
         vec2 uv = (gl_FragCoord.xy + camJit) / uResolution;
         vec2 ndc = uv * 2.0 - 1.0;
 
@@ -81,7 +90,6 @@ void main() {
                 motionOut = cN - pN;
             }
 
-            // View direction from hit to camera
             vec3 V = -dir;
 
             // Primary lighting: direct from area light
@@ -92,25 +100,24 @@ void main() {
             // -----------------------------------------------------------------
             // One-bounce diffuse GI (indirect lighting)
             // -----------------------------------------------------------------
-            {
-                const float giScaleAnalytic = 0.35;
-                const float giScaleBVH = 0.20;
-
+            if (uEnableGI == 1) {
                 if (uUseBVH == 1) {
                     // BVH scene GI (more conservative)
-                    radiance += giScaleBVH * oneBounceGIBVH(h, uFrameIndex, seed);
+                    radiance += uGiScaleBVH * oneBounceGIBVH(h, uFrameIndex, seed);
                 } else {
                     MaterialProps m0 = getMaterial(h.mat);
                     if (m0.type == 0) { // skip mirrors for GI
-                                        radiance += giScaleAnalytic * oneBounceGIAnalytic(h, uFrameIndex, seed);
+                                        radiance += uGiScaleAnalytic * oneBounceGIAnalytic(h, uFrameIndex, seed);
                     }
                 }
             }
 
+            // -----------------------------------------------------------------
+            // Optional mirror reflection
+            // -----------------------------------------------------------------
             #if ENABLE_MIRROR_BOUNCE
-            if (h.mat == 3) {
+            if (uEnableMirror == 1 && h.mat == 3) {
                 vec3 rdir = reflect(dir, h.n);
-                // offset along reflection direction to avoid self-hit acne
                 vec3 rorg = h.p + rdir * EPS;
 
                 Hit h2;
@@ -123,7 +130,6 @@ void main() {
                     vec3 bounced = (uUseBVH == 1)
                     ? directLightBVH(h2, seed, V2)
                     : directLight(h2, seed, V2);
-
                     radiance += 0.9 * bounced;
                 } else {
                     radiance += 0.9 * sky(rdir);
@@ -134,9 +140,10 @@ void main() {
             // -----------------------------------------------------------------
             // Ambient Occlusion modulation (subtle)
             // -----------------------------------------------------------------
-            float ao = computeAO(h, uFrameIndex);
-            radiance *= ao;
-
+            if (uEnableAO == 1) {
+                float ao = computeAO(h, uFrameIndex);
+                radiance *= ao;
+            }
         } else {
             // MISS → sky
             radiance = sky(dir);
@@ -158,12 +165,10 @@ void main() {
     vec2 uvCurr = vUV;
 
     // Effective motion for TAA:
-    // - if camera really moved: use motionOut
-    // - if camera is "still": ignore motion so we hit the still-case path
     vec2 taaMotion = (uCameraMoved == 1) ? motionOut : vec2(0.0);
 
     vec4 taa = resolveTAA(curr, uvCurr, taaMotion, uPrevAccum, uFrameIndex);
 
-    fragColor = taa;        // rgb = color, a unused
+    fragColor = taa;        // rgb = color, a = M2
     outMotion = motionOut;  // full motion kept for debug view (F6)
 }
