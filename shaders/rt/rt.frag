@@ -1,7 +1,17 @@
 #version 410 core
 in vec2 vUV;
-layout (location = 0) out vec4 fragColor;   // accumulated linear color + M2
-layout (location = 1) out vec2 outMotion;   // NDC motion (currentNDC - prevNDC)
+
+// COLOR0: accumulated linear color + M2
+layout (location = 0) out vec4 fragColor;
+
+// COLOR1: NDC motion (currentNDC - prevNDC)
+layout (location = 1) out vec2 outMotion;
+
+// COLOR2: world-space position (xyz, w unused)
+layout (location = 2) out vec4 outGPos;
+
+// COLOR3: world-space normal (xyz, w unused)
+layout (location = 3) out vec4 outGNrm;
 
 // ---- Camera & accumulation
 uniform vec3 uCamPos;
@@ -72,6 +82,10 @@ void main() {
     // Default motion for this pixel:
     vec2 motionOut = vec2(0.0);
 
+    // Initialize GBuffer outputs to something safe
+    outGPos = vec4(0.0);
+    outGNrm = vec4(0.0);
+
     // --- Per-frame camera jitter (reduced when static to remove shimmer)
     float jitterScale = (uCameraMoved == 1) ? uJitterScaleMoving : 0.0;   // half-pixel jitter when moving, none when still
     vec2 camJit = (ld2(uFrameIndex) - 0.5) * jitterScale;
@@ -96,11 +110,14 @@ void main() {
 
         vec3 radiance;
         if (hitAny) {
-            // Only write motion once (first sample) to keep it stable
+            // Only write motion + GBuffer once (first sample) to keep them stable
             if (s == 0) {
                 vec2 pN = ndcFromWorld(h.p, uPrevViewProj);
                 vec2 cN = ndcFromWorld(h.p, uCurrViewProj);
                 motionOut = cN - pN;
+
+                outGPos = vec4(h.p, 1.0);
+                outGNrm = vec4(normalize(h.n), 0.0);
             }
 
             vec3 V = -dir;
@@ -165,6 +182,7 @@ void main() {
             // be treated as a disocclusion in TAA, to avoid "sphere→sky" smearing.
             if (uCameraMoved == 1 && s == 0) {
                 motionOut = vec2(4.0, 4.0); // large NDC motion -> uvPrev OOB -> no history
+                // GBuffer stays at default (0), which is fine for sky/background
             }
         }
 

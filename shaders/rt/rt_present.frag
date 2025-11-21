@@ -4,6 +4,11 @@ out vec4 fragColor;
 
 uniform sampler2D uTex;        // history buffer: rgb = color, a = M2 (second moment of luma)
 uniform sampler2D uMotionTex;  // RG16F, NDC motion (currNDC - prevNDC)
+
+// GBuffer samplers
+uniform sampler2D uGPos;       // world-space position
+uniform sampler2D uGNrm;       // world-space normal
+
 uniform float uExposure;
 uniform int uShowMotion;   // 0 = normal, 1 = visualize motion
 uniform float uMotionScale;  // e.g. 4.0
@@ -54,7 +59,7 @@ vec3 visualizeMotion(vec2 motion, float scale) {
 
 // ------------------------------------------------------------
 // SVGF-lite spatial filter using VARIANCE derived from M2 in alpha
-// Motion-aware: stronger filter when things are moving
+// Motion-aware + GBUFFER-aware (position + normal)
 // ------------------------------------------------------------
 vec3 svgfFilter(vec2 uv) {
     // Center sample: color + M2 of luma stored in A
@@ -69,6 +74,10 @@ vec3 svgfFilter(vec2 uv) {
     // Motion at center pixel
     vec2 motion = texture(uMotionTex, uv).xy;
     float motMag = length(motion);
+
+    // GBuffer at center
+    vec3 pCenter = texture(uGPos, uv).xyz;
+    vec3 nCenter = texture(uGNrm, uv).xyz;
 
     // Clamp variance to a reasonable max – prevents insane weights
     varCenter = min(varCenter, uVarMax);
@@ -89,14 +98,15 @@ vec3 svgfFilter(vec2 uv) {
     // We derive static/moving variants from them.
     // ----------------------------------------
 
-    //float kVarMoving = uKVar * 0.4;    // softer when moving
-    //float kColorMoving = uKColor * 0.4;
-
     // t = 0 → static, t = 1 → fully moving
     float t = clamp(smoothstep(0.005, 0.05, motMag), 0.0, 1.0);
 
     float kVar = mix(uKVar, uKVarMotion, t);
     float kColor = mix(uKColor, uKColorMotion, t);
+
+    // Geometry weights – fixed scalars for now (no extra CPU params needed)
+    const float K_NRM = 32.0;   // higher = stronger normal edge stopping
+    const float K_POS = 1.0;    // units are ~1 / (worldUnit^2)
 
     for (int j = -1; j <= 1; ++j) {
         for (int i = -1; i <= 1; ++i) {
@@ -123,12 +133,26 @@ vec3 svgfFilter(vec2 uv) {
             float dc2 = dot(dc, dc);
             float wCol = exp(-dc2 * kColor);
 
+            // GBuffer-based edge stopping
+            vec3 p = texture(uGPos, uvN).xyz;
+            vec3 n = texture(uGNrm, uvN).xyz;
+
+            // Position distance
+            vec3 dp = p - pCenter;
+            float dist2 = dot(dp, dp);
+            float wPos = exp(-dist2 * K_POS);
+
+            // Normal difference
+            float ndot = clamp(dot(normalize(nCenter), normalize(n)), -1.0, 1.0);
+            float nDiff = max(0.0, 1.0 - ndot);   // 0 when aligned, 1 when opposite
+            float wNrm = exp(-nDiff * K_NRM);
+
             // Slightly favor center when static; when moving, neighbors matter more
             float wSpatial = (i == 0 && j == 0)
             ? 1.0
             : mix(0.8, 1.1, t);
 
-            float w = wVar * wCol * wSpatial;
+            float w = wVar * wCol * wPos * wNrm * wSpatial;
             accumCol += c * w;
             accumW += w;
         }
@@ -155,7 +179,7 @@ void main() {
     // Raw TAA result (no spatial filter)
     vec3 raw = texture(uTex, uv).rgb;
 
-    // SVGF-lite: variance-guided spatial filter
+    // SVGF-lite: variance-guided spatial filter with GBuffer edge stopping
     vec3 filtered = svgfFilter(uv);
 
     // Blend between raw and filtered based on uSvgfStrength
@@ -166,7 +190,7 @@ void main() {
     vec3 linearColor = mix(raw, filtered, s);
 
     // Tonemap + gamma
-    vec3 mapped  = acesTonemap(linearColor);
+    vec3 mapped = acesTonemap(linearColor);
     vec3 outSRGB = pow(mapped, vec3(1.0 / 2.2));
 
     fragColor = vec4(outSRGB, 1.0);

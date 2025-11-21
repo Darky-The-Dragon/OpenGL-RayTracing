@@ -6,6 +6,7 @@
 #include "rt/accum.h"
 #include "rt/RenderParams.h"
 #include "rt/frame_state.h"
+#include "rt/gbuffer.h"
 #include "bvh.h"
 #include "io/input.h"
 #include <glm/glm.hpp>
@@ -19,6 +20,7 @@
 // Global state
 // ===============================
 static rt::Accum gAccum; // accumulation ping-pong + frame counter
+static rt::GBuffer gGBuffer;
 static rt::FrameState gFrame;
 static bool gRayMode = true; // F2: raster <-> ray
 static RenderParams gParams; // runtime-tweakable render parameters
@@ -71,6 +73,7 @@ static void framebuffer_size_callback(GLFWwindow *, int width, int height) {
     camera.AspectRatio = static_cast<float>(width) / static_cast<float>(height);
 
     gAccum.recreate(width, height);
+    gGBuffer.recreate(width, height);
 }
 
 // ===============================
@@ -117,10 +120,11 @@ int main() {
     gRtShader = new Shader("../shaders/rt/rt_fullscreen.vert", "../shaders/rt/rt.frag");
     gPresentShader = new Shader("../shaders/rt/rt_fullscreen.vert", "../shaders/rt/rt_present.frag");
 
-    // Accumulation buffers
+    // Accumulation buffers + GBuffer
     int fbw = 0, fbh = 0;
     glfwGetFramebufferSize(window, &fbw, &fbh);
     gAccum.recreate(fbw, fbh);
+    gGBuffer.recreate(fbw, fbh);
 
     // Fullscreen triangle VAO (no VBO)
     glGenVertexArrays(1, &gFsVao);
@@ -242,7 +246,7 @@ int main() {
                 gShowMotion = !gShowMotion;
                 gAccum.reset(); // history invalid when switching debug view
                 std::cout << "[DEBUG] Show Motion = "
-                          << (gShowMotion ? "ON" : "OFF") << "\n";
+                        << (gShowMotion ? "ON" : "OFF") << "\n";
             }
         }
 
@@ -256,9 +260,9 @@ int main() {
 
         if (gRayMode) {
             // ===============================
-            // Ray mode: render into accum tex + motion
+            // Ray mode: render into accum + motion + GBuffer (WS pos/nrm)
             // ===============================
-            gAccum.bindWriteFBO_ColorAndMotion();
+            gAccum.bindWriteFBO_MRT(gGBuffer.posTex, gGBuffer.nrmTex);
             glViewport(0, 0, fbw, fbh);
             glDepthMask(GL_FALSE);
             glDisable(GL_DEPTH_TEST);
@@ -291,12 +295,12 @@ int main() {
             gRtShader->setInt("uTriCount", gBvhTriCount);
 
             // TAA params from RenderParams
-            gRtShader->setFloat("uTaaStillThresh",      gParams.taaStillThresh);
+            gRtShader->setFloat("uTaaStillThresh", gParams.taaStillThresh);
             gRtShader->setFloat("uTaaHardMovingThresh", gParams.taaHardMovingThresh);
             gRtShader->setFloat("uTaaHistoryMinWeight", gParams.taaHistoryMinWeight);
             gRtShader->setFloat("uTaaHistoryAvgWeight", gParams.taaHistoryAvgWeight);
             gRtShader->setFloat("uTaaHistoryMaxWeight", gParams.taaHistoryMaxWeight);
-            gRtShader->setFloat("uTaaHistoryBoxSize",   gParams.taaHistoryBoxSize);
+            gRtShader->setFloat("uTaaHistoryBoxSize", gParams.taaHistoryBoxSize);
 
             // GI / AO / mirror toggles + scales (from RenderParams)
             gRtShader->setFloat("uGiScaleAnalytic", gParams.giScaleAnalytic);
@@ -347,13 +351,13 @@ int main() {
 
             // SVGF params from RenderParams
             gPresentShader->setFloat("uVarMax", gParams.svgfVarMax);
-            gPresentShader->setFloat("uKVar",   gParams.svgfKVar);
+            gPresentShader->setFloat("uKVar", gParams.svgfKVar);
             gPresentShader->setFloat("uKColor", gParams.svgfKColor);
-            gPresentShader->setFloat("uKVarMotion",   gParams.svgfKVarMotion);
+            gPresentShader->setFloat("uKVarMotion", gParams.svgfKVarMotion);
             gPresentShader->setFloat("uKColorMotion", gParams.svgfKColorMotion);
-            gPresentShader->setFloat("uSvgfStrength",  gParams.svgfStrength);
-            gPresentShader->setFloat("uSvgfVarStaticEps",  gParams.svgfVarEPS);
-            gPresentShader->setFloat("uSvgfMotionStaticEps",  gParams.svgfMotionEPS);
+            gPresentShader->setFloat("uSvgfStrength", gParams.svgfStrength);
+            gPresentShader->setFloat("uSvgfVarStaticEps", gParams.svgfVarEPS);
+            gPresentShader->setFloat("uSvgfMotionStaticEps", gParams.svgfMotionEPS);
 
             // COLOR0 (accumulated linear + M2 in A)
             glActiveTexture(GL_TEXTURE0);
@@ -369,12 +373,21 @@ int main() {
             gPresentShader->setFloat("uMotionScale", gParams.motionScale);
             gPresentShader->setVec2("uResolution", glm::vec2(fbw, fbh));
 
+            // GBUFFER: world-space position
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, gGBuffer.posTex);
+            gPresentShader->setInt("uGPos", 2);
+
+            // GBUFFER: world-space normal
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, gGBuffer.nrmTex);
+            gPresentShader->setInt("uGNrm", 3);
+
             glBindVertexArray(gFsVao);
             glDrawArrays(GL_TRIANGLES, 0, 3);
 
             // Advance accumulation & ping-pong
             gAccum.swapAfterFrame();
-
         } else {
             // ===============================
             // Raster path (unchanged)

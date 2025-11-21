@@ -40,8 +40,9 @@ namespace rt {
 
         // Bind FBO with multiple render targets:
         //  - COLOR0 = accumulation write
-        //  - COLOR1 = gbuffer position (WS)
-        //  - COLOR2 = gbuffer normal (WS)
+        //  - COLOR1 = motion (RG16F)
+        //  - COLOR2 = gbuffer position (WS)
+        //  - COLOR3 = gbuffer normal (WS)
         void bindWriteFBO_MRT(GLuint posTex, GLuint nrmTex) const;
 
         // Clear current write target(s) (COLOR0 and COLOR1) to zero.

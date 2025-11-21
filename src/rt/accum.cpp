@@ -174,16 +174,35 @@ namespace rt {
 
     void Accum::bindWriteFBO_MRT(GLuint posTex, GLuint nrmTex) const {
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, writeTex(), 0);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, posTex, 0);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, nrmTex, 0);
 
-        static const GLenum bufs[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
-        glDrawBuffers(3, bufs);
+        // COLOR0: accumulation write
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_2D, writeTex(), 0);
+
+        // COLOR1: motion vectors (RG16F)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,
+                               GL_TEXTURE_2D, motionTex, 0);
+
+        // COLOR2: world-space position (from GBuffer)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2,
+                               GL_TEXTURE_2D, posTex, 0);
+
+        // COLOR3: world-space normal (from GBuffer)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3,
+                               GL_TEXTURE_2D, nrmTex, 0);
+
+        static const GLenum bufs[4] = {
+            GL_COLOR_ATTACHMENT0,
+            GL_COLOR_ATTACHMENT1,
+            GL_COLOR_ATTACHMENT2,
+            GL_COLOR_ATTACHMENT3
+        };
+        glDrawBuffers(4, bufs);
 
         const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
         if (status != GL_FRAMEBUFFER_COMPLETE) {
-            std::cerr << "FBO incomplete (MRT Color+Pos+Nrm): 0x" << std::hex << status << std::dec << "\n";
+            std::cerr << "FBO incomplete (MRT Color+Motion+Pos+Nrm): 0x"
+                    << std::hex << status << std::dec << "\n";
         }
     }
 
