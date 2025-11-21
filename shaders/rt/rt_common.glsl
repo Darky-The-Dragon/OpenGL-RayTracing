@@ -5,12 +5,6 @@
 // ---- Params / constants ----
 #define SOFT_SHADOW_SAMPLES 4
 #define ENABLE_MIRROR_BOUNCE 1
-#define ENABLE_INDIRECT_BOUNCE 1
-#define GLOBAL_ILLUMINATION_SCALE 0.6
-
-const float EPS = 1e-4;
-const float PI  = 3.1415926535;
-const float INF = 1e30;
 
 // ---------------- Hit payload ----------------
 struct Hit {
@@ -64,10 +58,10 @@ vec2 concentricSample(vec2 u) {
         phi = 0.0;
     } else if (abs(a) > abs(b)) {
         r = a;
-        phi = (PI / 4.0) * (b / a);
+        phi = (uPI / 4.0) * (b / a);
     } else {
         r = b;
-        phi = (PI / 2.0) - (PI / 4.0) * (a / b);
+        phi = (uPI / 2.0) - (uPI / 4.0) * (a / b);
     }
     return r * vec2(cos(phi), sin(phi));
 }

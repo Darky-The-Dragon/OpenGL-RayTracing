@@ -14,6 +14,7 @@ uniform int uFrameIndex;
 uniform vec2 uResolution;
 uniform sampler2D uPrevAccum;
 uniform int uSpp;
+uniform float uJitterScaleMoving;
 
 // ---- Scene mode
 uniform int uUseBVH;     // 0 = analytic (plane+spheres), 1 = BVH triangle scene
@@ -33,6 +34,8 @@ uniform int uCameraMoved;     // 0 = camera is static, 1 = camera is moving
 // ---- TAA params (from RenderParams)
 uniform float uTaaStillThresh;
 uniform float uTaaHardMovingThresh;
+uniform float uTaaHistoryMinWeight;
+uniform float uTaaHistoryAvgWeight;
 uniform float uTaaHistoryMaxWeight;
 uniform float uTaaHistoryBoxSize;
 
@@ -42,6 +45,16 @@ uniform float uGiScaleBVH;
 uniform int uEnableGI;
 uniform int uEnableAO;
 uniform int uEnableMirror;
+uniform float uMirrorStrength;
+uniform int uAO_SAMPLES;
+uniform float uAO_RADIUS;
+uniform float uAO_BIAS;
+uniform float uAO_MIN;
+
+// ---- Constants (from RenderParams)
+uniform float uEPS;
+uniform float uPI;
+uniform float uINF;
 
 // Includes
 #include "rt_common.glsl"
@@ -60,7 +73,7 @@ void main() {
     vec2 motionOut = vec2(0.0);
 
     // --- Per-frame camera jitter (reduced when static to remove shimmer)
-    float jitterScale = (uCameraMoved == 1) ? 0.5 : 0.0;   // half-pixel jitter when moving, none when still
+    float jitterScale = (uCameraMoved == 1) ? uJitterScaleMoving : 0.0;   // half-pixel jitter when moving, none when still
     vec2 camJit = (ld2(uFrameIndex) - 0.5) * jitterScale;
 
     for (int s = 0; s < SPP; ++s) {
@@ -118,7 +131,7 @@ void main() {
             #if ENABLE_MIRROR_BOUNCE
             if (uEnableMirror == 1 && h.mat == 3) {
                 vec3 rdir = reflect(dir, h.n);
-                vec3 rorg = h.p + rdir * EPS;
+                vec3 rorg = h.p + rdir * uEPS;
 
                 Hit h2;
                 bool hit2 = (uUseBVH == 1)
@@ -130,9 +143,9 @@ void main() {
                     vec3 bounced = (uUseBVH == 1)
                     ? directLightBVH(h2, seed, V2)
                     : directLight(h2, seed, V2);
-                    radiance += 0.9 * bounced;
+                    radiance += uMirrorStrength * bounced;
                 } else {
-                    radiance += 0.9 * sky(rdir);
+                    radiance += uMirrorStrength * sky(rdir);
                 }
             }
             #endif

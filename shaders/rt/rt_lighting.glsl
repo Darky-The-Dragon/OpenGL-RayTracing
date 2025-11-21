@@ -37,7 +37,7 @@ void buildONB(in vec3 N, out vec3 T, out vec3 B) {
 // u in [0,1]^2.
 vec3 sampleHemisphereCosine(vec3 N, vec2 u) {
     // cosine-weighted sample in local space (around +Y)
-    float phi = 2.0 * PI * u.x;
+    float phi = 2.0 * uPI * u.x;
     float r   = sqrt(u.y);
     float x   = r * cos(phi);
     float z   = r * sin(phi);
@@ -109,7 +109,7 @@ vec3 directLight(Hit h, int frame, vec3 Vdir) {
         vec3 Li = kLightCol * geom * vis;
 
         // Diffuse (Lambert)
-        vec3 diffuse = mat.albedo * (ndl / PI);
+        vec3 diffuse = mat.albedo * (ndl / uPI);
 
         // Cheap Phong specular (only for non-mirror mats)
         vec3 spec = vec3(0.0);
@@ -163,7 +163,7 @@ vec3 directLightBVH(Hit h, int frame, vec3 Vdir) {
 
         vec3 Li = kLightCol * geom * vis;
 
-        vec3 diffuse = albedo * (ndl / PI);
+        vec3 diffuse = albedo * (ndl / uPI);
 
         vec3 H = normalize(L + V);
         float ndh = max(dot(N, H), 0.0);
@@ -196,7 +196,7 @@ vec3 oneBounceGIAnalytic(Hit h0, int frame, int seed) {
 
     // Trace from the hit along wi
     Hit h1;
-    bool hit1 = traceAnalytic(h0.p + wi * EPS, wi, h1);
+    bool hit1 = traceAnalytic(h0.p + wi * uEPS, wi, h1);
 
     vec3 Li;
     if (hit1) {
@@ -208,8 +208,8 @@ vec3 oneBounceGIAnalytic(Hit h0, int frame, int seed) {
         Li = sky(wi);
     }
 
-    // Lambertian throughput: albedo0 * (cosTheta / PI)
-    return albedo0 * (cosTheta / PI) * Li;
+    // Lambertian throughput: albedo0 * (cosTheta / uPI)
+    return albedo0 * (cosTheta / uPI) * Li;
 }
 
 // BVH scene: one diffuse bounce from primary triangle hit, with clamping
@@ -236,7 +236,7 @@ vec3 oneBounceGIBVH(Hit h0, int frame, int seed)
 
     // IMPORTANT: offset along the surface normal, not along wi
     // This is more robust for thin triangles / sharp corners.
-    vec3 origin = h0.p + N0 * EPS;
+    vec3 origin = h0.p + N0 * uEPS;
 
     Hit  h1;
     bool hit1 = traceBVH(origin, wi, h1);
@@ -250,7 +250,7 @@ vec3 oneBounceGIBVH(Hit h0, int frame, int seed)
     }
 
     // Raw Lambertian contribution
-    vec3 contrib = albedo0 * (cosTheta / PI) * Li;
+    vec3 contrib = albedo0 * (cosTheta / uPI) * Li;
 
     // Luminance-based clamp to kill fireflies
     float lum = dot(contrib, vec3(0.299, 0.587, 0.114));
@@ -269,14 +269,10 @@ vec3 oneBounceGIBVH(Hit h0, int frame, int seed)
 // ---------------------------------------------------------------------------
 float computeAO(Hit h, int frame)
 {
-    const int   AO_SAMPLES = 4;    // 4–6 is usually enough for a hint of AO
-    const float AO_RADIUS  = 0.8;  // how far we search for occluders (world units)
-    const float AO_BIAS    = 2e-3; // push-off distance to avoid self-intersection
-
     vec3 N = normalize(h.n);
     int occludedCount = 0;
 
-    for (int i = 0; i < AO_SAMPLES; ++i) {
+    for (int i = 0; i < uAO_SAMPLES; ++i) {
         // deterministic but decorrelated per-pixel/per-sample noise
         vec2 u = vec2(
         rand(gl_FragCoord.xy + float(37 * i + 3),  frame),
@@ -287,7 +283,7 @@ float computeAO(Hit h, int frame)
         vec3 dir = sampleHemisphereCosine(N, u);
 
         // ray origin slightly above the surface
-        vec3 org = h.p + dir * AO_BIAS;
+        vec3 org = h.p + dir * uAO_BIAS;
 
         Hit tmp;
         bool hitAny =
@@ -296,17 +292,16 @@ float computeAO(Hit h, int frame)
         : traceAnalytic(org, dir, tmp);
 
         // count as occluded only if something is reasonably close
-        if (hitAny && tmp.t < AO_RADIUS) {
+        if (hitAny && tmp.t < uAO_RADIUS) {
             occludedCount++;
         }
     }
 
-    float occ = float(occludedCount) / float(AO_SAMPLES); // 0..1
+    float occ = float(occludedCount) / float(uAO_SAMPLES); // 0..1
     float ao  = 1.0 - occ;                                // 1=open, 0=closed
 
     // Keep a minimum so nothing goes pitch-black
-    const float AO_MIN = 0.45;      // tweak 0.3–0.5
-    ao = clamp(mix(AO_MIN, 1.0, ao), AO_MIN, 1.0);
+    ao = clamp(mix(uAO_MIN, 1.0, ao), uAO_MIN, 1.0);
 
     return ao;
 }

@@ -30,8 +30,8 @@ vec4 resolveTAA(vec3 curr,
     float motMag = length(motionOut);
 
     // Use CPU-driven params instead of hard-coded constants
-    float STILL_THRESH = uTaaStillThresh;
-    float HARD_MOVING_THRESH = uTaaHardMovingThresh;
+    float MIN_W_HIST = uTaaHistoryMinWeight;
+    float AVG_W_HIST = uTaaHistoryAvgWeight;
     float MAX_W_HIST = uTaaHistoryMaxWeight;
     float BOX_SIZE = uTaaHistoryBoxSize;
 
@@ -39,7 +39,7 @@ vec4 resolveTAA(vec3 curr,
     // CASE 1: camera/pixel effectively still
     //   → exponential running average (fast convergence)
     // ---------------------------------------------
-    if (motMag < STILL_THRESH) {
+    if (motMag < uTaaStillThresh) {
         vec4 prevRGBA = texture(prevAccum, uvCurr);
         vec3 prevCol = prevRGBA.rgb;
         float prevM2 = prevRGBA.a;
@@ -48,9 +48,9 @@ vec4 resolveTAA(vec3 curr,
         // Early frames converge faster, later frames become VERY stable.
         float wHist;
         if (frameIndex < 8) {
-            wHist = 0.85;  // warm-up
+            wHist = MIN_W_HIST;  // warm-up
         } else if (frameIndex < 32) {
-            wHist = 0.94;
+            wHist = AVG_W_HIST;
         } else {
             wHist = MAX_W_HIST;  // e.g. 0.98 from RenderParams
         }
@@ -91,10 +91,10 @@ vec4 resolveTAA(vec3 curr,
     // ------------------------------------------------------------------
 
     // Base: 1.0 when motMag ≈ 0, fades toward 0 as motMag grows
-    float wHist = 1.0 - smoothstep(0.02, HARD_MOVING_THRESH, motMag);
+    float wHist = 1.0 - smoothstep(0.02, uTaaHardMovingThresh, motMag);
 
     // If motion is really large, just kill history completely
-    if (motMag > HARD_MOVING_THRESH) {
+    if (motMag > uTaaHardMovingThresh) {
         wHist = 0.0;
     }
 

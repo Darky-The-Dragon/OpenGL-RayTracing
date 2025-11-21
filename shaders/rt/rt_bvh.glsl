@@ -66,7 +66,7 @@ bool triHit(vec3 ro, vec3 rd, TriSOA T, float tMax, out float t, out vec3 n) {
     float v = dot(rd, qvec) * invDet;
     if (v < 0.0 || u + v > 1.0) return false;
     float tt = dot(T.e2, qvec) * invDet;
-    if (tt < EPS || tt > tMax) return false;
+    if (tt < uEPS || tt > tMax) return false;
     t = tt;
     n = normalize(cross(T.e1, T.e2));
     return true;
@@ -75,7 +75,7 @@ bool triHit(vec3 ro, vec3 rd, TriSOA T, float tMax, out float t, out vec3 n) {
 // BVH traversal (closest-hit)
 bool traceBVH(vec3 ro, vec3 rd, out Hit hitOut) {
     if (uNodeCount <= 0 || uTriCount <= 0) return false;
-    hitOut.t = INF;
+    hitOut.t = uINF;
     hitOut.n = vec3(0);
     hitOut.mat = 1; // diffuse default
     float tminBox, tmaxBox;
@@ -120,7 +120,7 @@ bool traceBVH(vec3 ro, vec3 rd, out Hit hitOut) {
             }
         }
     }
-    return hitOut.t < INF;
+    return hitOut.t < uINF;
 }
 
 // BVH traversal (shadow ray, early-out)

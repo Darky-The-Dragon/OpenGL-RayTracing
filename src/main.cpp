@@ -1,10 +1,11 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
-#include "../include/camera/Camera.h"
+#include "camera/Camera.h"
 #include "Shader.h"
 #include "utils/model.h"
 #include "rt/accum.h"
 #include "rt/RenderParams.h"
+#include "rt/frame_state.h"
 #include "bvh.h"
 #include "io/input.h"
 #include <glm/glm.hpp>
@@ -18,6 +19,7 @@
 // Global state
 // ===============================
 static rt::Accum gAccum; // accumulation ping-pong + frame counter
+static rt::FrameState gFrame;
 static bool gRayMode = true; // F2: raster <-> ray
 static RenderParams gParams; // runtime-tweakable render parameters
 
@@ -56,9 +58,6 @@ static int gBvhNodeCount = 0, gBvhTriCount = 0;
 
 // Centralized input state
 static io::InputState gInput;
-
-// Matrices for motion vectors
-static glm::mat4 gPrevViewProj(1.0f);
 
 // ===============================
 // Callbacks
@@ -157,8 +156,13 @@ int main() {
     gInput.exposure = gParams.exposure;
     io::init(gInput);
 
-    // Initialize prev VP to current so motion starts ~zero
-    gPrevViewProj = camera.GetProjectionMatrix() * camera.GetViewMatrix();
+    // Initialize frame state so prev == curr on first frame
+    {
+        const glm::mat4 initView = camera.GetViewMatrix();
+        const glm::mat4 initProj = camera.GetProjectionMatrix();
+        gFrame.beginFrame(initView, initProj, camera.Position);
+        gFrame.endFrame(); // prevViewProj = currViewProj, prevCamPos = currCamPos
+    }
 
     // ===============================
     // Main loop
@@ -185,7 +189,9 @@ int main() {
         // --- Matrices for motion vectors (AFTER camera changes this frame) ---
         const glm::mat4 currView = camera.GetViewMatrix();
         const glm::mat4 currProj = camera.GetProjectionMatrix();
-        const glm::mat4 currVP = currProj * currView;
+
+        // Update per-frame state (currViewProj, currCamPos, etc.)
+        gFrame.beginFrame(currView, currProj, camera.Position);
 
         // Detect ANY camera change (translation OR rotation OR FOV) via VP matrix diff
         float vpDiff = 0.0f;
@@ -193,7 +199,7 @@ int main() {
             for (int r = 0; r < 4; ++r) {
                 vpDiff = std::max(
                     vpDiff,
-                    std::fabs(currVP[c][r] - gPrevViewProj[c][r])
+                    std::fabs(gFrame.currViewProj[c][r] - gFrame.prevViewProj[c][r])
                 );
             }
         }
@@ -277,6 +283,7 @@ int main() {
             gRtShader->setFloat("uAspect", camera.AspectRatio);
             gRtShader->setInt("uFrameIndex", gAccum.frameIndex);
             gRtShader->setInt("uSpp", gShowMotion ? 1 : gParams.sppPerFrame);
+            gRtShader->setFloat("uJitterScaleMoving", gParams.jitterScale);
 
             // Scene / BVH
             gRtShader->setInt("uUseBVH", gUseBVH ? 1 : 0);
@@ -286,6 +293,8 @@ int main() {
             // TAA params from RenderParams
             gRtShader->setFloat("uTaaStillThresh",      gParams.taaStillThresh);
             gRtShader->setFloat("uTaaHardMovingThresh", gParams.taaHardMovingThresh);
+            gRtShader->setFloat("uTaaHistoryMinWeight", gParams.taaHistoryMinWeight);
+            gRtShader->setFloat("uTaaHistoryAvgWeight", gParams.taaHistoryAvgWeight);
             gRtShader->setFloat("uTaaHistoryMaxWeight", gParams.taaHistoryMaxWeight);
             gRtShader->setFloat("uTaaHistoryBoxSize",   gParams.taaHistoryBoxSize);
 
@@ -295,19 +304,23 @@ int main() {
             gRtShader->setInt("uEnableGI", gParams.enableGI);
             gRtShader->setInt("uEnableAO", gParams.enableAO);
             gRtShader->setInt("uEnableMirror", gParams.enableMirror);
+            gRtShader->setFloat("uMirrorStrength", gParams.mirrorStrength);
+            gRtShader->setInt("uAO_SAMPLES", gParams.aoSamples);
+            gRtShader->setFloat("uAO_RADIUS", gParams.aoRadius);
+            gRtShader->setFloat("uAO_BIAS", gParams.aoBias);
+            gRtShader->setFloat("uAO_MIN", gParams.aoMin);
 
             // Motion / TAA
             gRtShader->setInt("uShowMotion", gShowMotion ? 1 : 0);
             gRtShader->setInt("uCameraMoved", cameraMoved ? 1 : 0);
-            gRtShader->setMat4("uPrevViewProj", gPrevViewProj);
-            gRtShader->setMat4("uCurrViewProj", currVP);
+            gRtShader->setMat4("uPrevViewProj", gFrame.prevViewProj);
+            gRtShader->setMat4("uCurrViewProj", gFrame.currViewProj);
             gRtShader->setVec2("uResolution", glm::vec2(fbw, fbh));
 
-            // SVGF params from RenderParams
-            gPresentShader->setFloat("uVarMax", gParams.svgfVarMax);
-            gPresentShader->setFloat("uKVar",   gParams.svgfKVar);
-            gPresentShader->setFloat("uKColor", gParams.svgfKColor);
-            gPresentShader->setFloat("uSvgfStrength",  gParams.svgfStrength);
+            // Constants
+            gRtShader->setFloat("uEPS", gParams.EPS);
+            gRtShader->setFloat("uPI", gParams.PI);
+            gRtShader->setFloat("uINF", gParams.INF);
 
             // Accum input (history)
             glActiveTexture(GL_TEXTURE0);
@@ -332,6 +345,16 @@ int main() {
             glViewport(0, 0, fbw, fbh);
             gPresentShader->use();
 
+            // SVGF params from RenderParams
+            gPresentShader->setFloat("uVarMax", gParams.svgfVarMax);
+            gPresentShader->setFloat("uKVar",   gParams.svgfKVar);
+            gPresentShader->setFloat("uKColor", gParams.svgfKColor);
+            gPresentShader->setFloat("uKVarMotion",   gParams.svgfKVarMotion);
+            gPresentShader->setFloat("uKColorMotion", gParams.svgfKColorMotion);
+            gPresentShader->setFloat("uSvgfStrength",  gParams.svgfStrength);
+            gPresentShader->setFloat("uSvgfVarStaticEps",  gParams.svgfVarEPS);
+            gPresentShader->setFloat("uSvgfMotionStaticEps",  gParams.svgfMotionEPS);
+
             // COLOR0 (accumulated linear + M2 in A)
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, gAccum.writeTex());
@@ -352,8 +375,6 @@ int main() {
             // Advance accumulation & ping-pong
             gAccum.swapAfterFrame();
 
-            // After presenting, current becomes previous for next frame motion
-            gPrevViewProj = currVP;
         } else {
             // ===============================
             // Raster path (unchanged)
@@ -381,6 +402,8 @@ int main() {
             gRasterShader->setVec3("uColor", glm::vec3(0.3f, 0.6f, 1.0f));
             gSphere->Draw();
         }
+        // ---- End-of-frame: promote curr -> prev for next frame's motion/TAA ----
+        gFrame.endFrame();
 
         glfwSwapBuffers(window);
     }

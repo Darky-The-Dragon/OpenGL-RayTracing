@@ -13,7 +13,11 @@ uniform vec2 uResolution;   // framebuffer size in pixels
 uniform float uVarMax;
 uniform float uKVar;
 uniform float uKColor;
+uniform float uKVarMotion;
+uniform float uKColorMotion;
 uniform float uSvgfStrength;
+uniform float uSvgfVarStaticEps;
+uniform float uSvgfMotionStaticEps;
 
 // Luma coefficients (approx. Rec.709)
 const vec3 YCOEFF = vec3(0.299, 0.587, 0.114);
@@ -70,7 +74,7 @@ vec3 svgfFilter(vec2 uv) {
     varCenter = min(varCenter, uVarMax);
 
     // If variance is essentially tiny *and* motion is tiny → skip blur.
-    if (varCenter < 1e-5 && motMag < 0.0005) {
+    if (varCenter < uSvgfVarStaticEps && motMag < uSvgfMotionStaticEps) {
         return cCenter;
     }
 
@@ -84,20 +88,15 @@ vec3 svgfFilter(vec2 uv) {
     // uKVar / uKColor control the *overall* sharpness vs blur.
     // We derive static/moving variants from them.
     // ----------------------------------------
-    float kVarStatic = uKVar;          // base strength when static
-    float kColorStatic = uKColor;
 
     //float kVarMoving = uKVar * 0.4;    // softer when moving
     //float kColorMoving = uKColor * 0.4;
 
-    const float kVarMoving   = 35.0;
-    const float kColorMoving = 3.0;
-
     // t = 0 → static, t = 1 → fully moving
     float t = clamp(smoothstep(0.005, 0.05, motMag), 0.0, 1.0);
 
-    float kVar = mix(kVarStatic, kVarMoving, t);
-    float kColor = mix(kColorStatic, kColorMoving, t);
+    float kVar = mix(uKVar, uKVarMotion, t);
+    float kColor = mix(uKColor, uKColorMotion, t);
 
     for (int j = -1; j <= 1; ++j) {
         for (int i = -1; i <= 1; ++i) {

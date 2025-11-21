@@ -7,7 +7,7 @@ bool intersectPlane(vec3 ro, vec3 rd, vec3 n, float d, out Hit h, int matId) {
     float denom = dot(n, rd);
     if (abs(denom) < 1e-6) return false;
     float t = -(dot(n, ro) + d) / denom;
-    if (t < EPS) return false;
+    if (t < uEPS) return false;
     h.t = t;
     h.p = ro + rd * t;
     h.n = n;
@@ -23,8 +23,8 @@ bool intersectSphere(vec3 ro, vec3 rd, vec3 c, float r, out Hit h, int matId) {
     if (disc < 0.0) return false;
     float s = sqrt(disc);
     float t = -b - s;
-    if (t < EPS) t = -b + s;
-    if (t < EPS) return false;
+    if (t < uEPS) t = -b + s;
+    if (t < uEPS) return false;
     h.t = t;
     h.p = ro + rd * t;
     h.n = normalize(h.p - c);
@@ -33,12 +33,12 @@ bool intersectSphere(vec3 ro, vec3 rd, vec3 c, float r, out Hit h, int matId) {
 }
 
 bool traceAnalytic(vec3 ro, vec3 rd, out Hit hit) {
-    hit.t = INF;
+    hit.t = uINF;
     Hit h;
     if (intersectPlane(ro, rd, vec3(0, 1, 0), 0.0, h, 0) && h.t < hit.t) hit = h;
     if (intersectSphere(ro, rd, vec3(-1.2, 1.0, -3.5), 1.0, h, 1) && h.t < hit.t) hit = h;
     if (intersectSphere(ro, rd, vec3(1.2, 0.7, -2.5), 0.7, h, 3) && h.t < hit.t) hit = h;
-    return hit.t < INF;
+    return hit.t < uINF;
 }
 
 // -------- Sky ----------
