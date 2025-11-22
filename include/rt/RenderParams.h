@@ -11,6 +11,8 @@ struct RenderParams {
     float giScaleBVH = 0.20f;
     int enableGI = 1;
     int enableAO = 1;
+    int enableTAA = 1;
+    int enableSVGF = 1;
     int enableMirror = 1;
     float mirrorStrength = 0.9f;
 
@@ -40,7 +42,7 @@ struct RenderParams {
 
     // Constants
     const float EPS = 1e-4;
-    const float PI  = 3.1415926535;
+    const float PI = 3.1415926535;
     const float INF = 1e30;
 
     // Debug

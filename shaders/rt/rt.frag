@@ -48,6 +48,7 @@ uniform float uTaaHistoryMinWeight;
 uniform float uTaaHistoryAvgWeight;
 uniform float uTaaHistoryMaxWeight;
 uniform float uTaaHistoryBoxSize;
+uniform int uEnableTAA;
 
 // ---- GI / AO / mirror params (from RenderParams)
 uniform float uGiScaleAnalytic;

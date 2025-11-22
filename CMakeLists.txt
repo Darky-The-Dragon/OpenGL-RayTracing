@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 project(OpenGLRayTracing)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -17,9 +17,9 @@ add_library(glad STATIC libs/glad/src/gl.c)
 target_include_directories(glad PUBLIC libs/glad/include)
 
 # ImGui
-file(GLOB IMGUI_SOURCES libs/imgui/*.cpp)
+file(GLOB IMGUI_SOURCES libs/imgui/*.cpp libs/imgui/backends/imgui_impl_glfw.cpp libs/imgui/backends/imgui_impl_opengl3.cpp)
 add_library(imgui STATIC ${IMGUI_SOURCES})
-target_include_directories(imgui PUBLIC libs/imgui)
+target_include_directories(imgui PUBLIC libs/imgui libs/imgui/backends)
 
 # GLM (header-only)
 include_directories(libs/glm)
@@ -48,9 +48,11 @@ include_directories(
         include/camera
         include/utils
         include/io
+        include/ui
         src
         src/io
         src/rt
+        src/ui
 )
 
 file(GLOB_RECURSE SRC_FILES src/*.cpp)

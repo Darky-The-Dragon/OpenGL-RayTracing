@@ -12,6 +12,7 @@ namespace io {
         // edge-trigger state
         bool prevF2 = false;
         bool prevR = false;
+        bool prevP = false;
         bool prevF3 = false;
         bool prevF5 = false;
         bool prevF6 = false; // local motion-debug toggle (F6)
@@ -23,12 +24,14 @@ namespace io {
         bool toggledBVH = false; // F5
         bool changedSPP = false; // via 1..4/↑/↓
         bool toggledMotionDebug = false; // F6 – handled in main, but edge-detected here
+        bool toggledPointerMode = false; // toggle with P
         bool quitRequested = false; // ESC
 
         // mouse state
         bool firstMouse = true;
         float lastX = 400.0f;
         float lastY = 300.0f;
+        bool sceneInputEnabled = true;
     };
 
     // Initialize once (placeholder for future use)

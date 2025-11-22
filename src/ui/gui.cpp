@@ -1,0 +1,417 @@
+#include "ui/gui.h"
+
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
+#include <glm/glm.hpp>
+#include <cstdarg>
+#include <cstdio>
+#include <iostream>
+
+namespace ui {
+    // ============================================================================
+    // Simple in-UI debug console (based on ImGui demo)
+    // ============================================================================
+    struct DebugConsole {
+        ImGuiTextBuffer Buf;
+        ImGuiTextFilter Filter;
+        ImVector<int> LineOffsets; // Index to lines in Buf
+        bool AutoScroll = true;
+
+        DebugConsole() {
+            Clear();
+        }
+
+        void Clear() {
+            Buf.clear();
+            LineOffsets.clear();
+            LineOffsets.push_back(0);
+        }
+
+        void AddLog(const char *fmt, ...) IM_FMTARGS(2) {
+            int old_size = Buf.size();
+
+            va_list args;
+            va_start(args, fmt);
+            Buf.appendfv(fmt, args);
+            va_end(args);
+
+            for (int i = old_size; i < Buf.size(); ++i) {
+                if (Buf[i] == '\n')
+                    LineOffsets.push_back(i + 1);
+            }
+        }
+
+        void Draw(const char *title, bool *pOpen) {
+            ImGuiWindowFlags flags =
+                    ImGuiWindowFlags_NoCollapse |
+                    ImGuiWindowFlags_NoSavedSettings |
+                    ImGuiWindowFlags_NoFocusOnAppearing;
+
+            if (!ImGui::Begin(title, pOpen, flags)) {
+                ImGui::End();
+                return;
+            }
+
+            // Top bar: clear + filter
+            if (ImGui::Button("Clear"))
+                Clear();
+            ImGui::SameLine();
+            Filter.Draw("Filter");
+            ImGui::Separator();
+
+            // Scrolling region
+            ImGui::BeginChild(
+                "scrolling",
+                ImVec2(0, 0),
+                false,
+                ImGuiWindowFlags_HorizontalScrollbar
+            );
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+
+            const char *buf = Buf.begin();
+            const char *buf_end = Buf.end();
+
+            if (Filter.IsActive()) {
+                // Display only lines that pass filter
+                for (int line_no = 0; line_no < LineOffsets.Size; ++line_no) {
+                    const char *line_start = buf + LineOffsets[line_no];
+                    const char *line_end = (line_no + 1 < LineOffsets.Size)
+                                               ? (buf + LineOffsets[line_no + 1] - 1)
+                                               : buf_end;
+                    if (Filter.PassFilter(line_start, line_end))
+                        ImGui::TextUnformatted(line_start, line_end);
+                }
+            } else {
+                // Display everything
+                ImGui::TextUnformatted(buf, buf_end);
+            }
+
+            ImGui::PopStyleVar();
+
+            if (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+                ImGui::SetScrollHereY(1.0f);
+
+            ImGui::EndChild();
+            ImGui::End();
+        }
+    };
+
+    // ============================================================================
+    // Globals
+    // ============================================================================
+    static DebugConsole gConsole;
+    static bool gShowDebugConsole = false;
+
+    // Forward declarations
+    static void DrawKeybindLegend();
+
+    static void DrawMainControls(RenderParams &params,
+                                 const rt::FrameState &frame,
+                                 const io::InputState &input,
+                                 bool &rayMode,
+                                 bool &useBVH,
+                                 bool &showMotion);
+
+    // ============================================================================
+    // Log: mirror to terminal + GUI console
+    // ============================================================================
+    void Log(const char *fmt, ...) {
+        char buf[1024];
+
+        va_list args;
+        va_start(args, fmt);
+        vsnprintf(buf, sizeof(buf), fmt, args);
+        va_end(args);
+
+        // Terminal output
+        std::cout << buf;
+        std::cout.flush();
+
+        // GUI console output
+        gConsole.AddLog("%s", buf);
+    }
+
+    // ============================================================================
+    // ImGui bootstrap
+    // ============================================================================
+    void Init(GLFWwindow *window) {
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+
+        ImGuiIO &io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+        ImGui::StyleColorsDark();
+        ImGuiStyle &style = ImGui::GetStyle();
+        style.WindowRounding = 5.0f;
+        style.FrameRounding = 3.0f;
+        style.WindowBorderSize = 0.0f;
+
+        ImGui_ImplGlfw_InitForOpenGL(window, true);
+        ImGui_ImplOpenGL3_Init("#version 410");
+    }
+
+    void Shutdown() {
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+    }
+
+    void BeginFrame() {
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+    }
+
+    // ============================================================================
+    // Main control panel (top-left, pinned)
+    // ============================================================================
+    static void DrawMainControls(RenderParams &params,
+                                 const rt::FrameState &frame,
+                                 const io::InputState &input,
+                                 bool &rayMode,
+                                 bool &useBVH,
+                                 bool &showMotion) {
+        (void) frame;
+        (void) input;
+
+        const ImGuiViewport *vp = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(vp->WorkPos, ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(420, 0), ImGuiCond_Always);
+
+        ImGuiWindowFlags flags =
+                ImGuiWindowFlags_NoMove |
+                ImGuiWindowFlags_NoResize |
+                ImGuiWindowFlags_NoCollapse |
+                ImGuiWindowFlags_NoSavedSettings;
+
+        if (!ImGui::Begin("Ray Tracer Controls", nullptr, flags)) {
+            ImGui::End();
+            return;
+        }
+
+        // Metrics
+        ImGuiIO &io = ImGui::GetIO();
+        ImGui::Text("FPS: %.1f", io.Framerate);
+        ImGui::Text("Frame time: %.3f ms", 1000.0f / io.Framerate);
+        ImGui::Separator();
+
+        // Modes
+        if (ImGui::CollapsingHeader("Modes", ImGuiTreeNodeFlags_DefaultOpen)) {
+            bool ray = rayMode;
+            if (ImGui::Checkbox("Ray Tracing Mode (vs Raster)", &ray)) {
+                rayMode = ray;
+                Log("[GUI] Ray mode: %s\n", rayMode ? "RAY" : "RASTER");
+            }
+
+            bool bvh = useBVH;
+            if (ImGui::Checkbox("Use BVH Acceleration", &bvh)) {
+                useBVH = bvh;
+                Log("[GUI] BVH: %s\n", useBVH ? "ENABLED" : "DISABLED");
+            }
+
+            bool motion = showMotion;
+            if (ImGui::Checkbox("Show Motion Debug", &motion)) {
+                showMotion = motion;
+                Log("[GUI] Motion debug: %s\n", showMotion ? "ON" : "OFF");
+            }
+
+            bool showDbg = gShowDebugConsole;
+            if (ImGui::Checkbox("Show Debug Console", &showDbg)) {
+                gShowDebugConsole = showDbg;
+                Log("[GUI] Debug console: %s\n", gShowDebugConsole ? "VISIBLE" : "HIDDEN");
+            }
+        }
+
+        // Core
+        if (ImGui::CollapsingHeader("Core", ImGuiTreeNodeFlags_DefaultOpen)) {
+            int oldSpp = params.sppPerFrame;
+            if (ImGui::SliderInt("SPP per frame", &params.sppPerFrame, 1, 64)) {
+                if (params.sppPerFrame != oldSpp) {
+                    Log("[GUI] SPP per frame changed: %d -> %d\n", oldSpp, params.sppPerFrame);
+                }
+            }
+
+            float oldExp = params.exposure;
+            if (ImGui::SliderFloat("Exposure", &params.exposure, 0.01f, 8.0f, "%.3f")) {
+                if (params.exposure != oldExp) {
+                    Log("[GUI] Exposure changed: %.4f -> %.4f\n", oldExp, params.exposure);
+                }
+            }
+
+            ImGui::SliderFloat("Jitter Scale (moving)", &params.jitterScale, 0.0f, 1.0f, "%.3f");
+        }
+
+        // Global Illumination
+        if (ImGui::CollapsingHeader("Global Illumination")) {
+            bool gi = params.enableGI;
+            if (ImGui::Checkbox("Enable GI", &gi)) {
+                params.enableGI = gi;
+                Log("[GUI] GI: %s\n", gi ? "ENABLED" : "DISABLED");
+            }
+
+            ImGui::SeparatorText("GI Scales");
+            ImGui::SliderFloat("Analytic GI Scale", &params.giScaleAnalytic, 0.0f, 2.0f);
+            ImGui::SliderFloat("BVH GI Scale", &params.giScaleBVH, 0.0f, 2.0f);
+        }
+
+        // Ambient Occlusion
+        if (ImGui::CollapsingHeader("Ambient Occlusion")) {
+            bool ao = params.enableAO;
+            if (ImGui::Checkbox("Enable AO", &ao)) {
+                params.enableAO = ao;
+                Log("[GUI] AO: %s\n", ao ? "ENABLED" : "DISABLED");
+            }
+
+            ImGui::SeparatorText("AO Parameters");
+            ImGui::SliderInt("AO Samples", &params.aoSamples, 1, 32);
+            ImGui::SliderFloat("AO Radius", &params.aoRadius, 0.0f, 4.0f);
+            ImGui::SliderFloat("AO Bias", &params.aoBias, 0.0f, 0.01f, "%.5f");
+            ImGui::SliderFloat("AO Min", &params.aoMin, 0.0f, 1.0f);
+        }
+
+        // Mirror Reflections
+        if (ImGui::CollapsingHeader("Mirror Reflections")) {
+            bool mir = params.enableMirror;
+            if (ImGui::Checkbox("Enable Mirror Bounce", &mir)) {
+                params.enableMirror = mir;
+                Log("[GUI] Mirror bounce: %s\n", mir ? "ENABLED" : "DISABLED");
+            }
+
+            ImGui::SeparatorText("Mirror");
+            ImGui::SliderFloat("Mirror Strength", &params.mirrorStrength, 0.0f, 2.0f);
+        }
+
+        // TAA
+        if (ImGui::CollapsingHeader("TAA")) {
+            bool taa = params.enableTAA;
+            if (ImGui::Checkbox("Enable TAA", &taa)) {
+                params.enableTAA = taa;
+                Log("[GUI] TAA: %s\n", taa ? "ENABLED" : "DISABLED");
+            }
+
+            ImGui::SliderFloat("Still Threshold", &params.taaStillThresh, 0.0f, 1e-3f, "%.6f");
+            ImGui::SliderFloat("Hard Moving Threshold", &params.taaHardMovingThresh, 0.0f, 1.0f);
+
+            ImGui::SeparatorText("History");
+            ImGui::SliderFloat("History Min Weight", &params.taaHistoryMinWeight, 0.0f, 1.0f);
+            ImGui::SliderFloat("History Avg Weight", &params.taaHistoryAvgWeight, 0.0f, 1.0f);
+            ImGui::SliderFloat("History Max Weight", &params.taaHistoryMaxWeight, 0.0f, 1.0f);
+            ImGui::SliderFloat("History Box Size", &params.taaHistoryBoxSize, 0.0f, 0.25f);
+        }
+
+        // SVGF
+        if (ImGui::CollapsingHeader("SVGF Filter")) {
+            bool svgf = params.enableSVGF;
+            if (ImGui::Checkbox("Enable SVGF", &svgf)) {
+                params.enableSVGF = svgf;
+                Log("[GUI] SVGF: %s\n", svgf ? "ENABLED" : "DISABLED");
+            }
+
+            ImGui::SliderFloat("Strength", &params.svgfStrength, 0.0f, 1.0f);
+
+            ImGui::SeparatorText("Variance");
+            ImGui::SliderFloat("Var Max", &params.svgfVarMax, 0.0f, 0.1f, "%.5f");
+            ImGui::SliderFloat("K Var Static", &params.svgfKVar, 0.0f, 500.0f);
+            ImGui::SliderFloat("K Color Static", &params.svgfKColor, 0.0f, 100.0f);
+            ImGui::SliderFloat("K Var Moving", &params.svgfKVarMotion, 0.0f, 500.0f);
+            ImGui::SliderFloat("K Color Moving", &params.svgfKColorMotion, 0.0f, 100.0f);
+
+            ImGui::SeparatorText("Epsilons");
+            ImGui::SliderFloat("Var Static Eps", &params.svgfVarEPS, 0.0f, 1e-2f);
+            ImGui::SliderFloat("Motion Static Eps", &params.svgfMotionEPS, 0.0f, 0.05f);
+        }
+
+        ImGui::End();
+    }
+
+    // ============================================================================
+    // Keybind legend (bottom-right)
+    // ============================================================================
+    static void DrawKeybindLegend() {
+        const float PAD = 10.0f;
+        const ImGuiViewport *vp = ImGui::GetMainViewport();
+        ImVec2 pos(vp->WorkPos.x + vp->WorkSize.x - PAD,
+                   vp->WorkPos.y + vp->WorkSize.y - PAD);
+
+        ImGui::SetNextWindowPos(pos, ImGuiCond_Always, ImVec2(1.0f, 1.0f));
+
+        ImGuiWindowFlags flags =
+                ImGuiWindowFlags_NoResize |
+                ImGuiWindowFlags_NoMove |
+                ImGuiWindowFlags_NoCollapse |
+                ImGuiWindowFlags_AlwaysAutoResize |
+                ImGuiWindowFlags_NoSavedSettings;
+
+        if (!ImGui::Begin("Keybind Legend", nullptr, flags)) {
+            ImGui::End();
+            return;
+        }
+
+        ImGui::TextUnformatted("Keybinds / Legend");
+        ImGui::Separator();
+
+        ImGui::BeginTable("legend", 2, ImGuiTableFlags_SizingFixedFit);
+
+        auto Row = [&](const char *left, const char *right) {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::TextUnformatted(left);
+            ImGui::TableSetColumnIndex(1);
+            ImGui::TextUnformatted(right);
+        };
+
+        Row("W / A / S / D", "Move camera");
+        Row("Mouse", "Look around");
+        Row("Scroll", "Change FOV");
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::Separator();
+        ImGui::TableSetColumnIndex(1);
+        ImGui::Separator();
+
+        Row("P", "Toggle scene input");
+        Row("F2", "Ray / Raster toggle");
+        Row("F3 / ↑↓ / 1–4", "Change SPP");
+        Row("R", "Reset accumulation");
+        Row("F5", "Toggle BVH");
+        Row("F6", "Motion debug view");
+        Row("[ / ]", "Exposure - / +");
+        Row("Esc", "Quit");
+
+        ImGui::EndTable();
+        ImGui::End();
+    }
+
+    // ============================================================================
+    // Public draw entry
+    // ============================================================================
+    void Draw(RenderParams &params,
+              const rt::FrameState &frame,
+              const io::InputState &input,
+              bool &rayMode,
+              bool &useBVH,
+              bool &showMotion) {
+        DrawMainControls(params, frame, input, rayMode, useBVH, showMotion);
+        DrawKeybindLegend();
+
+        // Big, wide console pinned bottom-left
+        if (gShowDebugConsole) {
+            const ImGuiViewport *vp = ImGui::GetMainViewport();
+            ImVec2 pos(vp->WorkPos.x + 10.0f,
+                       vp->WorkPos.y + vp->WorkSize.y - 10.0f);
+
+            ImGui::SetNextWindowPos(pos, ImGuiCond_Always, ImVec2(0.0f, 1.0f));
+            ImGui::SetNextWindowSize(ImVec2(700.0f, 260.0f), ImGuiCond_Always);
+            gConsole.Draw("Debug Console", &gShowDebugConsole);
+        }
+    }
+
+    void EndFrame() {
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
+} // namespace ui

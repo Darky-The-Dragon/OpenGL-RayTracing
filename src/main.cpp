@@ -9,12 +9,14 @@
 #include "rt/gbuffer.h"
 #include "bvh.h"
 #include "io/input.h"
+#include "ui/gui.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 #include <cmath>
 #include <algorithm>
+#include <vector>
 
 // ===============================
 // Global state
@@ -43,7 +45,7 @@ static Camera camera(
     -90.0f, // yaw
     -10.0f, // pitch
     60.0f, // fov
-    800.0f / 600.0f // aspect
+    1920.0f / 1080.0f // aspect
 );
 
 // Raster path (unchanged)
@@ -87,7 +89,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
     GLFWwindow *window = glfwCreateWindow(
-        800, 600,
+        1920, 1080,
         "OpenGL Ray/Path Tracing - Darky",
         nullptr, nullptr
     );
@@ -107,6 +109,7 @@ int main() {
         }
     }
 
+    // Start in FPS-style mode: cursor locked+hidden, scene input enabled
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
@@ -114,7 +117,14 @@ int main() {
     io::attach_callbacks(window, &camera, &gInput);
 
     glEnable(GL_DEPTH_TEST);
-    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+
+    // It's safe to log before ImGui init because the console only uses ImGuiTextBuffer.
+    const GLubyte *glVer = glGetString(GL_VERSION);
+    ui::Log("[INIT] OpenGL version: %s\n",
+            glVer ? reinterpret_cast<const char *>(glVer) : "unknown");
+
+    // --- ImGui init ---
+    ui::Init(window);
 
     // Shaders
     gRtShader = new Shader("../shaders/rt/rt_fullscreen.vert", "../shaders/rt/rt.frag");
@@ -134,9 +144,9 @@ int main() {
     gGround = new Model("../models/plane.obj");
     gBunny = new Model("../models/bunny_lp.obj");
     gSphere = new Model("../models/sphere.obj");
-    if (gGround->meshes.empty()) std::cerr << "Failed to load plane.obj\n";
-    if (gBunny->meshes.empty()) std::cerr << "Failed to load bunny_lp.obj\n";
-    if (gSphere->meshes.empty()) std::cerr << "Failed to load sphere.obj\n";
+    if (gGround->meshes.empty()) ui::Log("[WARN] Failed to load plane.obj\n");
+    if (gBunny->meshes.empty()) ui::Log("[WARN] Failed to load bunny_lp.obj\n");
+    if (gSphere->meshes.empty()) ui::Log("[WARN] Failed to load sphere.obj\n");
 
     // ---- Build BVH from the bunny (CPU), upload as TBOs ----
     std::vector<CPU_Triangle> triCPU;
@@ -155,10 +165,16 @@ int main() {
         gBvhTriTex, gBvhTriBuf
     );
 
+    ui::Log("[BVH] Built BVH: nodes=%d, tris=%d\n", gBvhNodeCount, gBvhTriCount);
+
     // --- Input + params init ---
     gInput.sppPerFrame = gParams.sppPerFrame;
     gInput.exposure = gParams.exposure;
+    gInput.sceneInputEnabled = true; // start with scene input enabled
+    gInput.firstMouse = true;
     io::init(gInput);
+
+    ui::Log("[INPUT] Scene input ENABLED (mouse captured)\n");
 
     // Initialize frame state so prev == curr on first frame
     {
@@ -174,20 +190,48 @@ int main() {
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
+        // Start ImGui frame
+        ui::BeginFrame();
+
         // --- Time update ---
         float tnow = static_cast<float>(glfwGetTime());
         deltaTime = tnow - lastFrame;
         lastFrame = tnow;
 
-        // --- Camera movement (keyboard) ---
-        camera.ProcessKeyboardInput(window, deltaTime);
-
         // --- Centralized input update (SPP, exposure, BVH toggle, etc.) ---
         const bool anyChanged = io::update(gInput, window, deltaTime);
+
+        // Detect scene input (mouse capture) toggle (P key)
+        static bool prevSceneInput = gInput.sceneInputEnabled;
+        if (gInput.sceneInputEnabled != prevSceneInput) {
+            ui::Log("[INPUT] Scene input %s (mouse %s)\n",
+                    gInput.sceneInputEnabled ? "ENABLED" : "DISABLED",
+                    gInput.sceneInputEnabled ? "captured" : "released");
+            prevSceneInput = gInput.sceneInputEnabled;
+        }
+
+        // P: toggle pointer / UI mode (sceneInputEnabled + cursor state)
+        if (gInput.toggledPointerMode) {
+            gInput.sceneInputEnabled = !gInput.sceneInputEnabled;
+
+            if (gInput.sceneInputEnabled) {
+                // Back to FPS mode
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                gInput.firstMouse = true; // avoid camera jump on recapture
+            } else {
+                // UI / pointer mode
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            }
+        }
 
         // ESC → quit
         if (gInput.quitRequested) {
             glfwSetWindowShouldClose(window, GLFW_TRUE);
+        }
+
+        // --- Camera movement (keyboard) ---
+        if (gInput.sceneInputEnabled) {
+            camera.ProcessKeyboardInput(window, deltaTime);
         }
 
         // --- Matrices for motion vectors (AFTER camera changes this frame) ---
@@ -214,41 +258,47 @@ int main() {
             if (gInput.toggledRayMode) {
                 gRayMode = !gRayMode;
                 gAccum.reset();
+                ui::Log("[MODE] Ray mode = %s\n",
+                        gRayMode ? "RAY TRACING" : "RASTER");
             }
 
             if (gInput.resetAccum) {
                 gAccum.reset();
+                ui::Log("[ACCUM] Manual reset (R key)\n");
             }
 
             if (gInput.toggledBVH) {
                 gUseBVH = !gUseBVH;
                 gAccum.reset();
-                std::cout << "[SCENE] BVH mode "
-                        << (gUseBVH ? "ON" : "OFF")
-                        << "  (nodes=" << gBvhNodeCount
-                        << ", tris=" << gBvhTriCount << ")\n";
+                ui::Log("[SCENE] BVH mode %s (nodes=%d, tris=%d)\n",
+                        gUseBVH ? "ON" : "OFF",
+                        gBvhNodeCount, gBvhTriCount);
             }
 
             if (gInput.changedSPP) {
                 gParams.sppPerFrame = std::max(1, std::min(gInput.sppPerFrame, 64));
                 gAccum.reset();
-                std::cout << "[INPUT] SPP per frame = "
-                        << gParams.sppPerFrame << "\n";
+                ui::Log("[INPUT] SPP per frame = %d\n", gParams.sppPerFrame);
             }
 
             if (gParams.exposure != gInput.exposure) {
                 gParams.exposure = std::max(0.01f, std::min(gInput.exposure, 8.0f));
-                std::cout << "[INPUT] Exposure = "
-                        << gParams.exposure << "\n";
+                ui::Log("[INPUT] Exposure = %.3f\n", gParams.exposure);
             }
 
             if (gInput.toggledMotionDebug) {
                 gShowMotion = !gShowMotion;
                 gAccum.reset(); // history invalid when switching debug view
-                std::cout << "[DEBUG] Show Motion = "
-                        << (gShowMotion ? "ON" : "OFF") << "\n";
+                ui::Log("[DEBUG] Motion view = %s\n",
+                        gShowMotion ? "ON" : "OFF");
             }
         }
+
+        // --- Snapshot state before GUI modifications (for change detection) ---
+        RenderParams prevGuiParams = gParams;
+        bool prevRayMode = gRayMode;
+        bool prevUseBVH = gUseBVH;
+        bool prevShowMotion = gShowMotion;
 
         // --- Framebuffer size / viewport / clear ---
         glfwGetFramebufferSize(window, &fbw, &fbh);
@@ -301,6 +351,7 @@ int main() {
             gRtShader->setFloat("uTaaHistoryAvgWeight", gParams.taaHistoryAvgWeight);
             gRtShader->setFloat("uTaaHistoryMaxWeight", gParams.taaHistoryMaxWeight);
             gRtShader->setFloat("uTaaHistoryBoxSize", gParams.taaHistoryBoxSize);
+            gRtShader->setInt("uEnableTAA", gParams.enableTAA);
 
             // GI / AO / mirror toggles + scales (from RenderParams)
             gRtShader->setFloat("uGiScaleAnalytic", gParams.giScaleAnalytic);
@@ -358,6 +409,7 @@ int main() {
             gPresentShader->setFloat("uSvgfStrength", gParams.svgfStrength);
             gPresentShader->setFloat("uSvgfVarStaticEps", gParams.svgfVarEPS);
             gPresentShader->setFloat("uSvgfMotionStaticEps", gParams.svgfMotionEPS);
+            gPresentShader->setInt("uEnableSVGF", gParams.enableSVGF);
 
             // COLOR0 (accumulated linear + M2 in A)
             glActiveTexture(GL_TEXTURE0);
@@ -415,8 +467,75 @@ int main() {
             gRasterShader->setVec3("uColor", glm::vec3(0.3f, 0.6f, 1.0f));
             gSphere->Draw();
         }
+
         // ---- End-of-frame: promote curr -> prev for next frame's motion/TAA ----
         gFrame.endFrame();
+
+        // ---- GUI: draw control panel on top of final image ----
+        ui::Draw(gParams, gFrame, gInput, gRayMode, gUseBVH, gShowMotion);
+        ui::EndFrame();
+
+        // ---- Detect GUI-driven changes and reset accumulation if needed ----
+        bool guiChangedMode =
+                (gRayMode != prevRayMode) ||
+                (gUseBVH != prevUseBVH) ||
+                (gShowMotion != prevShowMotion);
+
+        auto diff = [](float a, float b) {
+            return std::fabs(a - b) > 1e-7f;
+        };
+
+        bool guiChangedParams = false;
+
+        // Integers / bools that affect sampling / shading
+        if (gParams.sppPerFrame != prevGuiParams.sppPerFrame) guiChangedParams = true;
+        if (gParams.enableGI != prevGuiParams.enableGI) guiChangedParams = true;
+        if (gParams.enableAO != prevGuiParams.enableAO) guiChangedParams = true;
+        if (gParams.enableMirror != prevGuiParams.enableMirror)guiChangedParams = true;
+        if (gParams.enableTAA != prevGuiParams.enableTAA) guiChangedParams = true;
+        if (gParams.enableSVGF != prevGuiParams.enableSVGF) guiChangedParams = true;
+        if (gParams.aoSamples != prevGuiParams.aoSamples) guiChangedParams = true;
+
+        // Floats that affect the integrand / filter behavior
+        if (diff(gParams.jitterScale, prevGuiParams.jitterScale)) guiChangedParams = true;
+        if (diff(gParams.giScaleAnalytic, prevGuiParams.giScaleAnalytic)) guiChangedParams = true;
+        if (diff(gParams.giScaleBVH, prevGuiParams.giScaleBVH)) guiChangedParams = true;
+        if (diff(gParams.mirrorStrength, prevGuiParams.mirrorStrength)) guiChangedParams = true;
+        if (diff(gParams.aoRadius, prevGuiParams.aoRadius)) guiChangedParams = true;
+        if (diff(gParams.aoBias, prevGuiParams.aoBias)) guiChangedParams = true;
+        if (diff(gParams.aoMin, prevGuiParams.aoMin)) guiChangedParams = true;
+
+        if (diff(gParams.taaStillThresh, prevGuiParams.taaStillThresh)) guiChangedParams = true;
+        if (diff(gParams.taaHardMovingThresh, prevGuiParams.taaHardMovingThresh)) guiChangedParams = true;
+        if (diff(gParams.taaHistoryMinWeight, prevGuiParams.taaHistoryMinWeight)) guiChangedParams = true;
+        if (diff(gParams.taaHistoryAvgWeight, prevGuiParams.taaHistoryAvgWeight)) guiChangedParams = true;
+        if (diff(gParams.taaHistoryMaxWeight, prevGuiParams.taaHistoryMaxWeight)) guiChangedParams = true;
+        if (diff(gParams.taaHistoryBoxSize, prevGuiParams.taaHistoryBoxSize)) guiChangedParams = true;
+
+        if (diff(gParams.svgfStrength, prevGuiParams.svgfStrength)) guiChangedParams = true;
+        if (diff(gParams.svgfVarMax, prevGuiParams.svgfVarMax)) guiChangedParams = true;
+        if (diff(gParams.svgfKVar, prevGuiParams.svgfKVar)) guiChangedParams = true;
+        if (diff(gParams.svgfKColor, prevGuiParams.svgfKColor)) guiChangedParams = true;
+        if (diff(gParams.svgfKVarMotion, prevGuiParams.svgfKVarMotion)) guiChangedParams = true;
+        if (diff(gParams.svgfKColorMotion, prevGuiParams.svgfKColorMotion)) guiChangedParams = true;
+        if (diff(gParams.svgfVarEPS, prevGuiParams.svgfVarEPS)) guiChangedParams = true;
+        if (diff(gParams.svgfMotionEPS, prevGuiParams.svgfMotionEPS)) guiChangedParams = true;
+
+        // Extra explicit logs for TAA / SVGF toggles via GUI
+        if (gParams.enableTAA != prevGuiParams.enableTAA) {
+            ui::Log("[TAA] %s\n", gParams.enableTAA ? "ENABLED" : "DISABLED");
+        }
+        if (gParams.enableSVGF != prevGuiParams.enableSVGF) {
+            ui::Log("[SVGF] %s\n", gParams.enableSVGF ? "ENABLED" : "DISABLED");
+        }
+
+        // exposure and motionScale are presentation-only → no history reset needed
+        if (guiChangedMode || guiChangedParams) {
+            gAccum.reset();
+            ui::Log("[ACCUM] Reset due to GUI changes (%s%s)\n",
+                    guiChangedMode ? "mode " : "",
+                    guiChangedParams ? "params" : "");
+        }
 
         glfwSwapBuffers(window);
     }
@@ -458,6 +577,9 @@ int main() {
         glDeleteBuffers(1, &gBvhTriBuf);
         gBvhTriBuf = 0;
     }
+
+    // ImGui shutdown
+    ui::Shutdown();
 
     glfwTerminate();
     return 0;

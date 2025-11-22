@@ -3,7 +3,7 @@
 #include <algorithm>
 
 namespace io {
-    // ====== keyboard update ======
+    // ====== keyboard helper ======
     static inline bool keyDown(GLFWwindow *w, int key) {
         return glfwGetKey(w, key) == GLFW_PRESS;
     }
@@ -18,6 +18,7 @@ namespace io {
         s.toggledBVH = false;
         s.changedSPP = false;
         s.toggledMotionDebug = false;
+        s.toggledPointerMode = false;
 
         // ESC → request quit
         if (keyDown(win, GLFW_KEY_ESCAPE))
@@ -54,6 +55,14 @@ namespace io {
             changed = true;
         }
         s.prevF6 = nowF6;
+
+        // P: toggle pointer / UI mode (sceneInputEnabled)
+        const bool nowP = keyDown(win, GLFW_KEY_P);
+        if (nowP && !s.prevP) {
+            s.toggledPointerMode = true;
+            changed = true;
+        }
+        s.prevP = nowP;
 
         // F3 cycle SPP 1→2→4→8→16→1
         const bool nowF3 = keyDown(win, GLFW_KEY_F3);
@@ -149,13 +158,24 @@ namespace io {
         if (!p || !p->cam || !p->state) return;
 
         auto &s = *p->state;
+
+        // If UI / pointer mode is active, ignore camera look
+        if (!s.sceneInputEnabled) {
+            // Still track lastX/lastY to avoid a big jump when re-enabling
+            s.lastX = static_cast<float>(xpos);
+            s.lastY = static_cast<float>(ypos);
+            return;
+        }
+
         if (s.firstMouse) {
             s.lastX = static_cast<float>(xpos);
             s.lastY = static_cast<float>(ypos);
             s.firstMouse = false;
         }
+
         float dx = static_cast<float>(xpos) - s.lastX;
         float dy = s.lastY - static_cast<float>(ypos);
+
         s.lastX = static_cast<float>(xpos);
         s.lastY = static_cast<float>(ypos);
 

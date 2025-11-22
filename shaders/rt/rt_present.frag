@@ -14,7 +14,7 @@ uniform int uShowMotion;   // 0 = normal, 1 = visualize motion
 uniform float uMotionScale;  // e.g. 4.0
 uniform vec2 uResolution;   // framebuffer size in pixels
 
-// Declared but not used yet (safe)
+// SVGF params / controls
 uniform float uVarMax;
 uniform float uKVar;
 uniform float uKColor;
@@ -23,6 +23,7 @@ uniform float uKColorMotion;
 uniform float uSvgfStrength;
 uniform float uSvgfVarStaticEps;
 uniform float uSvgfMotionStaticEps;
+uniform int uEnableSVGF;
 
 // Luma coefficients (approx. Rec.709)
 const vec3 YCOEFF = vec3(0.299, 0.587, 0.114);
@@ -95,7 +96,6 @@ vec3 svgfFilter(vec2 uv) {
     // ----------------------------------------
     // Motion-aware filter strength, driven by CPU params
     // uKVar / uKColor control the *overall* sharpness vs blur.
-    // We derive static/moving variants from them.
     // ----------------------------------------
 
     // t = 0 → static, t = 1 → fully moving
@@ -104,7 +104,7 @@ vec3 svgfFilter(vec2 uv) {
     float kVar = mix(uKVar, uKVarMotion, t);
     float kColor = mix(uKColor, uKColorMotion, t);
 
-    // Geometry weights – fixed scalars for now (no extra CPU params needed)
+    // Geometry weights – fixed scalars for now
     const float K_NRM = 32.0;   // higher = stronger normal edge stopping
     const float K_POS = 1.0;    // units are ~1 / (worldUnit^2)
 
@@ -179,15 +179,20 @@ void main() {
     // Raw TAA result (no spatial filter)
     vec3 raw = texture(uTex, uv).rgb;
 
-    // SVGF-lite: variance-guided spatial filter with GBuffer edge stopping
-    vec3 filtered = svgfFilter(uv);
+    vec3 linearColor;
+    if (uEnableSVGF == 0) {
+        // SVGF disabled → just use raw TAA result
+        linearColor = raw;
+    } else {
+        // SVGF-lite: variance-guided spatial filter with GBuffer edge stopping
+        vec3 filtered = svgfFilter(uv);
 
-    // Blend between raw and filtered based on uSvgfStrength
-    //  - 0.0 → pure TAA (sharp, noisy)
-    //  - 1.0 → full SVGF (smooth, possibly darker/softer)
-    //  - in-between → compromise
-    float s = clamp(uSvgfStrength, 0.0, 1.0);
-    vec3 linearColor = mix(raw, filtered, s);
+        // Blend between raw and filtered based on uSvgfStrength
+        //  - 0.0 → pure TAA (sharp, noisy)
+        //  - 1.0 → full SVGF (smooth)
+        float s = clamp(uSvgfStrength, 0.0, 1.0);
+        linearColor = mix(raw, filtered, s);
+    }
 
     // Tonemap + gamma
     vec3 mapped = acesTonemap(linearColor);
