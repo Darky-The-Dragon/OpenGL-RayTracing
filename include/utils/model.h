@@ -34,11 +34,9 @@
 
 #include <utils/mesh.h>
 
-using namespace std;
-
 class Model {
 public:
-    vector<Mesh> meshes;
+    std::vector<Mesh> meshes;
 
     // Disable copying (move-only class)
     Model(const Model &) = delete;
@@ -51,19 +49,19 @@ public:
     Model &operator=(Model &&) noexcept = default;
 
     // Constructor loads the model
-    explicit Model(const string &path) {
+    explicit Model(const std::string &path) {
         loadModel(path);
     }
 
     // Renders all meshes in the model
     void Draw() const {
-        for (auto &mesh: meshes)
+        for (const auto &mesh : meshes)
             mesh.Draw();
     }
 
 private:
     // Loads a model file using Assimp
-    void loadModel(const string &path) {
+    void loadModel(const std::string &path) {
         Assimp::Importer importer;
 
         const aiScene *scene = importer.ReadFile(
@@ -75,8 +73,8 @@ private:
             aiProcess_CalcTangentSpace
         );
 
-        if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-            cerr << "ERROR::ASSIMP:: " << importer.GetErrorString() << endl;
+        if (!scene || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) || !scene->mRootNode) {
+            std::cerr << "ERROR::ASSIMP:: " << importer.GetErrorString() << '\n';
             return;
         }
 
@@ -96,9 +94,10 @@ private:
 
     // Converts an aiMesh to a Mesh object
     static Mesh processMesh(aiMesh *mesh) {
-        vector<Vertex> vertices;
-        vector<GLuint> indices;
+        std::vector<Vertex> vertices;
+        std::vector<GLuint> indices;
 
+        vertices.reserve(mesh->mNumVertices);
         for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
             Vertex vertex{};
 
@@ -136,19 +135,21 @@ private:
                 vertex.TexCoords = glm::vec2(0.0f);
                 vertex.Tangent = glm::vec3(0.0f);
                 vertex.Bitangent = glm::vec3(0.0f);
-                cout << "WARNING: Model lacks UVs — Tangent/Bitangent set to 0." << endl;
+                std::cout << "WARNING: Model lacks UVs — Tangent/Bitangent set to 0." << std::endl;
             }
 
             vertices.emplace_back(vertex);
         }
 
         // Extract vertex indices for each face
+        indices.reserve(mesh->mNumFaces * 3);
         for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
             aiFace &face = mesh->mFaces[i];
             for (unsigned int j = 0; j < face.mNumIndices; ++j)
                 indices.emplace_back(face.mIndices[j]);
         }
 
-        return Mesh{vertices, indices};
+        // Ownership transfer is explicit via move into Mesh
+        return Mesh{std::move(vertices), std::move(indices)};
     }
 };

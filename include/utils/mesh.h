@@ -26,8 +26,6 @@
 #include <glm/glm.hpp>
 #include <glad/gl.h>
 
-using namespace std;
-
 // Structure describing a single vertex and its attributes
 struct Vertex {
     glm::vec3 Position;
@@ -40,8 +38,8 @@ struct Vertex {
 class Mesh {
 public:
     // Geometry data
-    vector<Vertex> vertices;
-    vector<GLuint> indices;
+    std::vector<Vertex> vertices;
+    std::vector<GLuint> indices;
 
     // OpenGL identifiers
     GLuint VAO{};
@@ -51,9 +49,11 @@ public:
 
     Mesh &operator=(const Mesh &) = delete;
 
-    // Constructor (takes ownership of vertex/index data)
-    Mesh(vector<Vertex> &vertices, vector<GLuint> &indices) noexcept
-        : vertices(std::move(vertices)), indices(std::move(indices)) {
+    // Constructor (takes ownership of vertex/index data by value)
+    Mesh(std::vector<Vertex> verticesIn,
+         std::vector<GLuint> indicesIn) noexcept
+        : vertices(std::move(verticesIn)),
+          indices(std::move(indicesIn)) {
         setupMesh();
     }
 
@@ -67,6 +67,8 @@ public:
 
     // Move assignment
     Mesh &operator=(Mesh &&move) noexcept {
+        if (this == &move) return *this;
+
         freeGPUResources();
         if (move.VAO) {
             vertices = std::move(move.vertices);
@@ -105,10 +107,10 @@ private:
         glBindVertexArray(VAO);
 
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), &indices[0], GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
 
         // Position attribute (layout = 0)
         glEnableVertexAttribArray(0);
@@ -135,7 +137,7 @@ private:
                               reinterpret_cast<void *>(offsetof(Vertex, Bitangent)));
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0); // EBO remains bound to VAO
+        glBindVertexArray(0); // EBO stays bound to VAO
     }
 
     // Deletes VAO, VBO, and EBO if owned

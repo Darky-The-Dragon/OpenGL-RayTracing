@@ -109,6 +109,9 @@ int main() {
         }
     }
 
+    // Initialize timing so the first frame doesn't get a huge deltaTime
+    lastFrame = static_cast<float>(glfwGetTime());
+
     // Start in FPS-style mode: cursor locked+hidden, scene input enabled
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);

@@ -1,4 +1,4 @@
-#include "../../include/camera/Camera.h"
+#include "camera/Camera.h"
 #include <GLFW/glfw3.h>
 
 Camera::Camera(glm::vec3 position, float yaw, float pitch, float fov, float aspectRatio)
@@ -53,7 +53,7 @@ void Camera::UpdateCameraVectors() {
     front.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
     Front = glm::normalize(front);
 
-    Right = glm::normalize(glm::cross(Front, WorldUp)); // Normalize the vectors
+    Right = glm::normalize(glm::cross(Front, WorldUp));
     Up = glm::normalize(glm::cross(Right, Front));
 }
 
