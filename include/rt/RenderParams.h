@@ -4,25 +4,30 @@ struct RenderParams {
     // core
     int sppPerFrame = 1;
     float exposure = 1.0f;
-    float jitterScale = 0.5f;
 
-    // GI
-    float giScaleAnalytic = 0.35f;
-    float giScaleBVH = 0.20f;
-    int enableGI = 1;
-    int enableAO = 1;
-    int enableTAA = 1;
-    int enableSVGF = 1;
+    // Materials
     int enableMirror = 1;
     float mirrorStrength = 0.9f;
 
+    // Jitter
+    int enableJitter = 1;
+    float jitterStillScale = 0.25f;
+    float jitterMovingScale = 0.5f;
+
+    // GI
+    int enableGI = 1;
+    float giScaleAnalytic = 0.35f;
+    float giScaleBVH = 0.20f;
+
     // AO
+    int enableAO = 1;
     int aoSamples = 4;
     float aoRadius = 0.8;
     float aoBias = 2e-3;
     float aoMin = 0.5f;
 
     // TAA
+    int enableTAA = 1;
     float taaStillThresh = 1e-5f;
     float taaHardMovingThresh = 0.35f;
     float taaHistoryMinWeight = 0.85f;
@@ -31,6 +36,7 @@ struct RenderParams {
     float taaHistoryBoxSize = 0.06f;
 
     // SVGF
+    int enableSVGF = 1;
     float svgfVarMax = 0.02f;
     float svgfKVar = 200.0f;
     float svgfKColor = 20.0f;

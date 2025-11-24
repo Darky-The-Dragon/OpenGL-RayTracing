@@ -198,7 +198,9 @@ namespace ui {
         ImGui::Text("Frame time: %.3f ms", 1000.0f / io.Framerate);
         ImGui::Separator();
 
+        // ------------------------------------------------------------------------
         // Modes
+        // ------------------------------------------------------------------------
         if (ImGui::CollapsingHeader("Modes", ImGuiTreeNodeFlags_DefaultOpen)) {
             bool ray = rayMode;
             if (ImGui::Checkbox("Ray Tracing Mode (vs Raster)", &ray)) {
@@ -225,7 +227,9 @@ namespace ui {
             }
         }
 
+        // ------------------------------------------------------------------------
         // Core
+        // ------------------------------------------------------------------------
         if (ImGui::CollapsingHeader("Core", ImGuiTreeNodeFlags_DefaultOpen)) {
             int oldSpp = params.sppPerFrame;
             if (ImGui::SliderInt("SPP per frame", &params.sppPerFrame, 1, 64)) {
@@ -240,11 +244,47 @@ namespace ui {
                     Log("[GUI] Exposure changed: %.4f -> %.4f\n", oldExp, params.exposure);
                 }
             }
-
-            ImGui::SliderFloat("Jitter Scale (moving)", &params.jitterScale, 0.0f, 1.0f, "%.3f");
         }
 
+        // ------------------------------------------------------------------------
+        // Jitter
+        // ------------------------------------------------------------------------
+        if (ImGui::CollapsingHeader("Jitter")) {
+            bool jitter = params.enableJitter;
+            if (ImGui::Checkbox("Enable Jitter", &jitter)) {
+                params.enableJitter = jitter;
+                Log("[GUI] Jitter: %s\n", jitter ? "ENABLED" : "DISABLED");
+            }
+
+            ImGui::SeparatorText("Jitter Scales");
+
+            float oldStill = params.jitterStillScale;
+            float oldMoving = params.jitterMovingScale;
+
+            // Smaller jitter when camera is still
+            if (ImGui::SliderFloat("Still Jitter Scale",
+                                   &params.jitterStillScale,
+                                   0.0f, 0.5f, "%.3f")) {
+                if (params.jitterStillScale != oldStill) {
+                    Log("[GUI] Jitter still scale: %.3f -> %.3f\n",
+                        oldStill, params.jitterStillScale);
+                }
+            }
+
+            // Stronger jitter when the camera is moving
+            if (ImGui::SliderFloat("Moving Jitter Scale",
+                                   &params.jitterMovingScale,
+                                   0.0f, 1.0f, "%.3f")) {
+                if (params.jitterMovingScale != oldMoving) {
+                    Log("[GUI] Jitter moving scale: %.3f -> %.3f\n",
+                        oldMoving, params.jitterMovingScale);
+                }
+            }
+        }
+
+        // ------------------------------------------------------------------------
         // Global Illumination
+        // ------------------------------------------------------------------------
         if (ImGui::CollapsingHeader("Global Illumination")) {
             bool gi = params.enableGI;
             if (ImGui::Checkbox("Enable GI", &gi)) {
@@ -253,11 +293,27 @@ namespace ui {
             }
 
             ImGui::SeparatorText("GI Scales");
-            ImGui::SliderFloat("Analytic GI Scale", &params.giScaleAnalytic, 0.0f, 2.0f);
-            ImGui::SliderFloat("BVH GI Scale", &params.giScaleBVH, 0.0f, 2.0f);
+
+            float oldAnalytic = params.giScaleAnalytic;
+            if (ImGui::SliderFloat("Analytic GI Scale", &params.giScaleAnalytic, 0.0f, 2.0f)) {
+                if (params.giScaleAnalytic != oldAnalytic) {
+                    Log("[GUI] Analytic GI scale: %.3f -> %.3f\n",
+                        oldAnalytic, params.giScaleAnalytic);
+                }
+            }
+
+            float oldBVH = params.giScaleBVH;
+            if (ImGui::SliderFloat("BVH GI Scale", &params.giScaleBVH, 0.0f, 2.0f)) {
+                if (params.giScaleBVH != oldBVH) {
+                    Log("[GUI] BVH GI scale: %.3f -> %.3f\n",
+                        oldBVH, params.giScaleBVH);
+                }
+            }
         }
 
+        // ------------------------------------------------------------------------
         // Ambient Occlusion
+        // ------------------------------------------------------------------------
         if (ImGui::CollapsingHeader("Ambient Occlusion")) {
             bool ao = params.enableAO;
             if (ImGui::Checkbox("Enable AO", &ao)) {
@@ -266,13 +322,42 @@ namespace ui {
             }
 
             ImGui::SeparatorText("AO Parameters");
-            ImGui::SliderInt("AO Samples", &params.aoSamples, 1, 32);
-            ImGui::SliderFloat("AO Radius", &params.aoRadius, 0.0f, 4.0f);
-            ImGui::SliderFloat("AO Bias", &params.aoBias, 0.0f, 0.01f, "%.5f");
-            ImGui::SliderFloat("AO Min", &params.aoMin, 0.0f, 1.0f);
+
+            int oldSamples = params.aoSamples;
+            if (ImGui::SliderInt("AO Samples", &params.aoSamples, 1, 32)) {
+                if (params.aoSamples != oldSamples) {
+                    Log("[GUI] AO samples: %d -> %d\n", oldSamples, params.aoSamples);
+                }
+            }
+
+            float oldRadius = params.aoRadius;
+            if (ImGui::SliderFloat("AO Radius", &params.aoRadius, 0.0f, 4.0f)) {
+                if (params.aoRadius != oldRadius) {
+                    Log("[GUI] AO radius: %.3f -> %.3f\n",
+                        oldRadius, params.aoRadius);
+                }
+            }
+
+            float oldBias = params.aoBias;
+            if (ImGui::SliderFloat("AO Bias", &params.aoBias, 0.0f, 0.01f, "%.5f")) {
+                if (params.aoBias != oldBias) {
+                    Log("[GUI] AO bias: %.5f -> %.5f\n",
+                        oldBias, params.aoBias);
+                }
+            }
+
+            float oldMin = params.aoMin;
+            if (ImGui::SliderFloat("AO Min", &params.aoMin, 0.0f, 1.0f)) {
+                if (params.aoMin != oldMin) {
+                    Log("[GUI] AO min: %.3f -> %.3f\n",
+                        oldMin, params.aoMin);
+                }
+            }
         }
 
+        // ------------------------------------------------------------------------
         // Mirror Reflections
+        // ------------------------------------------------------------------------
         if (ImGui::CollapsingHeader("Mirror Reflections")) {
             bool mir = params.enableMirror;
             if (ImGui::Checkbox("Enable Mirror Bounce", &mir)) {
@@ -281,10 +366,19 @@ namespace ui {
             }
 
             ImGui::SeparatorText("Mirror");
-            ImGui::SliderFloat("Mirror Strength", &params.mirrorStrength, 0.0f, 2.0f);
+
+            float oldMirror = params.mirrorStrength;
+            if (ImGui::SliderFloat("Mirror Strength", &params.mirrorStrength, 0.0f, 2.0f)) {
+                if (params.mirrorStrength != oldMirror) {
+                    Log("[GUI] Mirror strength: %.3f -> %.3f\n",
+                        oldMirror, params.mirrorStrength);
+                }
+            }
         }
 
+        // ------------------------------------------------------------------------
         // TAA
+        // ------------------------------------------------------------------------
         if (ImGui::CollapsingHeader("TAA")) {
             bool taa = params.enableTAA;
             if (ImGui::Checkbox("Enable TAA", &taa)) {
@@ -292,17 +386,60 @@ namespace ui {
                 Log("[GUI] TAA: %s\n", taa ? "ENABLED" : "DISABLED");
             }
 
-            ImGui::SliderFloat("Still Threshold", &params.taaStillThresh, 0.0f, 1e-3f, "%.6f");
-            ImGui::SliderFloat("Hard Moving Threshold", &params.taaHardMovingThresh, 0.0f, 1.0f);
+            float oldStillThresh = params.taaStillThresh;
+            if (ImGui::SliderFloat("Still Threshold", &params.taaStillThresh, 0.0f, 1e-3f, "%.6f")) {
+                if (params.taaStillThresh != oldStillThresh) {
+                    Log("[GUI] TAA still threshold: %.6f -> %.6f\n",
+                        oldStillThresh, params.taaStillThresh);
+                }
+            }
+
+            float oldMovingThresh = params.taaHardMovingThresh;
+            if (ImGui::SliderFloat("Hard Moving Threshold", &params.taaHardMovingThresh, 0.0f, 1.0f)) {
+                if (params.taaHardMovingThresh != oldMovingThresh) {
+                    Log("[GUI] TAA moving threshold: %.3f -> %.3f\n",
+                        oldMovingThresh, params.taaHardMovingThresh);
+                }
+            }
 
             ImGui::SeparatorText("History");
-            ImGui::SliderFloat("History Min Weight", &params.taaHistoryMinWeight, 0.0f, 1.0f);
-            ImGui::SliderFloat("History Avg Weight", &params.taaHistoryAvgWeight, 0.0f, 1.0f);
-            ImGui::SliderFloat("History Max Weight", &params.taaHistoryMaxWeight, 0.0f, 1.0f);
-            ImGui::SliderFloat("History Box Size", &params.taaHistoryBoxSize, 0.0f, 0.25f);
+
+            float oldMinW = params.taaHistoryMinWeight;
+            if (ImGui::SliderFloat("History Min Weight", &params.taaHistoryMinWeight, 0.0f, 1.0f)) {
+                if (params.taaHistoryMinWeight != oldMinW) {
+                    Log("[GUI] TAA history min weight: %.3f -> %.3f\n",
+                        oldMinW, params.taaHistoryMinWeight);
+                }
+            }
+
+            float oldAvgW = params.taaHistoryAvgWeight;
+            if (ImGui::SliderFloat("History Avg Weight", &params.taaHistoryAvgWeight, 0.0f, 1.0f)) {
+                if (params.taaHistoryAvgWeight != oldAvgW) {
+                    Log("[GUI] TAA history avg weight: %.3f -> %.3f\n",
+                        oldAvgW, params.taaHistoryAvgWeight);
+                }
+            }
+
+            float oldMaxW = params.taaHistoryMaxWeight;
+            if (ImGui::SliderFloat("History Max Weight", &params.taaHistoryMaxWeight, 0.0f, 1.0f)) {
+                if (params.taaHistoryMaxWeight != oldMaxW) {
+                    Log("[GUI] TAA history max weight: %.3f -> %.3f\n",
+                        oldMaxW, params.taaHistoryMaxWeight);
+                }
+            }
+
+            float oldBox = params.taaHistoryBoxSize;
+            if (ImGui::SliderFloat("History Box Size", &params.taaHistoryBoxSize, 0.0f, 0.25f)) {
+                if (params.taaHistoryBoxSize != oldBox) {
+                    Log("[GUI] TAA history box size: %.3f -> %.3f\n",
+                        oldBox, params.taaHistoryBoxSize);
+                }
+            }
         }
 
+        // ------------------------------------------------------------------------
         // SVGF
+        // ------------------------------------------------------------------------
         if (ImGui::CollapsingHeader("SVGF Filter")) {
             bool svgf = params.enableSVGF;
             if (ImGui::Checkbox("Enable SVGF", &svgf)) {
@@ -310,18 +447,73 @@ namespace ui {
                 Log("[GUI] SVGF: %s\n", svgf ? "ENABLED" : "DISABLED");
             }
 
-            ImGui::SliderFloat("Strength", &params.svgfStrength, 0.0f, 1.0f);
+            float oldStrength = params.svgfStrength;
+            if (ImGui::SliderFloat("Strength", &params.svgfStrength, 0.0f, 1.0f)) {
+                if (params.svgfStrength != oldStrength) {
+                    Log("[GUI] SVGF strength: %.3f -> %.3f\n",
+                        oldStrength, params.svgfStrength);
+                }
+            }
 
             ImGui::SeparatorText("Variance");
-            ImGui::SliderFloat("Var Max", &params.svgfVarMax, 0.0f, 0.1f, "%.5f");
-            ImGui::SliderFloat("K Var Static", &params.svgfKVar, 0.0f, 500.0f);
-            ImGui::SliderFloat("K Color Static", &params.svgfKColor, 0.0f, 100.0f);
-            ImGui::SliderFloat("K Var Moving", &params.svgfKVarMotion, 0.0f, 500.0f);
-            ImGui::SliderFloat("K Color Moving", &params.svgfKColorMotion, 0.0f, 100.0f);
+
+            float oldVarMax = params.svgfVarMax;
+            if (ImGui::SliderFloat("Var Max", &params.svgfVarMax, 0.0f, 0.1f, "%.5f")) {
+                if (params.svgfVarMax != oldVarMax) {
+                    Log("[GUI] SVGF var max: %.5f -> %.5f\n",
+                        oldVarMax, params.svgfVarMax);
+                }
+            }
+
+            float oldKVar = params.svgfKVar;
+            if (ImGui::SliderFloat("K Var Static", &params.svgfKVar, 0.0f, 500.0f)) {
+                if (params.svgfKVar != oldKVar) {
+                    Log("[GUI] SVGF K var static: %.3f -> %.3f\n",
+                        oldKVar, params.svgfKVar);
+                }
+            }
+
+            float oldKColor = params.svgfKColor;
+            if (ImGui::SliderFloat("K Color Static", &params.svgfKColor, 0.0f, 100.0f)) {
+                if (params.svgfKColor != oldKColor) {
+                    Log("[GUI] SVGF K color static: %.3f -> %.3f\n",
+                        oldKColor, params.svgfKColor);
+                }
+            }
+
+            float oldKVarMov = params.svgfKVarMotion;
+            if (ImGui::SliderFloat("K Var Moving", &params.svgfKVarMotion, 0.0f, 500.0f)) {
+                if (params.svgfKVarMotion != oldKVarMov) {
+                    Log("[GUI] SVGF K var moving: %.3f -> %.3f\n",
+                        oldKVarMov, params.svgfKVarMotion);
+                }
+            }
+
+            float oldKColorMov = params.svgfKColorMotion;
+            if (ImGui::SliderFloat("K Color Moving", &params.svgfKColorMotion, 0.0f, 100.0f)) {
+                if (params.svgfKColorMotion != oldKColorMov) {
+                    Log("[GUI] SVGF K color moving: %.3f -> %.3f\n",
+                        oldKColorMov, params.svgfKColorMotion);
+                }
+            }
 
             ImGui::SeparatorText("Epsilons");
-            ImGui::SliderFloat("Var Static Eps", &params.svgfVarEPS, 0.0f, 1e-2f);
-            ImGui::SliderFloat("Motion Static Eps", &params.svgfMotionEPS, 0.0f, 0.05f);
+
+            float oldVarEPS = params.svgfVarEPS;
+            if (ImGui::SliderFloat("Var Static Eps", &params.svgfVarEPS, 0.0f, 1e-2f)) {
+                if (params.svgfVarEPS != oldVarEPS) {
+                    Log("[GUI] SVGF var EPS: %.6f -> %.6f\n",
+                        oldVarEPS, params.svgfVarEPS);
+                }
+            }
+
+            float oldMotionEPS = params.svgfMotionEPS;
+            if (ImGui::SliderFloat("Motion Static Eps", &params.svgfMotionEPS, 0.0f, 0.05f)) {
+                if (params.svgfMotionEPS != oldMotionEPS) {
+                    Log("[GUI] SVGF motion EPS: %.6f -> %.6f\n",
+                        oldMotionEPS, params.svgfMotionEPS);
+                }
+            }
         }
 
         ImGui::End();

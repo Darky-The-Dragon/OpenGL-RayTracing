@@ -78,6 +78,29 @@ static void framebuffer_size_callback(GLFWwindow *, int width, int height) {
     gGBuffer.recreate(width, height);
 }
 
+// --- Jitter helpers (local to main.cpp) ---
+static float halton(int index, int base)
+{
+    float f = 1.0f;
+    float r = 0.0f;
+    while (index > 0) {
+        f *= 0.5f;              // same as f /= base when base==2,3; simple and fast
+        r += f * (index % base);
+        index /= base;
+    }
+    return r;
+}
+
+// Returns jitter in pixel units, in range [-0.5, 0.5]
+static glm::vec2 generateJitter2D(int frameIndex)
+{
+    // wrap to avoid giant indices; 1024-frame cycle is fine
+    int idx = frameIndex & 1023;
+    float jx = halton(idx + 1, 2) - 0.5f;
+    float jy = halton(idx + 1, 3) - 0.5f;
+    return { jx, jy };
+}
+
 // ===============================
 int main() {
     // --- Init GLFW/GL context ---
@@ -204,18 +227,13 @@ int main() {
         // --- Centralized input update (SPP, exposure, BVH toggle, etc.) ---
         const bool anyChanged = io::update(gInput, window, deltaTime);
 
-        // Detect scene input (mouse capture) toggle (P key)
-        static bool prevSceneInput = gInput.sceneInputEnabled;
-        if (gInput.sceneInputEnabled != prevSceneInput) {
+        // P: toggle pointer / UI mode (sceneInputEnabled)
+        if (gInput.toggledPointerMode) {
+            gInput.sceneInputEnabled = !gInput.sceneInputEnabled;
+
             ui::Log("[INPUT] Scene input %s (mouse %s)\n",
                     gInput.sceneInputEnabled ? "ENABLED" : "DISABLED",
                     gInput.sceneInputEnabled ? "captured" : "released");
-            prevSceneInput = gInput.sceneInputEnabled;
-        }
-
-        // P: toggle pointer / UI mode (sceneInputEnabled + cursor state)
-        if (gInput.toggledPointerMode) {
-            gInput.sceneInputEnabled = !gInput.sceneInputEnabled;
 
             if (gInput.sceneInputEnabled) {
                 // Back to FPS mode
@@ -255,6 +273,19 @@ int main() {
             }
         }
         const bool cameraMoved = (vpDiff > 1e-5f); // tweak threshold if needed
+
+        // --- Jitter: write into FrameState (pixel units in [-0.5, 0.5]) ---
+        if (gParams.enableJitter) {
+            glm::vec2 baseJitter = generateJitter2D(gAccum.frameIndex);
+
+            // Smaller jitter when camera is still, larger when moving
+            float scale = cameraMoved ? gParams.jitterMovingScale
+                                      : gParams.jitterStillScale;
+
+            gFrame.jitter = baseJitter * scale;
+        } else {
+            gFrame.jitter = glm::vec2(0.0f);
+        }
 
         // --- Apply input events that affect accumulation / params ---
         if (anyChanged) {
@@ -339,8 +370,10 @@ int main() {
             gRtShader->setFloat("uTanHalfFov", tanHalfFov);
             gRtShader->setFloat("uAspect", camera.AspectRatio);
             gRtShader->setInt("uFrameIndex", gAccum.frameIndex);
+            gRtShader->setVec2("uResolution", glm::vec2(fbw, fbh));
             gRtShader->setInt("uSpp", gShowMotion ? 1 : gParams.sppPerFrame);
-            gRtShader->setFloat("uJitterScaleMoving", gParams.jitterScale);
+            gRtShader->setVec2("uJitter", gFrame.jitter);
+            gRtShader->setInt("uEnableJitter", gParams.enableJitter ? 1 : 0);
 
             // Scene / BVH
             gRtShader->setInt("uUseBVH", gUseBVH ? 1 : 0);
@@ -499,8 +532,11 @@ int main() {
         if (gParams.enableSVGF != prevGuiParams.enableSVGF) guiChangedParams = true;
         if (gParams.aoSamples != prevGuiParams.aoSamples) guiChangedParams = true;
 
+        // Jitter
+        if (diff(gParams.jitterStillScale,  prevGuiParams.jitterStillScale))  guiChangedParams = true;
+        if (diff(gParams.jitterMovingScale, prevGuiParams.jitterMovingScale)) guiChangedParams = true;
+
         // Floats that affect the integrand / filter behavior
-        if (diff(gParams.jitterScale, prevGuiParams.jitterScale)) guiChangedParams = true;
         if (diff(gParams.giScaleAnalytic, prevGuiParams.giScaleAnalytic)) guiChangedParams = true;
         if (diff(gParams.giScaleBVH, prevGuiParams.giScaleBVH)) guiChangedParams = true;
         if (diff(gParams.mirrorStrength, prevGuiParams.mirrorStrength)) guiChangedParams = true;

@@ -24,7 +24,8 @@ uniform int uFrameIndex;
 uniform vec2 uResolution;
 uniform sampler2D uPrevAccum;
 uniform int uSpp;
-uniform float uJitterScaleMoving;
+uniform vec2 uJitter;
+uniform int  uEnableJitter;
 
 // ---- Scene mode
 uniform int uUseBVH;     // 0 = analytic (plane+spheres), 1 = BVH triangle scene
@@ -87,9 +88,8 @@ void main() {
     outGPos = vec4(0.0);
     outGNrm = vec4(0.0);
 
-    // --- Per-frame camera jitter (reduced when static to remove shimmer)
-    float jitterScale = (uCameraMoved == 1) ? uJitterScaleMoving : 0.0;   // half-pixel jitter when moving, none when still
-    vec2 camJit = (ld2(uFrameIndex) - 0.5) * jitterScale;
+    // --- Per-frame camera jitter
+    vec2 camJit = (uEnableJitter == 1) ? uJitter : vec2(0.0);
 
     for (int s = 0; s < SPP; ++s) {
         int seed = uFrameIndex * max(1, SPP) + s;
