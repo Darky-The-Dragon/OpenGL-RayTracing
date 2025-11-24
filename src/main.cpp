@@ -533,6 +533,7 @@ int main() {
         if (gParams.aoSamples != prevGuiParams.aoSamples) guiChangedParams = true;
 
         // Jitter
+        if (gParams.enableJitter != prevGuiParams.enableJitter) guiChangedParams = true;
         if (diff(gParams.jitterStillScale,  prevGuiParams.jitterStillScale))  guiChangedParams = true;
         if (diff(gParams.jitterMovingScale, prevGuiParams.jitterMovingScale)) guiChangedParams = true;
 
