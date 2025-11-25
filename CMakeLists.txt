@@ -45,18 +45,20 @@ include_directories(libs/assimp/include)
 # Add public and local headers
 include_directories(
         include
-        include/camera
-        include/utils
+        include/app
+        include/render
+        include/scene
         include/io
         include/ui
         src
+        src/app
+        src/render
+        src/scene
         src/io
-        src/rt
         src/ui
 )
 
-file(GLOB_RECURSE SRC_FILES src/*.cpp)
-
+file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS src/*.cpp)
 add_executable(OpenGLRayTracing ${SRC_FILES})
 
 # ------------------------------------------------------------

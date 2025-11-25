@@ -32,7 +32,7 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-#include <utils/mesh.h>
+#include <scene/mesh.h>
 
 class Model {
 public:

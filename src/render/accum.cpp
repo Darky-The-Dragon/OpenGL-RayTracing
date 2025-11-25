@@ -1,4 +1,4 @@
-#include "rt/accum.h"
+#include "render/accum.h"
 #include <iostream>
 
 namespace rt {

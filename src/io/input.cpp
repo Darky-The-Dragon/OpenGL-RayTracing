@@ -1,5 +1,5 @@
 #include "io/input.h"
-#include "camera/Camera.h"
+#include "../../include/io/Camera.h"
 #include <algorithm>
 
 namespace io {
@@ -8,7 +8,7 @@ namespace io {
         return glfwGetKey(w, key) == GLFW_PRESS;
     }
 
-    bool update(InputState &s, GLFWwindow *win, const float dt) {
+    bool update(InputState &s, GLFWwindow *win) {
         bool changed = false;
 
         // reset per-frame toggles
@@ -145,7 +145,6 @@ namespace io {
             changed = true;
         }
 
-        (void) dt;
         return changed;
     }
 

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
-#include "rt/RenderParams.h"
-#include "rt/frame_state.h"
+#include "render/RenderParams.h"
+#include "render/frame_state.h"
 #include "io/input.h"
 
 namespace ui {

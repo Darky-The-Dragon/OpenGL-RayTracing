@@ -39,7 +39,7 @@ namespace io {
     }
 
     // Returns true if anything changed that should reset accumulation
-    bool update(InputState &s, GLFWwindow *win, float dtSeconds);
+    bool update(InputState &s, GLFWwindow *win);
 
     // Hook GLFW callbacks for mouse/scroll (uses glfwSetWindowUserPointer under the hood)
     void attach_callbacks(GLFWwindow *window, Camera *cam, InputState *state);

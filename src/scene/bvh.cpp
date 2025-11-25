@@ -1,8 +1,9 @@
 #include <glm/gtc/matrix_transform.hpp>
-#include "utils/model.h"
-#include "bvh.h"
+#include "scene/model.h"
+#include "scene/bvh.h"
 #include <algorithm>
 #include <vector>
+#include <memory>
 
 // -------- AABB helpers -----------
 static glm::vec3 tri_min(const CPU_Triangle &t) {
@@ -203,43 +204,22 @@ void gather_model_triangles(const Model &model, const glm::mat4 &M, std::vector<
     }
 }
 
-bool rebuild_bvh_from_model_path(const char *path, Model *&bvhModel, int &outNodeCount, int &outTriCount,
-                                 GLuint &outNodeTex, GLuint &outNodeBuf, GLuint &outTriTex, GLuint &outTriBuf
-) {
-    // --- Free previous GPU resources if any ---
-    if (outNodeTex) {
-        glDeleteTextures(1, &outNodeTex);
-        outNodeTex = 0;
-    }
-    if (outTriTex) {
-        glDeleteTextures(1, &outTriTex);
-        outTriTex = 0;
-    }
-    if (outNodeBuf) {
-        glDeleteBuffers(1, &outNodeBuf);
-        outNodeBuf = 0;
-    }
-    if (outTriBuf) {
-        glDeleteBuffers(1, &outTriBuf);
-        outTriBuf = 0;
-    }
+bool rebuild_bvh_from_model_path(const char *path, const glm::mat4 &modelTransform, std::unique_ptr<Model> &bvhModel,
+                                 int &outNodeCount, int &outTriCount, BVHHandle &handle) {
+    handle.release();
 
     // --- Reload model ---
-    delete bvhModel;
-    bvhModel = new Model(path);
+    bvhModel = std::make_unique<Model>(path);
     if (!bvhModel || bvhModel->meshes.empty()) {
+        bvhModel.reset();
         outNodeCount = 0;
         outTriCount = 0;
         return false;
     }
 
-    // --- Extract triangles with a fixed model matrix (same as you used before) ---
+    // --- Extract triangles with the provided model transform ---
     std::vector<CPU_Triangle> triCPU;
-    glm::mat4 M(1.0f);
-    M = glm::translate(M, glm::vec3(0.0f, 1.0f, -3.0f));
-    M = glm::scale(M, glm::vec3(1.0f));
-
-    gather_model_triangles(*bvhModel, M, triCPU);
+    gather_model_triangles(*bvhModel, modelTransform, triCPU);
 
     // --- Build BVH on CPU ---
     const std::vector<BVHNode> nodesCPU = build_bvh(triCPU);
@@ -247,8 +227,7 @@ bool rebuild_bvh_from_model_path(const char *path, Model *&bvhModel, int &outNod
     outTriCount = static_cast<int>(triCPU.size());
 
     // --- Upload to GPU as TBOs ---
-    upload_bvh_tbo(nodesCPU, triCPU, outNodeTex, outNodeBuf, outTriTex, outTriBuf
-    );
+    upload_bvh_tbo(nodesCPU, triCPU, handle.nodeTex, handle.nodeBuf, handle.triTex, handle.triBuf);
 
     return true;
 }

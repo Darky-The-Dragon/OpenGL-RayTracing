@@ -1,13 +1,21 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 #include <glm/glm.hpp>
 
 class Shader {
 public:
     unsigned int ID = 0;
 
+    // Non-copyable, movable RAII wrapper around a GL program
+    Shader(const Shader &) = delete;
+    Shader &operator=(const Shader &) = delete;
+    Shader(Shader &&) noexcept;
+    Shader &operator=(Shader &&) noexcept;
+
     Shader(const char *vertexPath, const char *fragmentPath);
+    ~Shader();
 
     void use() const;
 
@@ -24,5 +32,7 @@ public:
     void setVec2(const std::string &name, const glm::vec2 &value) const;
 
 private:
+    mutable std::unordered_map<std::string, int> uniformCache;
+    int uniformLocation(const std::string &name) const;
     static void checkCompileErrors(unsigned int shader, const std::string &type);
 };

@@ -1,4 +1,4 @@
-#include "Shader.h"
+#include "render/Shader.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -63,6 +63,21 @@ namespace {
     }
 } // namespace
 
+Shader::Shader(Shader &&o) noexcept {
+    *this = std::move(o);
+}
+
+Shader &Shader::operator=(Shader &&o) noexcept {
+    if (this == &o) return *this;
+    if (ID) {
+        glDeleteProgram(ID);
+    }
+    ID = o.ID;
+    o.ID = 0;
+    uniformCache.clear();
+    return *this;
+}
+
 Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     std::ifstream vFile(vertexPath);
     std::ifstream fFile(fragmentPath);
@@ -85,9 +100,6 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     // Preprocess GLSL-style #include "..." directives using the directory of each shader
     std::string vCode = preprocessShaderSource(vRaw, getDirectory(vertexPath));
     std::string fCode = preprocessShaderSource(fRaw, getDirectory(fragmentPath));
-
-    std::cout << "[DEBUG] Vertex Shader Length (preprocessed): " << vCode.size() << std::endl;
-    std::cout << "[DEBUG] Fragment Shader Length (preprocessed): " << fCode.size() << std::endl;
 
     const char *vShaderCode = vCode.c_str();
     const char *fShaderCode = fCode.c_str();
@@ -115,32 +127,48 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     glDeleteShader(fragment);
 }
 
+Shader::~Shader() {
+    if (ID) {
+        glDeleteProgram(ID);
+        ID = 0;
+    }
+}
+
 void Shader::use() const {
     glUseProgram(ID);
 }
 
 void Shader::setBool(const std::string &name, const bool value) const {
-    glUniform1i(glGetUniformLocation(ID, name.c_str()), static_cast<int>(value));
+    glUniform1i(uniformLocation(name), static_cast<int>(value));
 }
 
 void Shader::setInt(const std::string &name, const int value) const {
-    glUniform1i(glGetUniformLocation(ID, name.c_str()), value);
+    glUniform1i(uniformLocation(name), value);
 }
 
 void Shader::setFloat(const std::string &name, const float value) const {
-    glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
+    glUniform1f(uniformLocation(name), value);
 }
 
 void Shader::setMat4(const std::string &name, const glm::mat4 &mat) const {
-    glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, &mat[0][0]);
+    glUniformMatrix4fv(uniformLocation(name), 1, GL_FALSE, &mat[0][0]);
 }
 
 void Shader::setVec3(const std::string &name, const glm::vec3 &value) const {
-    glUniform3f(glGetUniformLocation(ID, name.c_str()), value.x, value.y, value.z);
+    glUniform3f(uniformLocation(name), value.x, value.y, value.z);
 }
 
 void Shader::setVec2(const std::string &name, const glm::vec2 &value) const {
-    glUniform2fv(glGetUniformLocation(ID, name.c_str()), 1, glm::value_ptr(value));
+    glUniform2fv(uniformLocation(name), 1, glm::value_ptr(value));
+}
+
+int Shader::uniformLocation(const std::string &name) const {
+    if (ID == 0) return -1;
+    auto it = uniformCache.find(name);
+    if (it != uniformCache.end()) return it->second;
+    const int loc = glGetUniformLocation(ID, name.c_str());
+    uniformCache.emplace(name, loc);
+    return loc;
 }
 
 void Shader::checkCompileErrors(const unsigned int shader, const std::string &type) {

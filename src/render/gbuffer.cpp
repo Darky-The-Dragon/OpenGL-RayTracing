@@ -1,4 +1,4 @@
-#include "rt/gbuffer.h"
+#include "render/gbuffer.h"
 
 namespace rt {
     GLuint GBuffer::makeTex2D(const int w, const int h, const GLenum internalFmt) {
