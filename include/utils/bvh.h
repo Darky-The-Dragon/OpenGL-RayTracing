@@ -28,9 +28,16 @@ std::vector<BVHNode> build_bvh(std::vector<CPU_Triangle> &tris);
 /// Upload linearized nodes & triangles to GPU as texture buffers (TBOs).
 /// Produces two textures + two buffers (so we can delete buffers safely at shutdown).
 void upload_bvh_tbo(const std::vector<BVHNode> &nodes, const std::vector<CPU_Triangle> &tris, GLuint &outNodeTex,
-                     GLuint &outNodeBuf, GLuint &outTriTex, GLuint &outTriBuf);
+                    GLuint &outNodeBuf, GLuint &outTriTex, GLuint &outTriBuf);
 
 /// Utility: extract triangles from a LearnOpenGL-style Model (positions + indices).
 /// Applies model matrix (scale/rotate/translate) to positions.
-struct Model; // forward
 void gather_model_triangles(const Model &model, const glm::mat4 &M, std::vector<CPU_Triangle> &outTris);
+
+// High-level helper: load a model, build a BVH for it, and upload to GPU TBOs.
+// - Deletes/replaces any previous Model* and GL objects passed in.
+// - Returns true on success, false if the model could not be loaded.
+//
+bool rebuild_bvh_from_model_path(const char *path, Model *&bvhModel, int &outNodeCount, int &outTriCount,
+                                 GLuint &outNodeTex, GLuint &outNodeBuf, GLuint &outTriTex, GLuint &outTriBuf
+);

@@ -1,5 +1,6 @@
+#include <glm/gtc/matrix_transform.hpp>
+#include "utils/model.h"
 #include "bvh.h"
-#include "utils/model.h" // for Model/mesh layout
 #include <algorithm>
 #include <vector>
 
@@ -200,4 +201,54 @@ void gather_model_triangles(const Model &model, const glm::mat4 &M, std::vector<
             outTris.push_back(T);
         }
     }
+}
+
+bool rebuild_bvh_from_model_path(const char *path, Model *&bvhModel, int &outNodeCount, int &outTriCount,
+                                 GLuint &outNodeTex, GLuint &outNodeBuf, GLuint &outTriTex, GLuint &outTriBuf
+) {
+    // --- Free previous GPU resources if any ---
+    if (outNodeTex) {
+        glDeleteTextures(1, &outNodeTex);
+        outNodeTex = 0;
+    }
+    if (outTriTex) {
+        glDeleteTextures(1, &outTriTex);
+        outTriTex = 0;
+    }
+    if (outNodeBuf) {
+        glDeleteBuffers(1, &outNodeBuf);
+        outNodeBuf = 0;
+    }
+    if (outTriBuf) {
+        glDeleteBuffers(1, &outTriBuf);
+        outTriBuf = 0;
+    }
+
+    // --- Reload model ---
+    delete bvhModel;
+    bvhModel = new Model(path);
+    if (!bvhModel || bvhModel->meshes.empty()) {
+        outNodeCount = 0;
+        outTriCount = 0;
+        return false;
+    }
+
+    // --- Extract triangles with a fixed model matrix (same as you used before) ---
+    std::vector<CPU_Triangle> triCPU;
+    glm::mat4 M(1.0f);
+    M = glm::translate(M, glm::vec3(0.0f, 1.0f, -3.0f));
+    M = glm::scale(M, glm::vec3(1.0f));
+
+    gather_model_triangles(*bvhModel, M, triCPU);
+
+    // --- Build BVH on CPU ---
+    const std::vector<BVHNode> nodesCPU = build_bvh(triCPU);
+    outNodeCount = static_cast<int>(nodesCPU.size());
+    outTriCount = static_cast<int>(triCPU.size());
+
+    // --- Upload to GPU as TBOs ---
+    upload_bvh_tbo(nodesCPU, triCPU, outNodeTex, outNodeBuf, outTriTex, outTriBuf
+    );
+
+    return true;
 }

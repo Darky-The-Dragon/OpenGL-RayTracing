@@ -84,7 +84,6 @@ static void framebuffer_size_callback(GLFWwindow *, const int width, const int h
 }
 
 // --- Jitter helpers (local to main.cpp) ---
-// --- Jitter helpers (local to main.cpp) ---
 static float halton(int index, const int base) {
     float f = 1.0f;
     float r = 0.0f;
@@ -106,53 +105,6 @@ static glm::vec2 generateJitter2D(const int frameIndex) {
     float jx = halton(idx + 1, 2) - 0.5f;
     float jy = halton(idx + 1, 3) - 0.5f;
     return {jx, jy};
-}
-
-// Rebuild BVH from a given model path and upload to TBOs
-static void rebuildBVHFromModelPath(const char *path) {
-    // Free previous GPU resources
-    if (gBvhNodeTex) {
-        glDeleteTextures(1, &gBvhNodeTex);
-        gBvhNodeTex = 0;
-    }
-    if (gBvhTriTex) {
-        glDeleteTextures(1, &gBvhTriTex);
-        gBvhTriTex = 0;
-    }
-    if (gBvhNodeBuf) {
-        glDeleteBuffers(1, &gBvhNodeBuf);
-        gBvhNodeBuf = 0;
-    }
-    if (gBvhTriBuf) {
-        glDeleteBuffers(1, &gBvhTriBuf);
-        gBvhTriBuf = 0;
-    }
-
-    // Reload BVH model
-    delete gBvhModel;
-    gBvhModel = new Model(path);
-    if (gBvhModel->meshes.empty()) {
-        ui::Log("[BVH] Failed to load model for BVH: %s\n", path);
-        gBvhNodeCount = gBvhTriCount = 0;
-        return;
-    }
-
-    std::vector<CPU_Triangle> triCPU;
-    glm::mat4 M(1.0f);
-    M = glm::translate(M, glm::vec3(0.0f, 1.0f, -3.0f));
-    M = glm::scale(M, glm::vec3(1.0f));
-    gather_model_triangles(*gBvhModel, M, triCPU);
-
-    std::vector<BVHNode> nodesCPU = build_bvh(triCPU);
-    gBvhNodeCount = static_cast<int>(nodesCPU.size());
-    gBvhTriCount = static_cast<int>(triCPU.size());
-
-    upload_bvh_tbo(nodesCPU, triCPU,
-                   gBvhNodeTex, gBvhNodeBuf,
-                   gBvhTriTex, gBvhTriBuf);
-
-    ui::Log("[BVH] Built BVH from '%s': nodes=%d, tris=%d\n",
-            path, gBvhNodeCount, gBvhTriCount);
 }
 
 // ===============================
@@ -235,9 +187,12 @@ int main() {
     if (gBvhModel->meshes.empty()) ui::Log("[WARN] Failed to load bunny_lp.obj (BVH)\n");
 
     // ---- Build BVH from the initial model, upload as TBOs ----
-    rebuildBVHFromModelPath(gBvhPicker.currentPath);
-
-    ui::Log("[BVH] Built BVH: nodes=%d, tris=%d\n", gBvhNodeCount, gBvhTriCount);
+    if (!rebuild_bvh_from_model_path(gBvhPicker.currentPath, gBvhModel, gBvhNodeCount, gBvhTriCount, gBvhNodeTex,
+                                     gBvhNodeBuf, gBvhTriTex, gBvhTriBuf)) {
+        ui::Log("[BVH] Failed to build BVH from '%s'\n", gBvhPicker.currentPath);
+    } else {
+        ui::Log("[BVH] Built BVH from '%s': nodes=%d, tris=%d\n", gBvhPicker.currentPath, gBvhNodeCount, gBvhTriCount);
+    }
 
     // --- Input + params init ---
     gInput.sppPerFrame = gParams.sppPerFrame;
@@ -525,7 +480,7 @@ int main() {
             gAccum.swapAfterFrame();
         } else {
             // ===============================
-            // Raster path (FIXED)
+            // Raster path
             // ===============================
 
             // ALWAYS bind back to default framebuffer
@@ -549,7 +504,6 @@ int main() {
             gRasterShader->setMat4("projection", currProj);
 
             // --- Draw objects ---
-
             auto model = glm::mat4(1.0f);
             gRasterShader->setMat4("model", model);
             gRasterShader->setVec3("uColor", glm::vec3(0.1f, 0.4f, 0.1f));
@@ -578,8 +532,15 @@ int main() {
         // If the BVH picker requested a reload, rebuild from the chosen path
         if (gBvhPicker.reloadRequested) {
             gBvhPicker.reloadRequested = false;
-            rebuildBVHFromModelPath(gBvhPicker.currentPath);
-            gAccum.reset(); // new geometry → reset accumulation
+
+            if (!rebuild_bvh_from_model_path(gBvhPicker.currentPath, gBvhModel, gBvhNodeCount, gBvhTriCount,
+                                             gBvhNodeTex, gBvhNodeBuf, gBvhTriTex, gBvhTriBuf)) {
+                ui::Log("[BVH] Failed to build BVH from '%s'\n", gBvhPicker.currentPath);
+            } else {
+                ui::Log("[BVH] Rebuilt BVH from '%s': nodes=%d, tris=%d\n", gBvhPicker.currentPath, gBvhNodeCount,
+                        gBvhTriCount);
+                gAccum.reset(); // new geometry → reset accumulation
+            }
         }
 
         // ---- Detect GUI-driven changes and reset accumulation if needed ----
@@ -598,7 +559,7 @@ int main() {
         if (gParams.sppPerFrame != prevGuiParams.sppPerFrame) guiChangedParams = true;
         if (gParams.enableGI != prevGuiParams.enableGI) guiChangedParams = true;
         if (gParams.enableAO != prevGuiParams.enableAO) guiChangedParams = true;
-        if (gParams.enableMirror != prevGuiParams.enableMirror)guiChangedParams = true;
+        if (gParams.enableMirror != prevGuiParams.enableMirror) guiChangedParams = true;
         if (gParams.enableTAA != prevGuiParams.enableTAA) guiChangedParams = true;
         if (gParams.enableSVGF != prevGuiParams.enableSVGF) guiChangedParams = true;
         if (gParams.aoSamples != prevGuiParams.aoSamples) guiChangedParams = true;
