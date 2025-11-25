@@ -4,6 +4,9 @@
 #include "imgui_impl_opengl3.h"
 #include <cstdarg>
 #include <iostream>
+#include <filesystem>
+#include <vector>
+#include <string>
 
 namespace ui {
     // ============================================================================
@@ -100,6 +103,10 @@ namespace ui {
     static DebugConsole gConsole;
     static bool gShowDebugConsole = false;
 
+    // Cached model list for BVH picker
+    static std::vector<std::string> gModelFiles;
+    static bool gModelScanDone = false;
+
     // Forward declarations
     static void DrawKeybindLegend();
 
@@ -114,7 +121,7 @@ namespace ui {
 
         va_list args;
         va_start(args, fmt);
-        vsnprintf(buf, sizeof(buf), fmt, args);
+        std::vsnprintf(buf, sizeof(buf), fmt, args);
         va_end(args);
 
         // Terminal output
@@ -566,9 +573,110 @@ namespace ui {
     // Public draw entry
     // ============================================================================
     void Draw(RenderParams &params, const rt::FrameState &frame, const io::InputState &input, bool &rayMode,
-              bool &useBVH, bool &showMotion) {
+              bool &useBVH, bool &showMotion, BvhModelPickerState &bvhPicker) {
+        // --------------------------------------------------------------
+        // Disable ALL ImGui mouse input when FPS mode is active.
+        // This prevents hovering, clicking, tooltips, highlights, etc.
+        // --------------------------------------------------------------
+        if (input.sceneInputEnabled) {
+            ImGuiIO &io = ImGui::GetIO();
+
+            // Move the mouse far away so nothing is hovered
+            io.MousePos = ImVec2(-FLT_MAX, -FLT_MAX);
+
+            // Disable mouse buttons so UI cannot click anything
+            for (int i = 0; i < ImGuiMouseButton_COUNT; ++i)
+                io.MouseDown[i] = false;
+
+            // Optional: ensure wheel scrolling doesn't affect UI
+            io.MouseWheel = 0.0f;
+            io.MouseWheelH = 0.0f;
+        }
+
         DrawMainControls(params, frame, input, rayMode, useBVH, showMotion);
         DrawKeybindLegend();
+
+        // --------------------------------------------------------------------
+        // BVH model picker (top-right) – only visible when BVH is enabled
+        // --------------------------------------------------------------------
+        if (useBVH) {
+            // Scan ../models for .obj files once (or when forced)
+            if (!gModelScanDone) {
+                namespace fs = std::filesystem;
+                gModelFiles.clear();
+                try {
+                    for (const auto &entry: fs::directory_iterator("../models")) {
+                        if (!entry.is_regular_file()) continue;
+                        const auto &p = entry.path();
+                        if (p.extension() == ".obj") {
+                            gModelFiles.push_back(p.string());
+                        }
+                    }
+                } catch (const std::exception &e) {
+                    Log("[BVH GUI] Failed to scan '../models': %s\n", e.what());
+                }
+
+                if (bvhPicker.selectedIndex >= static_cast<int>(gModelFiles.size())) {
+                    bvhPicker.selectedIndex = 0;
+                }
+
+                if (!gModelFiles.empty()) {
+                    std::snprintf(bvhPicker.currentPath,
+                                  sizeof(bvhPicker.currentPath),
+                                  "%s",
+                                  gModelFiles[bvhPicker.selectedIndex].c_str());
+                }
+
+                gModelScanDone = true;
+            }
+
+            const ImGuiViewport *vp = ImGui::GetMainViewport();
+            const ImVec2 pos(vp->WorkPos.x + vp->WorkSize.x - 10.0f,
+                             vp->WorkPos.y + 10.0f);
+
+            ImGui::SetNextWindowPos(pos, ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+
+            constexpr ImGuiWindowFlags pickerFlags =
+                    ImGuiWindowFlags_NoResize |
+                    ImGuiWindowFlags_AlwaysAutoResize |
+                    ImGuiWindowFlags_NoSavedSettings |
+                    ImGuiWindowFlags_NoCollapse;
+
+            if (ImGui::Begin("BVH Model Picker", nullptr, pickerFlags)) {
+                ImGui::TextUnformatted("Models in models/");
+                ImGui::Separator();
+
+                if (gModelFiles.empty()) {
+                    ImGui::TextUnformatted("No .obj files found.");
+                } else {
+                    for (int i = 0; i < static_cast<int>(gModelFiles.size()); ++i) {
+                        const bool isSelected = (i == bvhPicker.selectedIndex);
+                        const char *label = gModelFiles[i].c_str();
+                        if (ImGui::Selectable(label, isSelected)) {
+                            if (!isSelected) {
+                                bvhPicker.selectedIndex = i;
+                                std::snprintf(bvhPicker.currentPath,
+                                              sizeof(bvhPicker.currentPath),
+                                              "%s",
+                                              gModelFiles[i].c_str());
+                                bvhPicker.reloadRequested = true;
+                                Log("[BVH GUI] Selected model: %s\n",
+                                    bvhPicker.currentPath);
+                            }
+                        }
+                    }
+                }
+
+                if (ImGui::Button("Rescan folder")) {
+                    gModelScanDone = false; // trigger rescan next frame
+                    Log("[BVH GUI] Rescanning '../models'...\n");
+                }
+
+                ImGui::Separator();
+                ImGui::TextWrapped("Current: %s", bvhPicker.currentPath);
+            }
+            ImGui::End();
+        }
 
         // Big, wide console pinned bottom-left
         if (gShowDebugConsole) {

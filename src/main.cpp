@@ -59,6 +59,12 @@ static GLuint gBvhNodeTex = 0, gBvhNodeBuf = 0;
 static GLuint gBvhTriTex = 0, gBvhTriBuf = 0;
 static int gBvhNodeCount = 0, gBvhTriCount = 0;
 
+// Model used for BVH building (ray path only)
+static Model *gBvhModel = nullptr;
+
+// ImGui BVH model picker state
+static ui::BvhModelPickerState gBvhPicker;
+
 // Centralized input state
 static io::InputState gInput;
 
@@ -79,15 +85,14 @@ static void framebuffer_size_callback(GLFWwindow *, const int width, const int h
 
 // --- Jitter helpers (local to main.cpp) ---
 // --- Jitter helpers (local to main.cpp) ---
-static float halton(int index, const int base)
-{
+static float halton(int index, const int base) {
     float f = 1.0f;
     float r = 0.0f;
 
     while (index > 0) {
         f *= 0.5f; // same as f /= base when base==2,3; simple and fast
         const int digit = index % base;
-        r += f * static_cast<float>(digit);  // avoid int -> float narrowing
+        r += f * static_cast<float>(digit); // avoid int -> float narrowing
         index /= base;
     }
 
@@ -95,13 +100,59 @@ static float halton(int index, const int base)
 }
 
 // Returns jitter in pixel units, in range [-0.5, 0.5]
-static glm::vec2 generateJitter2D(const int frameIndex)
-{
+static glm::vec2 generateJitter2D(const int frameIndex) {
     // wrap to avoid giant indices; 1024-frame cycle is fine
     const int idx = frameIndex & 1023;
     float jx = halton(idx + 1, 2) - 0.5f;
     float jy = halton(idx + 1, 3) - 0.5f;
-    return { jx, jy };
+    return {jx, jy};
+}
+
+// Rebuild BVH from a given model path and upload to TBOs
+static void rebuildBVHFromModelPath(const char *path) {
+    // Free previous GPU resources
+    if (gBvhNodeTex) {
+        glDeleteTextures(1, &gBvhNodeTex);
+        gBvhNodeTex = 0;
+    }
+    if (gBvhTriTex) {
+        glDeleteTextures(1, &gBvhTriTex);
+        gBvhTriTex = 0;
+    }
+    if (gBvhNodeBuf) {
+        glDeleteBuffers(1, &gBvhNodeBuf);
+        gBvhNodeBuf = 0;
+    }
+    if (gBvhTriBuf) {
+        glDeleteBuffers(1, &gBvhTriBuf);
+        gBvhTriBuf = 0;
+    }
+
+    // Reload BVH model
+    delete gBvhModel;
+    gBvhModel = new Model(path);
+    if (gBvhModel->meshes.empty()) {
+        ui::Log("[BVH] Failed to load model for BVH: %s\n", path);
+        gBvhNodeCount = gBvhTriCount = 0;
+        return;
+    }
+
+    std::vector<CPU_Triangle> triCPU;
+    glm::mat4 M(1.0f);
+    M = glm::translate(M, glm::vec3(0.0f, 1.0f, -3.0f));
+    M = glm::scale(M, glm::vec3(1.0f));
+    gather_model_triangles(*gBvhModel, M, triCPU);
+
+    std::vector<BVHNode> nodesCPU = build_bvh(triCPU);
+    gBvhNodeCount = static_cast<int>(nodesCPU.size());
+    gBvhTriCount = static_cast<int>(triCPU.size());
+
+    upload_bvh_tbo(nodesCPU, triCPU,
+                   gBvhNodeTex, gBvhNodeBuf,
+                   gBvhTriTex, gBvhTriBuf);
+
+    ui::Log("[BVH] Built BVH from '%s': nodes=%d, tris=%d\n",
+            path, gBvhNodeCount, gBvhTriCount);
 }
 
 // ===============================
@@ -173,26 +224,18 @@ int main() {
     gGround = new Model("../models/plane.obj");
     gBunny = new Model("../models/bunny_lp.obj");
     gSphere = new Model("../models/sphere.obj");
+
+    // BVH model starts as the low-poly bunny
+    gBvhModel = new Model("../models/bunny_lp.obj");
+    std::snprintf(gBvhPicker.currentPath, sizeof(gBvhPicker.currentPath), "../models/bunny_lp.obj");
+
     if (gGround->meshes.empty()) ui::Log("[WARN] Failed to load plane.obj\n");
-    if (gBunny->meshes.empty()) ui::Log("[WARN] Failed to load bunny_lp.obj\n");
+    if (gBunny->meshes.empty()) ui::Log("[WARN] Failed to load bunny_lp.obj (raster)\n");
     if (gSphere->meshes.empty()) ui::Log("[WARN] Failed to load sphere.obj\n");
+    if (gBvhModel->meshes.empty()) ui::Log("[WARN] Failed to load bunny_lp.obj (BVH)\n");
 
-    // ---- Build BVH from the bunny (CPU), upload as TBOs ----
-    std::vector<CPU_Triangle> triCPU;
-    glm::mat4 M(1.0f);
-    M = glm::translate(M, glm::vec3(0.0f, 1.0f, -3.0f));
-    M = glm::scale(M, glm::vec3(1.0f));
-    gather_model_triangles(*gBunny, M, triCPU);
-
-    std::vector<BVHNode> nodesCPU = build_bvh(triCPU);
-    gBvhNodeCount = static_cast<int>(nodesCPU.size());
-    gBvhTriCount = static_cast<int>(triCPU.size());
-
-    upload_bvh_tbo(
-        nodesCPU, triCPU,
-        gBvhNodeTex, gBvhNodeBuf,
-        gBvhTriTex, gBvhTriBuf
-    );
+    // ---- Build BVH from the initial model, upload as TBOs ----
+    rebuildBVHFromModelPath(gBvhPicker.currentPath);
 
     ui::Log("[BVH] Built BVH: nodes=%d, tris=%d\n", gBvhNodeCount, gBvhTriCount);
 
@@ -282,8 +325,9 @@ int main() {
             glm::vec2 baseJitter = generateJitter2D(gAccum.frameIndex);
 
             // Smaller jitter when camera is still, larger when moving
-            float scale = cameraMoved ? gParams.jitterMovingScale
-                                      : gParams.jitterStillScale;
+            float scale = cameraMoved
+                              ? gParams.jitterMovingScale
+                              : gParams.jitterStillScale;
 
             gFrame.jitter = baseJitter * scale;
         } else {
@@ -481,13 +525,30 @@ int main() {
             gAccum.swapAfterFrame();
         } else {
             // ===============================
-            // Raster path (unchanged)
+            // Raster path (FIXED)
             // ===============================
-            glDepthMask(GL_TRUE);
+
+            // ALWAYS bind back to default framebuffer
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            // Restore normal pipeline state
+            glDisable(GL_SCISSOR_TEST); // Ray mode had this enabled
+            glViewport(0, 0, fbw, fbh);
             glEnable(GL_DEPTH_TEST);
+            glDepthMask(GL_TRUE);
+
+            // MUST CLEAR depth, or rasterization draws nothing
+            glClearColor(0.1f, 0.0f, 0.2f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            // Use raster shader *after* framebuffer state is correct
             gRasterShader->use();
+
+            // Camera matrices
             gRasterShader->setMat4("view", currView);
             gRasterShader->setMat4("projection", currProj);
+
+            // --- Draw objects ---
 
             auto model = glm::mat4(1.0f);
             gRasterShader->setMat4("model", model);
@@ -511,8 +572,15 @@ int main() {
         gFrame.endFrame();
 
         // ---- GUI: draw control panel on top of final image ----
-        ui::Draw(gParams, gFrame, gInput, gRayMode, gUseBVH, gShowMotion);
+        ui::Draw(gParams, gFrame, gInput, gRayMode, gUseBVH, gShowMotion, gBvhPicker);
         ui::EndFrame();
+
+        // If the BVH picker requested a reload, rebuild from the chosen path
+        if (gBvhPicker.reloadRequested) {
+            gBvhPicker.reloadRequested = false;
+            rebuildBVHFromModelPath(gBvhPicker.currentPath);
+            gAccum.reset(); // new geometry → reset accumulation
+        }
 
         // ---- Detect GUI-driven changes and reset accumulation if needed ----
         bool guiChangedMode =
@@ -520,7 +588,7 @@ int main() {
                 (gUseBVH != prevUseBVH) ||
                 (gShowMotion != prevShowMotion);
 
-        auto diff = [](float a, float b) {
+        auto diff = [](const float a, const float b) {
             return std::fabs(a - b) > 1e-7f;
         };
 
@@ -537,7 +605,7 @@ int main() {
 
         // Jitter
         if (gParams.enableJitter != prevGuiParams.enableJitter) guiChangedParams = true;
-        if (diff(gParams.jitterStillScale,  prevGuiParams.jitterStillScale))  guiChangedParams = true;
+        if (diff(gParams.jitterStillScale, prevGuiParams.jitterStillScale)) guiChangedParams = true;
         if (diff(gParams.jitterMovingScale, prevGuiParams.jitterMovingScale)) guiChangedParams = true;
 
         // Floats that affect the integrand / filter behavior
@@ -599,6 +667,8 @@ int main() {
     gBunny = nullptr;
     delete gSphere;
     gSphere = nullptr;
+    delete gBvhModel;
+    gBvhModel = nullptr;
 
     if (gFsVao) {
         glDeleteVertexArrays(1, &gFsVao);
