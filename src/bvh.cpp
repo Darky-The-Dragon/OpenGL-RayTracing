@@ -30,19 +30,18 @@ struct BuildRef {
 
 static int build_recursive(std::vector<BVHNode> &nodes, const std::vector<CPU_Triangle> &tris,
                            std::vector<BuildRef> &refs, const int begin, const int end, const int leafMax = 8) {
-
-    glm::vec3 bmin(1e30f), bmax(-1e30f);
+    glm::vec3 bMin(1e30f), bMax(-1e30f);
     for (int i = begin; i < end; ++i) {
         const auto &T = tris[refs[i].triIndex];
-        bmin = glm::min(bmin, tri_min(T));
-        bmax = glm::max(bmax, tri_max(T));
+        bMin = glm::min(bMin, tri_min(T));
+        bMax = glm::max(bMax, tri_max(T));
     }
 
     const int count = end - begin;
     const int myIndex = static_cast<int>(nodes.size());
     nodes.push_back({});
-    nodes[myIndex].bmin = bmin;
-    nodes[myIndex].bmax = bmax;
+    nodes[myIndex].bMin = bMin;
+    nodes[myIndex].bMax = bMax;
 
     if (count <= leafMax) {
         nodes[myIndex].left = -1;
@@ -53,7 +52,7 @@ static int build_recursive(std::vector<BVHNode> &nodes, const std::vector<CPU_Tr
     }
 
     // choose split axis by box extent
-    glm::vec3 e = bmax - bmin;
+    const glm::vec3 e = bMax - bMin;
     int axis = (e.x > e.y) ? ((e.x > e.z) ? 0 : 2) : ((e.y > e.z) ? 1 : 2);
 
     const int mid = (begin + end) / 2;
@@ -114,22 +113,22 @@ std::vector<BVHNode> build_bvh(std::vector<CPU_Triangle> &tris) {
 }
 
 // -------- Upload to TBOs (GL_TEXTURE_BUFFER) -----------
-void upload_bvh_tbos(const std::vector<BVHNode> &nodes, const std::vector<CPU_Triangle> &tris, GLuint &outNodeTex,
-                     GLuint &outNodeBuf, GLuint &outTriTex, GLuint &outTriBuf) {
+void upload_bvh_tbo(const std::vector<BVHNode> &nodes, const std::vector<CPU_Triangle> &tris, GLuint &outNodeTex,
+                    GLuint &outNodeBuf, GLuint &outTriTex, GLuint &outTriBuf) {
     // Pack nodes: 3 texels per node (RGBA32F each)
-    //  tex0 = [bmin.x, bmin.y, bmin.z, left]
-    //  tex1 = [bmax.x, bmax.y, bmax.z, right]
+    //  tex0 = [bMin.x, bMin.y, bMin.z, left]
+    //  tex1 = [bMax.x, bMax.y, bMax.z, right]
     //  tex2 = [first,  count,  0,       0]
     std::vector<float> nodeData;
     nodeData.reserve(nodes.size() * 12);
     for (const auto &n: nodes) {
-        nodeData.push_back(n.bmin.x);
-        nodeData.push_back(n.bmin.y);
-        nodeData.push_back(n.bmin.z);
+        nodeData.push_back(n.bMin.x);
+        nodeData.push_back(n.bMin.y);
+        nodeData.push_back(n.bMin.z);
         nodeData.push_back(static_cast<float>(n.left));
-        nodeData.push_back(n.bmax.x);
-        nodeData.push_back(n.bmax.y);
-        nodeData.push_back(n.bmax.z);
+        nodeData.push_back(n.bMax.x);
+        nodeData.push_back(n.bMax.y);
+        nodeData.push_back(n.bMax.z);
         nodeData.push_back(static_cast<float>(n.right));
         nodeData.push_back(static_cast<float>(n.first));
         nodeData.push_back(static_cast<float>(n.count));
@@ -140,7 +139,8 @@ void upload_bvh_tbos(const std::vector<BVHNode> &nodes, const std::vector<CPU_Tr
     if (!outNodeBuf)
         glGenBuffers(1, &outNodeBuf);
     glBindBuffer(GL_TEXTURE_BUFFER, outNodeBuf);
-    glBufferData(GL_TEXTURE_BUFFER, nodeData.size() * sizeof(float), nodeData.data(), GL_STATIC_DRAW);
+    glBufferData(GL_TEXTURE_BUFFER, static_cast<GLsizeiptr>(nodeData.size() * sizeof(float)), nodeData.data(),
+                 GL_STATIC_DRAW);
     if (!outNodeTex)
         glGenTextures(1, &outNodeTex);
     glBindTexture(GL_TEXTURE_BUFFER, outNodeTex);
@@ -170,7 +170,8 @@ void upload_bvh_tbos(const std::vector<BVHNode> &nodes, const std::vector<CPU_Tr
     if (!outTriBuf)
         glGenBuffers(1, &outTriBuf);
     glBindBuffer(GL_TEXTURE_BUFFER, outTriBuf);
-    glBufferData(GL_TEXTURE_BUFFER, triData.size() * sizeof(float), triData.data(), GL_STATIC_DRAW);
+    glBufferData(
+        GL_TEXTURE_BUFFER, static_cast<GLsizeiptr>(triData.size() * sizeof(float)), triData.data(),GL_STATIC_DRAW);
     if (!outTriTex)
         glGenTextures(1, &outTriTex);
     glBindTexture(GL_TEXTURE_BUFFER, outTriTex);

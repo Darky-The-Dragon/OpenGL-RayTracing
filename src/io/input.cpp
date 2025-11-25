@@ -4,11 +4,11 @@
 
 namespace io {
     // ====== keyboard helper ======
-    static inline bool keyDown(GLFWwindow *w, int key) {
+    static inline bool keyDown(GLFWwindow *w, const int key) {
         return glfwGetKey(w, key) == GLFW_PRESS;
     }
 
-    bool update(InputState &s, GLFWwindow *win, float dt) {
+    bool update(InputState &s, GLFWwindow *win, const float dt) {
         bool changed = false;
 
         // reset per-frame toggles
@@ -81,23 +81,24 @@ namespace io {
         }
         s.prevF3 = nowF3;
 
-        // Direct SPP hotkeys: ↑/↓ and 1..4
+        // Direct SPP hotkeys: ↑ (increase) / ↓ (decrease)
         if (keyDown(win, GLFW_KEY_UP)) {
             const int old = s.sppPerFrame;
-            s.sppPerFrame = (old < 2)
-                                ? 2
-                                : (old < 4)
-                                      ? 4
-                                      : (old < 8)
-                                            ? 8
-                                            : (old < 16)
-                                                  ? 16
-                                                  : 16;
-            if (s.sppPerFrame != old) {
+            int next = old;
+
+            if (old < 2) next = 2;
+            else if (old < 4) next = 4;
+            else if (old < 8) next = 8;
+            else if (old < 16) next = 16;
+            // else: already at max, keep value
+
+            if (next != old) {
+                s.sppPerFrame = next;
                 s.changedSPP = true;
                 changed = true;
             }
         }
+
         if (keyDown(win, GLFW_KEY_DOWN)) {
             const int old = s.sppPerFrame;
             s.sppPerFrame = (old > 8)
@@ -112,6 +113,7 @@ namespace io {
                 changed = true;
             }
         }
+
         if (keyDown(win, GLFW_KEY_1)) {
             s.sppPerFrame = 2;
             s.changedSPP = true;
@@ -153,8 +155,8 @@ namespace io {
         InputState *state = nullptr;
     };
 
-    static void mouse_cb(GLFWwindow *w, double xpos, double ypos) {
-        auto *p = static_cast<CallbackPayload *>(glfwGetWindowUserPointer(w));
+    static void mouse_cb(GLFWwindow *w, const double xPos, const double yPos) {
+        const auto *p = static_cast<CallbackPayload *>(glfwGetWindowUserPointer(w));
         if (!p || !p->cam || !p->state) return;
 
         auto &s = *p->state;
@@ -162,31 +164,31 @@ namespace io {
         // If UI / pointer mode is active, ignore camera look
         if (!s.sceneInputEnabled) {
             // Still track lastX/lastY to avoid a big jump when re-enabling
-            s.lastX = static_cast<float>(xpos);
-            s.lastY = static_cast<float>(ypos);
+            s.lastX = static_cast<float>(xPos);
+            s.lastY = static_cast<float>(yPos);
             return;
         }
 
         if (s.firstMouse) {
-            s.lastX = static_cast<float>(xpos);
-            s.lastY = static_cast<float>(ypos);
+            s.lastX = static_cast<float>(xPos);
+            s.lastY = static_cast<float>(yPos);
             s.firstMouse = false;
         }
 
-        float dx = static_cast<float>(xpos) - s.lastX;
-        float dy = s.lastY - static_cast<float>(ypos);
+        float dx = static_cast<float>(xPos) - s.lastX;
+        float dy = s.lastY - static_cast<float>(yPos);
 
-        s.lastX = static_cast<float>(xpos);
-        s.lastY = static_cast<float>(ypos);
+        s.lastX = static_cast<float>(xPos);
+        s.lastY = static_cast<float>(yPos);
 
         p->cam->ProcessMouseMovement(dx, dy);
     }
 
-    static void scroll_cb(GLFWwindow *w, double /*xoff*/, double yoff) {
-        auto *p = static_cast<CallbackPayload *>(glfwGetWindowUserPointer(w));
+    static void scroll_cb(GLFWwindow *w, double /*xoff*/, const double yOff) {
+        const auto *p = static_cast<CallbackPayload *>(glfwGetWindowUserPointer(w));
         if (!p || !p->cam) return;
 
-        p->cam->Fov -= static_cast<float>(yoff) * 2.0f;
+        p->cam->Fov -= static_cast<float>(yOff) * 2.0f;
         if (p->cam->Fov < 20.0f) p->cam->Fov = 20.0f;
         if (p->cam->Fov > 90.0f) p->cam->Fov = 90.0f;
         // No accumulation reset here either.

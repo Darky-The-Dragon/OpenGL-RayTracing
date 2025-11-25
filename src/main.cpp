@@ -14,7 +14,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
-#include <cmath>
 #include <algorithm>
 #include <vector>
 
@@ -66,7 +65,7 @@ static io::InputState gInput;
 // ===============================
 // Callbacks
 // ===============================
-static void framebuffer_size_callback(GLFWwindow *, int width, int height) {
+static void framebuffer_size_callback(GLFWwindow *, const int width, const int height) {
     if (width <= 0 || height <= 0) return;
 
     glViewport(0, 0, width, height);
@@ -79,23 +78,27 @@ static void framebuffer_size_callback(GLFWwindow *, int width, int height) {
 }
 
 // --- Jitter helpers (local to main.cpp) ---
-static float halton(int index, int base)
+// --- Jitter helpers (local to main.cpp) ---
+static float halton(int index, const int base)
 {
     float f = 1.0f;
     float r = 0.0f;
+
     while (index > 0) {
-        f *= 0.5f;              // same as f /= base when base==2,3; simple and fast
-        r += f * (index % base);
+        f *= 0.5f; // same as f /= base when base==2,3; simple and fast
+        const int digit = index % base;
+        r += f * static_cast<float>(digit);  // avoid int -> float narrowing
         index /= base;
     }
+
     return r;
 }
 
 // Returns jitter in pixel units, in range [-0.5, 0.5]
-static glm::vec2 generateJitter2D(int frameIndex)
+static glm::vec2 generateJitter2D(const int frameIndex)
 {
     // wrap to avoid giant indices; 1024-frame cycle is fine
-    int idx = frameIndex & 1023;
+    const int idx = frameIndex & 1023;
     float jx = halton(idx + 1, 2) - 0.5f;
     float jy = halton(idx + 1, 3) - 0.5f;
     return { jx, jy };
@@ -185,7 +188,7 @@ int main() {
     gBvhNodeCount = static_cast<int>(nodesCPU.size());
     gBvhTriCount = static_cast<int>(triCPU.size());
 
-    upload_bvh_tbos(
+    upload_bvh_tbo(
         nodesCPU, triCPU,
         gBvhNodeTex, gBvhNodeBuf,
         gBvhTriTex, gBvhTriBuf
@@ -220,9 +223,9 @@ int main() {
         ui::BeginFrame();
 
         // --- Time update ---
-        float tnow = static_cast<float>(glfwGetTime());
-        deltaTime = tnow - lastFrame;
-        lastFrame = tnow;
+        auto tNow = static_cast<float>(glfwGetTime());
+        deltaTime = tNow - lastFrame;
+        lastFrame = tNow;
 
         // --- Centralized input update (SPP, exposure, BVH toggle, etc.) ---
         const bool anyChanged = io::update(gInput, window, deltaTime);

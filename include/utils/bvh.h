@@ -10,13 +10,16 @@ struct CPU_Triangle {
 };
 
 struct BVHNode {
-    glm::vec3 bmin;
-    glm::vec3 bmax;
+    glm::vec3 bMin;
+    glm::vec3 bMax;
     int left; // index of left child or -1
     int right; // index of right child or -1
     int first; // start triangle index in leaf
     int count; // triangle count in leaf (0 if inner)
-    bool isLeaf() const { return count > 0; }
+
+    [[nodiscard]] bool isLeaf() const {
+        return count > 0;
+    }
 };
 
 /// Build a simple median-split BVH
@@ -24,7 +27,7 @@ std::vector<BVHNode> build_bvh(std::vector<CPU_Triangle> &tris);
 
 /// Upload linearized nodes & triangles to GPU as texture buffers (TBOs).
 /// Produces two textures + two buffers (so we can delete buffers safely at shutdown).
-void upload_bvh_tbos(const std::vector<BVHNode> &nodes, const std::vector<CPU_Triangle> &tris, GLuint &outNodeTex,
+void upload_bvh_tbo(const std::vector<BVHNode> &nodes, const std::vector<CPU_Triangle> &tris, GLuint &outNodeTex,
                      GLuint &outNodeBuf, GLuint &outTriTex, GLuint &outTriBuf);
 
 /// Utility: extract triangles from a LearnOpenGL-style Model (positions + indices).

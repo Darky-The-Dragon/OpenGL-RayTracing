@@ -12,7 +12,7 @@ Camera::Camera(glm::vec3 position, float yaw, float pitch, float fov, float aspe
     UpdateCameraVectors();
 }
 
-void Camera::ProcessKeyboardInput(GLFWwindow *window, float deltaTime) {
+void Camera::ProcessKeyboardInput(GLFWwindow *window, const float deltaTime) {
     const float velocity = MovementSpeed * deltaTime;
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -30,7 +30,7 @@ void Camera::ProcessKeyboardInput(GLFWwindow *window, float deltaTime) {
 }
 
 void Camera::ProcessMouseMovement(float xOffset, float yOffset) {
-    float sensitivity = 0.1f;
+    constexpr float sensitivity = 0.1f;
     xOffset *= sensitivity;
     yOffset *= sensitivity;
 

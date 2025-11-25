@@ -21,15 +21,11 @@ namespace ui {
     //  - We MODIFY RenderParams (sliders / checkboxes).
     //  - We MODIFY rayMode / useBVH / showMotion via GUI (bool refs).
     //  - InputState is only read (for debug display).
-    void Draw(RenderParams &params,
-              const rt::FrameState &frame,
-              const io::InputState &input,
-              bool &rayMode,
-              bool &useBVH,
-              bool &showMotion);
+    void Draw(RenderParams &params, const rt::FrameState &frame, const io::InputState &input, bool &rayMode,
+              bool &useBVH, bool &showMotion);
 
     void Log(const char *fmt, ...);
 
-    // Call at the end of the frame, AFTER you've rendered your scene to the backbuffer.
+    // Call at the end of the frame, AFTER you've rendered your scene to the back-buffer.
     void EndFrame();
 } // namespace ui

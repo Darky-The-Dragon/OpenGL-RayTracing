@@ -17,6 +17,7 @@ namespace rt {
         void release();
 
     private:
+        // Take GLenum here – it matches GL constants like GL_RGBA16F.
         static GLuint makeTex2D(int w, int h, GLenum internalFmt);
     };
 

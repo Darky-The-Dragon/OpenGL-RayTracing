@@ -8,7 +8,7 @@
 namespace {
     // Helper: get directory from path, including trailing slash (if any), else empty string
     std::string getDirectory(const std::string &path) {
-        size_t pos = path.find_last_of('/');
+        const size_t pos = path.find_last_of('/');
         if (pos != std::string::npos) {
             return path.substr(0, pos + 1);
         }

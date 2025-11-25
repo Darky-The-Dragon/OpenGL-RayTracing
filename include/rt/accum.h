@@ -41,8 +41,8 @@ namespace rt {
         // Bind FBO with multiple render targets:
         //  - COLOR0 = accumulation write
         //  - COLOR1 = motion (RG16F)
-        //  - COLOR2 = gbuffer position (WS)
-        //  - COLOR3 = gbuffer normal (WS)
+        //  - COLOR2 = gBuffer position (WS)
+        //  - COLOR3 = gBuffer normal (WS)
         void bindWriteFBO_MRT(GLuint posTex, GLuint nrmTex) const;
 
         // Clear current write target(s) (COLOR0 and COLOR1) to zero.
@@ -54,9 +54,9 @@ namespace rt {
             writeIdx = 1 - writeIdx;
         }
 
-        // Helpers
-        GLuint readTex() const { return tex[1 - writeIdx]; }
-        GLuint writeTex() const { return tex[writeIdx]; }
+        // Helpers (always return valid GL textures → mark nodiscard)
+        [[nodiscard]] GLuint readTex() const { return tex[1 - writeIdx]; }
+        [[nodiscard]] GLuint writeTex() const { return tex[writeIdx]; }
 
     private:
         static GLuint createAccumTex(int w, int h); // RGBA16F
