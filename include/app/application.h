@@ -14,6 +14,8 @@ private:
     AppState app;
     GLFWwindow *window = nullptr;
 
+    bool initialized = false;
+
     bool initWindow();
 
     void initGLResources();

@@ -104,6 +104,16 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
     glBindTexture(GL_TEXTURE_2D, app.gBuffer.nrmTex);
     present.setInt("uGNrm", 3);
 
+    present.setFloat("uVarMax", app.params.svgfVarMax);
+    present.setFloat("uKVar", app.params.svgfKVar);
+    present.setFloat("uKColor", app.params.svgfKColor);
+    present.setFloat("uKVarMotion", app.params.svgfKVarMotion);
+    present.setFloat("uKColorMotion", app.params.svgfKColorMotion);
+    present.setFloat("uSvgfStrength", app.params.svgfStrength);
+    present.setFloat("uSvgfVarStaticEps", app.params.svgfVarEPS);
+    present.setFloat("uSvgfMotionStaticEps", app.params.svgfMotionEPS);
+    present.setInt("uEnableSVGF", app.params.enableSVGF ? 1 : 0);
+
     glBindVertexArray(app.fsVao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 

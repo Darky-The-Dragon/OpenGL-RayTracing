@@ -83,9 +83,19 @@ bool Application::initWindow() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
     window = glfwCreateWindow(1920, 1080, "OpenGL Ray/Path Tracing - Darky", nullptr, nullptr);
-    if (!window) return false;
+    if (!window) {
+        glfwTerminate();
+        return false;
+    }
+
     glfwMakeContextCurrent(window);
-    gladLoadGL(glfwGetProcAddress);
+    if (!gladLoadGL(glfwGetProcAddress)) {
+        glfwDestroyWindow(window);
+        window = nullptr;
+        glfwTerminate();
+        return false;
+    }
+
     return true;
 }
 
@@ -278,6 +288,15 @@ void Application::mainLoop() {
 }
 
 void Application::shutdown() {
+    if (!initialized) {
+        if (window) {
+            glfwDestroyWindow(window);
+            window = nullptr;
+        }
+        glfwTerminate();
+        return;
+    }
+
     app.rtShader.reset();
     app.presentShader.reset();
     app.rasterShader.reset();
@@ -295,14 +314,17 @@ void Application::shutdown() {
     app.accum = rt::Accum{};
 
     ui::Shutdown();
+
     if (window) glfwDestroyWindow(window);
     glfwTerminate();
+    initialized = false;
 }
 
 int Application::run() {
     if (!initWindow()) return -1;
     initGLResources();
     initState();
+    initialized = true;
     mainLoop();
     return 0;
 }
