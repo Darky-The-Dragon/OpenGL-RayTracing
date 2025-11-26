@@ -128,11 +128,11 @@ void Application::initState() {
         return;
     }
 
-    app.ground = std::make_unique<Model>("../models/plane.obj");
-    app.bunny = std::make_unique<Model>("../models/bunny_lp.obj");
-    app.sphere = std::make_unique<Model>("../models/sphere.obj");
-    app.bvhModel = std::make_unique<Model>("../models/bunny_lp.obj");
-    std::snprintf(app.bvhPicker.currentPath, sizeof(app.bvhPicker.currentPath), "../models/bunny_lp.obj");
+    app.ground = std::make_unique<Model>("models/plane.obj");
+    app.bunny = std::make_unique<Model>("models/bunny_lp.obj");
+    app.sphere = std::make_unique<Model>("models/sphere.obj");
+    app.bvhModel = std::make_unique<Model>("models/bunny_lp.obj");
+    std::snprintf(app.bvhPicker.currentPath, sizeof(app.bvhPicker.currentPath), "models/bunny_lp.obj");
 
     rebuild_bvh_from_model_path(app.bvhPicker.currentPath, app.bvhTransform, app.bvhModel, app.bvhNodeCount,
                                 app.bvhTriCount, app.bvh);

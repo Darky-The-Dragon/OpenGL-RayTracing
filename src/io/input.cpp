@@ -187,7 +187,7 @@ namespace io {
         p->cam->Fov -= static_cast<float>(yOff) * 2.0f;
         if (p->cam->Fov < 20.0f) p->cam->Fov = 20.0f;
         if (p->cam->Fov > 90.0f) p->cam->Fov = 90.0f;
-        p->state->cameraChangedThisFrame = true; // used in main loop to reset accumulation after zoom
+        p->state->cameraChangedThisFrame = true; // Application::mainLoop uses this to reset accumulation after FOV/zoom changes
     }
     void attach_callbacks(GLFWwindow *window, Camera *cam, InputState *state, CallbackPayload &payload) {
         payload.cam = cam;

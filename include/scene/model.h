@@ -97,7 +97,7 @@ private:
         std::vector<Vertex> vertices;
         std::vector<GLuint> indices;
 
-        bool warnedUV = false;
+        bool warnedNoUV = false;
 
         vertices.reserve(mesh->mNumVertices);
         for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
@@ -146,9 +146,9 @@ private:
                 vertex.TexCoords = glm::vec2(0.0f);
                 vertex.Tangent = glm::vec3(0.0f);
                 vertex.Bitangent = glm::vec3(0.0f);
-                if (!warnedUV) {
+                if (!warnedNoUV) {
                     std::cout << "WARNING: Model lacks UVs — Tangent/Bitangent set to 0." << std::endl;
-                    warnedUV = true;
+                    warnedNoUV = true;
                 }
             }
 

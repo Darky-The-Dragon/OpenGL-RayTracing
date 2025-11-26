@@ -600,12 +600,12 @@ namespace ui {
         // BVH model picker (top-right) – only visible when BVH is enabled
         // --------------------------------------------------------------------
         if (useBVH) {
-            // Scan ../models for .obj files once (or when forced)
+            // Scan models for .obj files once (or when forced)
             if (!gModelScanDone) {
                 namespace fs = std::filesystem;
                 gModelFiles.clear();
                 try {
-                    for (const auto &entry: fs::directory_iterator("../models")) {
+                    for (const auto &entry: fs::directory_iterator("models")) {
                         if (!entry.is_regular_file()) continue;
                         const auto &p = entry.path();
                         if (p.extension() == ".obj") {
@@ -613,7 +613,7 @@ namespace ui {
                         }
                     }
                 } catch (const std::exception &e) {
-                    Log("[BVH GUI] Failed to scan '../models': %s\n", e.what());
+                    Log("[BVH GUI] Failed to scan 'models': %s\n", e.what());
                 }
 
                 if (bvhPicker.selectedIndex >= static_cast<int>(gModelFiles.size())) {
@@ -643,7 +643,7 @@ namespace ui {
                     ImGuiWindowFlags_NoCollapse;
 
             if (ImGui::Begin("BVH Model Picker", nullptr, pickerFlags)) {
-            ImGui::TextUnformatted("Models in ../models/");
+            ImGui::TextUnformatted("Models in models/");
                 ImGui::Separator();
 
                 if (gModelFiles.empty()) {
@@ -669,7 +669,7 @@ namespace ui {
 
                 if (ImGui::Button("Rescan folder")) {
                     gModelScanDone = false; // trigger rescan next frame
-                    Log("[BVH GUI] Rescanning '../models'...\n");
+                    Log("[BVH GUI] Rescanning 'models'...\n");
                 }
 
                 ImGui::Separator();
