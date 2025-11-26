@@ -1,6 +1,7 @@
 #include "io/input.h"
-#include "../../include/io/Camera.h"
+#include "app/state.h"
 #include <algorithm>
+#include <GLFW/glfw3.h>
 
 namespace io {
     // ====== keyboard helper ======
@@ -149,16 +150,10 @@ namespace io {
     }
 
     // ====== mouse & scroll callbacks ======
-    struct CallbackPayload {
-        Camera *cam = nullptr;
-        InputState *state = nullptr;
-    };
-
     static void mouse_cb(GLFWwindow *w, const double xPos, const double yPos) {
-        const auto *p = static_cast<CallbackPayload *>(glfwGetWindowUserPointer(w));
-        if (!p || !p->cam || !p->state) return;
-
-        auto &s = *p->state;
+        auto *app = static_cast<AppState *>(glfwGetWindowUserPointer(w));
+        if (!app) return;
+        auto &s = app->input;
 
         // If UI / pointer mode is active, ignore camera look
         if (!s.sceneInputEnabled) {
@@ -180,25 +175,20 @@ namespace io {
         s.lastX = static_cast<float>(xPos);
         s.lastY = static_cast<float>(yPos);
 
-        p->cam->ProcessMouseMovement(dx, dy);
+        app->camera.ProcessMouseMovement(dx, dy);
     }
 
     static void scroll_cb(GLFWwindow *w, double /*xoff*/, const double yOff) {
-        const auto *p = static_cast<CallbackPayload *>(glfwGetWindowUserPointer(w));
-        if (!p || !p->cam) return;
+        auto *app = static_cast<AppState *>(glfwGetWindowUserPointer(w));
+        if (!app) return;
 
-        p->cam->Fov -= static_cast<float>(yOff) * 2.0f;
-        if (p->cam->Fov < 20.0f) p->cam->Fov = 20.0f;
-        if (p->cam->Fov > 90.0f) p->cam->Fov = 90.0f;
+        app->camera.Fov -= static_cast<float>(yOff) * 2.0f;
+        if (app->camera.Fov < 20.0f) app->camera.Fov = 20.0f;
+        if (app->camera.Fov > 90.0f) app->camera.Fov = 90.0f;
         // No accumulation reset here either.
     }
-
-    static CallbackPayload gPayload; // single-window app
-
-    void attach_callbacks(GLFWwindow *window, Camera *cam, InputState *state) {
-        gPayload.cam = cam;
-        gPayload.state = state;
-        glfwSetWindowUserPointer(window, &gPayload);
+    void attach_callbacks(GLFWwindow *window, AppState *app) {
+        glfwSetWindowUserPointer(window, app);
         glfwSetCursorPosCallback(window, mouse_cb);
         glfwSetScrollCallback(window, scroll_cb);
     }

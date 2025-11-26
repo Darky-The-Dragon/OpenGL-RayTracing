@@ -109,7 +109,7 @@ void Application::initState() {
             appPtr->gBuffer.recreate(width, height);
         }
     });
-    io::attach_callbacks(window, &app.camera, &app.input);
+    io::attach_callbacks(window, &app);
 
     const GLubyte *glVer = glGetString(GL_VERSION);
     ui::Log("[INIT] OpenGL version: %s\n", glVer ? reinterpret_cast<const char *>(glVer) : "unknown");

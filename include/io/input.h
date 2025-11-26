@@ -1,7 +1,8 @@
 #pragma once
-#include <GLFW/glfw3.h>
 
+struct GLFWwindow; // fwd
 class Camera; // fwd
+struct AppState; // fwd
 
 namespace io {
     struct InputState {
@@ -42,5 +43,5 @@ namespace io {
     bool update(InputState &s, GLFWwindow *win);
 
     // Hook GLFW callbacks for mouse/scroll (uses glfwSetWindowUserPointer under the hood)
-    void attach_callbacks(GLFWwindow *window, Camera *cam, InputState *state);
+    void attach_callbacks(GLFWwindow *window, AppState *app);
 } // namespace io

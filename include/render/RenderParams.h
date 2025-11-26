@@ -49,9 +49,9 @@ struct RenderParams {
     float svgfMotionEPS = 0.005f;
 
     // Constants
-    const float EPS = 1e-4;
-    const float PI = 3.1415926535;
-    const float INF = 1e30;
+    static constexpr float EPS = 1e-4;
+    static constexpr float PI = 3.1415926535;
+    static constexpr float INF = 1e30;
 
     // Debug
     float motionScale = 4.0f;

@@ -1,4 +1,4 @@
-#include "../../include/io/Camera.h"
+#include "io/Camera.h"
 #include <GLFW/glfw3.h>
 
 Camera::Camera(glm::vec3 position, float yaw, float pitch, float fov, float aspectRatio)
