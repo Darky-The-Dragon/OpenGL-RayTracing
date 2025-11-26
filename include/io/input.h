@@ -2,10 +2,12 @@
 
 #include <GLFW/glfw3.h>
 
-class Camera; // fwd
+class AppState; // fwd
+class Camera;   // fwd
 
 namespace io {
-    struct InputState {
+
+struct InputState {
         // runtime-tunable params
         int sppPerFrame = 1; // 1/2/4/8/16
         float exposure = 1.0f;
@@ -38,6 +40,12 @@ namespace io {
         bool cameraChangedThisFrame = false;
     };
 
+    struct CallbackPayload {
+        Camera *cam = nullptr;
+        InputState *state = nullptr;
+        AppState *app = nullptr;
+    };
+
     // Initialize once (placeholder for future use)
     inline void init(InputState &) {
     }
@@ -46,5 +54,5 @@ namespace io {
     bool update(InputState &s, GLFWwindow *win);
 
     // Hook GLFW callbacks for mouse/scroll (uses glfwSetWindowUserPointer under the hood)
-    void attach_callbacks(GLFWwindow *window, Camera *cam, InputState *state);
+    void attach_callbacks(GLFWwindow *window, Camera *cam, InputState *state, CallbackPayload &payload);
 } // namespace io

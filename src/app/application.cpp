@@ -97,20 +97,23 @@ void Application::initGLResources() {
 
 void Application::initState() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetWindowUserPointer(window, &app);
-    static AppState *gResizeApp = nullptr;
-    gResizeApp = &app;
-    glfwSetFramebufferSizeCallback(window, [](GLFWwindow *, int width, int height) {
+    static io::CallbackPayload callbackPayload; // single-window app
+    callbackPayload.app = &app;
+    callbackPayload.cam = &app.camera;
+    callbackPayload.state = &app.input;
+    glfwSetWindowUserPointer(window, &callbackPayload);
+    glfwSetFramebufferSizeCallback(window, [](GLFWwindow *win, int width, int height) {
         if (width <= 0 || height <= 0) return;
         glViewport(0, 0, width, height);
         glScissor(0, 0, width, height);
-        if (gResizeApp) {
-            gResizeApp->camera.AspectRatio = static_cast<float>(width) / static_cast<float>(height);
-            gResizeApp->accum.recreate(width, height);
-            gResizeApp->gBuffer.recreate(width, height);
+        auto *payload = static_cast<io::CallbackPayload *>(glfwGetWindowUserPointer(win));
+        if (payload && payload->app) {
+            payload->app->camera.AspectRatio = static_cast<float>(width) / static_cast<float>(height);
+            payload->app->accum.recreate(width, height);
+            payload->app->gBuffer.recreate(width, height);
         }
     });
-    io::attach_callbacks(window, &app.camera, &app.input);
+    io::attach_callbacks(window, &app.camera, &app.input, callbackPayload);
 
     const GLubyte *glVer = glGetString(GL_VERSION);
     ui::Log("[INIT] OpenGL version: %s\n", glVer ? reinterpret_cast<const char *>(glVer) : "unknown");
@@ -125,11 +128,11 @@ void Application::initState() {
         return;
     }
 
-    app.ground = std::make_unique<Model>("models/plane.obj");
-    app.bunny = std::make_unique<Model>("models/bunny_lp.obj");
-    app.sphere = std::make_unique<Model>("models/sphere.obj");
-    app.bvhModel = std::make_unique<Model>("models/bunny_lp.obj");
-    std::snprintf(app.bvhPicker.currentPath, sizeof(app.bvhPicker.currentPath), "models/bunny_lp.obj");
+    app.ground = std::make_unique<Model>("../models/plane.obj");
+    app.bunny = std::make_unique<Model>("../models/bunny_lp.obj");
+    app.sphere = std::make_unique<Model>("../models/sphere.obj");
+    app.bvhModel = std::make_unique<Model>("../models/bunny_lp.obj");
+    std::snprintf(app.bvhPicker.currentPath, sizeof(app.bvhPicker.currentPath), "../models/bunny_lp.obj");
 
     rebuild_bvh_from_model_path(app.bvhPicker.currentPath, app.bvhTransform, app.bvhModel, app.bvhNodeCount,
                                 app.bvhTriCount, app.bvh);
@@ -202,7 +205,8 @@ void Application::mainLoop() {
                 app.accum.reset();
             }
             if (app.input.changedSPP) {
-                app.params.sppPerFrame = std::clamp(app.input.sppPerFrame, 1, 64);
+                // Hotkeys support up to 16; clamp here for consistency.
+                app.params.sppPerFrame = std::clamp(app.input.sppPerFrame, 1, 16);
                 app.accum.reset();
             }
             if (app.params.exposure != app.input.exposure)

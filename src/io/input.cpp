@@ -151,11 +151,6 @@ namespace io {
     }
 
     // ====== mouse & scroll callbacks ======
-    struct CallbackPayload {
-        Camera *cam = nullptr;
-        InputState *state = nullptr;
-    };
-
     static void mouse_cb(GLFWwindow *w, const double xPos, const double yPos) {
         const auto *p = static_cast<CallbackPayload *>(glfwGetWindowUserPointer(w));
         if (!p || !p->cam || !p->state) return;
@@ -192,15 +187,12 @@ namespace io {
         p->cam->Fov -= static_cast<float>(yOff) * 2.0f;
         if (p->cam->Fov < 20.0f) p->cam->Fov = 20.0f;
         if (p->cam->Fov > 90.0f) p->cam->Fov = 90.0f;
-        p->state->cameraChangedThisFrame = true;
+        p->state->cameraChangedThisFrame = true; // used in main loop to reset accumulation after zoom
     }
-
-    static CallbackPayload gPayload; // single-window app
-
-    void attach_callbacks(GLFWwindow *window, Camera *cam, InputState *state) {
-        gPayload.cam = cam;
-        gPayload.state = state;
-        glfwSetWindowUserPointer(window, &gPayload);
+    void attach_callbacks(GLFWwindow *window, Camera *cam, InputState *state, CallbackPayload &payload) {
+        payload.cam = cam;
+        payload.state = state;
+        glfwSetWindowUserPointer(window, &payload);
         glfwSetCursorPosCallback(window, mouse_cb);
         glfwSetScrollCallback(window, scroll_cb);
     }
