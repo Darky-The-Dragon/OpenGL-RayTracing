@@ -1,7 +1,7 @@
 #include "io/input.h"
-#include "app/state.h"
-#include <algorithm>
+#include "io/Camera.h"
 #include <GLFW/glfw3.h>
+#include <algorithm>
 
 namespace io {
     // ====== keyboard helper ======
@@ -20,6 +20,7 @@ namespace io {
         s.changedSPP = false;
         s.toggledMotionDebug = false;
         s.toggledPointerMode = false;
+        s.cameraChangedThisFrame = false;
 
         // ESC → request quit
         if (keyDown(win, GLFW_KEY_ESCAPE))
@@ -150,10 +151,16 @@ namespace io {
     }
 
     // ====== mouse & scroll callbacks ======
+    struct CallbackPayload {
+        Camera *cam = nullptr;
+        InputState *state = nullptr;
+    };
+
     static void mouse_cb(GLFWwindow *w, const double xPos, const double yPos) {
-        auto *app = static_cast<AppState *>(glfwGetWindowUserPointer(w));
-        if (!app) return;
-        auto &s = app->input;
+        const auto *p = static_cast<CallbackPayload *>(glfwGetWindowUserPointer(w));
+        if (!p || !p->cam || !p->state) return;
+
+        auto &s = *p->state;
 
         // If UI / pointer mode is active, ignore camera look
         if (!s.sceneInputEnabled) {
@@ -175,20 +182,25 @@ namespace io {
         s.lastX = static_cast<float>(xPos);
         s.lastY = static_cast<float>(yPos);
 
-        app->camera.ProcessMouseMovement(dx, dy);
+        p->cam->ProcessMouseMovement(dx, dy);
     }
 
     static void scroll_cb(GLFWwindow *w, double /*xoff*/, const double yOff) {
-        auto *app = static_cast<AppState *>(glfwGetWindowUserPointer(w));
-        if (!app) return;
+        const auto *p = static_cast<CallbackPayload *>(glfwGetWindowUserPointer(w));
+        if (!p || !p->cam || !p->state) return;
 
-        app->camera.Fov -= static_cast<float>(yOff) * 2.0f;
-        if (app->camera.Fov < 20.0f) app->camera.Fov = 20.0f;
-        if (app->camera.Fov > 90.0f) app->camera.Fov = 90.0f;
-        // No accumulation reset here either.
+        p->cam->Fov -= static_cast<float>(yOff) * 2.0f;
+        if (p->cam->Fov < 20.0f) p->cam->Fov = 20.0f;
+        if (p->cam->Fov > 90.0f) p->cam->Fov = 90.0f;
+        p->state->cameraChangedThisFrame = true;
     }
-    void attach_callbacks(GLFWwindow *window, AppState *app) {
-        glfwSetWindowUserPointer(window, app);
+
+    static CallbackPayload gPayload; // single-window app
+
+    void attach_callbacks(GLFWwindow *window, Camera *cam, InputState *state) {
+        gPayload.cam = cam;
+        gPayload.state = state;
+        glfwSetWindowUserPointer(window, &gPayload);
         glfwSetCursorPosCallback(window, mouse_cb);
         glfwSetScrollCallback(window, scroll_cb);
     }

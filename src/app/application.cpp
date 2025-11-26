@@ -109,7 +109,7 @@ void Application::initState() {
             appPtr->gBuffer.recreate(width, height);
         }
     });
-    io::attach_callbacks(window, &app);
+    io::attach_callbacks(window, &app.camera, &app.input);
 
     const GLubyte *glVer = glGetString(GL_VERSION);
     ui::Log("[INIT] OpenGL version: %s\n", glVer ? reinterpret_cast<const char *>(glVer) : "unknown");
@@ -158,6 +158,7 @@ void Application::mainLoop() {
         app.lastFrame = tNow;
 
         const bool anyChanged = io::update(app.input, window);
+        const bool cameraChangedFromZoom = app.input.cameraChangedThisFrame;
 
         if (app.input.toggledPointerMode) {
             app.input.sceneInputEnabled = !app.input.sceneInputEnabled;
@@ -252,11 +253,12 @@ void Application::mainLoop() {
             ui::Log("[SVGF] %s\n", app.params.enableSVGF ? "ENABLED" : "DISABLED");
         }
 
-        if (guiChangedMode || guiChangedParams) {
+        if (guiChangedMode || guiChangedParams || cameraChangedFromZoom) {
             app.accum.reset();
-            ui::Log("[ACCUM] Reset due to GUI changes (%s%s)\n",
+            ui::Log("[ACCUM] Reset due to %s%s%s\n",
                     guiChangedMode ? "mode " : "",
-                    guiChangedParams ? "params" : "");
+                    guiChangedParams ? "params " : "",
+                    cameraChangedFromZoom ? "zoom" : "");
         }
     }
 }

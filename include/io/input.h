@@ -1,8 +1,8 @@
 #pragma once
 
-struct GLFWwindow; // fwd
+#include <GLFW/glfw3.h>
+
 class Camera; // fwd
-struct AppState; // fwd
 
 namespace io {
     struct InputState {
@@ -33,6 +33,9 @@ namespace io {
         float lastX = 400.0f;
         float lastY = 300.0f;
         bool sceneInputEnabled = true;
+
+        // Set when zoom/FOV changes this frame (mouse wheel)
+        bool cameraChangedThisFrame = false;
     };
 
     // Initialize once (placeholder for future use)
@@ -43,5 +46,5 @@ namespace io {
     bool update(InputState &s, GLFWwindow *win);
 
     // Hook GLFW callbacks for mouse/scroll (uses glfwSetWindowUserPointer under the hood)
-    void attach_callbacks(GLFWwindow *window, AppState *app);
+    void attach_callbacks(GLFWwindow *window, Camera *cam, InputState *state);
 } // namespace io
