@@ -7,6 +7,7 @@
 class Shader {
 public:
     unsigned int ID = 0;
+    bool valid = false;
 
     // Non-copyable, movable RAII wrapper around a GL program
     Shader(const Shader &) = delete;
@@ -22,6 +23,7 @@ public:
     ~Shader();
 
     void use() const;
+    [[nodiscard]] bool isValid() const { return valid; }
 
     void setBool(const std::string &name, bool value) const;
 

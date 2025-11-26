@@ -118,6 +118,11 @@ void Application::initState() {
     app.rtShader = std::make_unique<Shader>("../shaders/rt/rt_fullscreen.vert", "../shaders/rt/rt.frag");
     app.presentShader = std::make_unique<Shader>("../shaders/rt/rt_fullscreen.vert", "../shaders/rt/rt_present.frag");
     app.rasterShader = std::make_unique<Shader>("../shaders/basic.vert", "../shaders/basic.frag");
+    if (!app.rtShader->isValid() || !app.presentShader->isValid() || !app.rasterShader->isValid()) {
+        ui::Log("[INIT] Shader compile/link failed. Exiting.\n");
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+        return;
+    }
 
     app.ground = std::make_unique<Model>("../models/plane.obj");
     app.bunny = std::make_unique<Model>("../models/bunny_lp.obj");

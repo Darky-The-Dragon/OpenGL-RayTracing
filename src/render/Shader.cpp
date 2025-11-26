@@ -87,6 +87,7 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
                 << "Vertex: " << vertexPath << "\n"
                 << "Fragment: " << fragmentPath << std::endl;
         ID = 0; // invalid program; use() will bind 0
+        valid = false;
         return;
     }
 
@@ -125,6 +126,10 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
 
     glDeleteShader(vertex);
     glDeleteShader(fragment);
+
+    GLint linkStatus = 0;
+    glGetProgramiv(ID, GL_LINK_STATUS, &linkStatus);
+    valid = (linkStatus == GL_TRUE);
 }
 
 Shader::~Shader() {
@@ -135,7 +140,9 @@ Shader::~Shader() {
 }
 
 void Shader::use() const {
-    glUseProgram(ID);
+    if (valid) {
+        glUseProgram(ID);
+    }
 }
 
 void Shader::setBool(const std::string &name, const bool value) const {
