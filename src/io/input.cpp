@@ -1,6 +1,7 @@
 #include "app/state.h" // ensures glad is included before GLFW via state.h
 #include "io/input.h"
 #include "io/Camera.h"
+#include <GLFW/glfw3.h>
 #include <algorithm>
 
 namespace io {

@@ -8,6 +8,24 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
+#include <filesystem>
+#include <string>
+
+static std::string resolveShaderPath(const std::string &relative) {
+    namespace fs = std::filesystem;
+    fs::path preferred = fs::path("..") / relative;
+    if (fs::exists(preferred)) return preferred.string();
+    fs::path fallback = fs::path(relative);
+    return fallback.string();
+}
+
+static std::string resolveModelPath(const std::string &relative) {
+    namespace fs = std::filesystem;
+    fs::path preferred = fs::path("..") / relative;
+    if (fs::exists(preferred)) return preferred.string();
+    fs::path fallback = fs::path(relative);
+    return fallback.string();
+}
 
 static float halton(int index, const int base) {
     float f = 1.0f;
@@ -115,20 +133,27 @@ void Application::initState() {
     ui::Log("[INIT] OpenGL version: %s\n", glVer ? reinterpret_cast<const char *>(glVer) : "unknown");
     ui::Init(window);
 
-    app.rtShader = std::make_unique<Shader>("../shaders/rt/rt_fullscreen.vert", "../shaders/rt/rt.frag");
-    app.presentShader = std::make_unique<Shader>("../shaders/rt/rt_fullscreen.vert", "../shaders/rt/rt_present.frag");
-    app.rasterShader = std::make_unique<Shader>("../shaders/basic.vert", "../shaders/basic.frag");
+    const std::string rtVertPath = resolveShaderPath("shaders/rt/rt_fullscreen.vert");
+    const std::string rtFragPath = resolveShaderPath("shaders/rt/rt.frag");
+    const std::string presentFragPath = resolveShaderPath("shaders/rt/rt_present.frag");
+    const std::string rasterVertPath = resolveShaderPath("shaders/basic.vert");
+    const std::string rasterFragPath = resolveShaderPath("shaders/basic.frag");
+
+    app.rtShader = std::make_unique<Shader>(rtVertPath.c_str(), rtFragPath.c_str());
+    app.presentShader = std::make_unique<Shader>(rtVertPath.c_str(), presentFragPath.c_str());
+    app.rasterShader = std::make_unique<Shader>(rasterVertPath.c_str(), rasterFragPath.c_str());
     if (!app.rtShader->isValid() || !app.presentShader->isValid() || !app.rasterShader->isValid()) {
         ui::Log("[INIT] Shader compile/link failed. Exiting.\n");
         glfwSetWindowShouldClose(window, GLFW_TRUE);
         return;
     }
 
-    app.ground = std::make_unique<Model>("../models/plane.obj");
-    app.bunny = std::make_unique<Model>("../models/bunny_lp.obj");
-    app.sphere = std::make_unique<Model>("../models/sphere.obj");
-    app.bvhModel = std::make_unique<Model>("../models/bunny_lp.obj");
-    std::snprintf(app.bvhPicker.currentPath, sizeof(app.bvhPicker.currentPath), "../models/bunny_lp.obj");
+    app.ground = std::make_unique<Model>(resolveModelPath("models/plane.obj"));
+    app.bunny = std::make_unique<Model>(resolveModelPath("models/bunny_lp.obj"));
+    app.sphere = std::make_unique<Model>(resolveModelPath("models/sphere.obj"));
+    app.bvhModel = std::make_unique<Model>(resolveModelPath("models/bunny_lp.obj"));
+    const std::string initModelPath = resolveModelPath("models/bunny_lp.obj");
+    std::snprintf(app.bvhPicker.currentPath, sizeof(app.bvhPicker.currentPath), "%s", initModelPath.c_str());
 
     rebuild_bvh_from_model_path(app.bvhPicker.currentPath, app.bvhTransform, app.bvhModel, app.bvhNodeCount,
                                 app.bvhTriCount, app.bvh);

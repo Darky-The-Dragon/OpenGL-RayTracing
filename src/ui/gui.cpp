@@ -106,6 +106,7 @@ namespace ui {
     // Cached model list for BVH picker
     static std::vector<std::string> gModelFiles;
     static bool gModelScanDone = false;
+    static std::string gModelDir = "../models";
 
     // Forward declarations
     static void DrawKeybindLegend();
@@ -575,7 +576,7 @@ namespace ui {
     void Draw(RenderParams &params, const rt::FrameState &frame, const io::InputState &input, bool &rayMode,
               bool &useBVH, bool &showMotion, BvhModelPickerState &bvhPicker) {
         // --------------------------------------------------------------
-        // Disable ALL ImGui mouse input when FPS mode is active.
+        // Disable ALL ImGui mouse input when scene input (captured mouse) is active.
         // This prevents hovering, clicking, tooltips, highlights, etc.
         // --------------------------------------------------------------
         if (input.sceneInputEnabled) {
@@ -600,12 +601,15 @@ namespace ui {
         // BVH model picker (top-right) – only visible when BVH is enabled
         // --------------------------------------------------------------------
         if (useBVH) {
-            // Scan ../models for .obj files once (or when forced)
+            // Scan ../models (or fallback to models) for .obj files once (or when forced)
             if (!gModelScanDone) {
                 namespace fs = std::filesystem;
+                fs::path preferred = "../models";
+                fs::path fallback = "models";
+                gModelDir = fs::exists(preferred) ? preferred.string() : fallback.string();
                 gModelFiles.clear();
                 try {
-                    for (const auto &entry: fs::directory_iterator("../models")) {
+                    for (const auto &entry: fs::directory_iterator(gModelDir)) {
                         if (!entry.is_regular_file()) continue;
                         const auto &p = entry.path();
                         if (p.extension() == ".obj") {
@@ -613,7 +617,7 @@ namespace ui {
                         }
                     }
                 } catch (const std::exception &e) {
-                    Log("[BVH GUI] Failed to scan '../models': %s\n", e.what());
+                    Log("[BVH GUI] Failed to scan '%s': %s\n", gModelDir.c_str(), e.what());
                 }
 
                 if (bvhPicker.selectedIndex >= static_cast<int>(gModelFiles.size())) {
@@ -643,7 +647,7 @@ namespace ui {
                     ImGuiWindowFlags_NoCollapse;
 
             if (ImGui::Begin("BVH Model Picker", nullptr, pickerFlags)) {
-            ImGui::TextUnformatted("Models in ../models/");
+            ImGui::Text("Models in %s/", gModelDir.c_str());
                 ImGui::Separator();
 
                 if (gModelFiles.empty()) {
@@ -669,7 +673,7 @@ namespace ui {
 
                 if (ImGui::Button("Rescan folder")) {
                     gModelScanDone = false; // trigger rescan next frame
-                    Log("[BVH GUI] Rescanning '../models'...\n");
+                    Log("[BVH GUI] Rescanning '%s'...\n", gModelDir.c_str());
                 }
 
                 ImGui::Separator();
