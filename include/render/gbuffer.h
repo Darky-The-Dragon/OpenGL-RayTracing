@@ -11,7 +11,7 @@ namespace rt {
 
         GBuffer() = default;
 
-        ~GBuffer() { release(); }
+        ~GBuffer() = default;
 
         void recreate(int w, int h);
 

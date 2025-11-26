@@ -14,7 +14,7 @@ namespace rt {
 
         Accum() = default;
 
-        ~Accum();
+        ~Accum() = default;
 
         // non-copyable (prevents double-free of GL objects)
         Accum(const Accum &) = delete;
@@ -54,13 +54,13 @@ namespace rt {
             writeIdx = 1 - writeIdx;
         }
 
-        // Helpers (always return valid GL textures → mark nodiscard)
         [[nodiscard]] GLuint readTex() const { return tex[1 - writeIdx]; }
         [[nodiscard]] GLuint writeTex() const { return tex[writeIdx]; }
+
+        void release();
 
     private:
         static GLuint createAccumTex(int w, int h); // RGBA16F
         static GLuint createRG16F(int w, int h); // RG16F (motion)
-        void release();
     };
 } // namespace rt
