@@ -1,6 +1,6 @@
+#include "app/state.h" // ensures glad is included before GLFW via state.h
 #include "io/input.h"
 #include "io/Camera.h"
-#include <GLFW/glfw3.h>
 #include <algorithm>
 
 namespace io {
@@ -58,7 +58,7 @@ namespace io {
         }
         s.prevF6 = nowF6;
 
-        // P: toggle pointer / UI mode (fpsModeActive)
+        // P: toggle pointer / UI mode (sceneInputEnabled)
         const bool nowP = keyDown(win, GLFW_KEY_P);
         if (nowP && !s.prevP) {
             s.toggledPointerMode = true;
@@ -152,13 +152,12 @@ namespace io {
 
     // ====== mouse & scroll callbacks ======
     static void mouse_cb(GLFWwindow *w, const double xPos, const double yPos) {
-        const auto *p = static_cast<CallbackPayload *>(glfwGetWindowUserPointer(w));
-        if (!p || !p->cam || !p->state) return;
-
-        auto &s = *p->state;
+        auto *app = static_cast<AppState *>(glfwGetWindowUserPointer(w));
+        if (!app) return;
+        auto &s = app->input;
 
         // If UI / pointer mode is active, ignore camera look
-        if (!s.fpsModeActive) {
+        if (!s.sceneInputEnabled) {
             // Still track lastX/lastY to avoid a big jump when re-enabling
             s.lastX = static_cast<float>(xPos);
             s.lastY = static_cast<float>(yPos);
@@ -177,22 +176,19 @@ namespace io {
         s.lastX = static_cast<float>(xPos);
         s.lastY = static_cast<float>(yPos);
 
-        p->cam->ProcessMouseMovement(dx, dy);
+        app->camera.ProcessMouseMovement(dx, dy);
     }
 
     static void scroll_cb(GLFWwindow *w, double /*xoff*/, const double yOff) {
-        const auto *p = static_cast<CallbackPayload *>(glfwGetWindowUserPointer(w));
-        if (!p || !p->cam || !p->state) return;
+        auto *app = static_cast<AppState *>(glfwGetWindowUserPointer(w));
+        if (!app) return;
 
-        p->cam->Fov -= static_cast<float>(yOff) * 2.0f;
-        if (p->cam->Fov < 20.0f) p->cam->Fov = 20.0f;
-        if (p->cam->Fov > 90.0f) p->cam->Fov = 90.0f;
-        p->state->cameraChangedThisFrame = true; // Application::mainLoop uses this to reset accumulation after FOV/zoom changes
+        app->camera.Fov -= static_cast<float>(yOff) * 2.0f;
+        if (app->camera.Fov < 20.0f) app->camera.Fov = 20.0f;
+        if (app->camera.Fov > 90.0f) app->camera.Fov = 90.0f;
+        app->input.cameraChangedThisFrame = true; // This flag is used in Application::mainLoop() to reset accumulation when FOV changes.
     }
-    void attach_callbacks(GLFWwindow *window, Camera *cam, InputState *state, CallbackPayload &payload) {
-        payload.cam = cam;
-        payload.state = state;
-        glfwSetWindowUserPointer(window, &payload);
+    void attach_callbacks(GLFWwindow *window) {
         glfwSetCursorPosCallback(window, mouse_cb);
         glfwSetScrollCallback(window, scroll_cb);
     }

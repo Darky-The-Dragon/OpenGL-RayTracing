@@ -97,23 +97,19 @@ void Application::initGLResources() {
 
 void Application::initState() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    static io::CallbackPayload callbackPayload; // single-window app
-    callbackPayload.app = &app;
-    callbackPayload.cam = &app.camera;
-    callbackPayload.state = &app.input;
-    glfwSetWindowUserPointer(window, &callbackPayload);
+    glfwSetWindowUserPointer(window, &app);
     glfwSetFramebufferSizeCallback(window, [](GLFWwindow *win, int width, int height) {
         if (width <= 0 || height <= 0) return;
         glViewport(0, 0, width, height);
         glScissor(0, 0, width, height);
-        auto *payload = static_cast<io::CallbackPayload *>(glfwGetWindowUserPointer(win));
-        if (payload && payload->app) {
-            payload->app->camera.AspectRatio = static_cast<float>(width) / static_cast<float>(height);
-            payload->app->accum.recreate(width, height);
-            payload->app->gBuffer.recreate(width, height);
+        auto *payload = static_cast<AppState *>(glfwGetWindowUserPointer(win));
+        if (payload) {
+            payload->camera.AspectRatio = static_cast<float>(width) / static_cast<float>(height);
+            payload->accum.recreate(width, height);
+            payload->gBuffer.recreate(width, height);
         }
     });
-    io::attach_callbacks(window, &app.camera, &app.input, callbackPayload);
+    io::attach_callbacks(window);
 
     const GLubyte *glVer = glGetString(GL_VERSION);
     ui::Log("[INIT] OpenGL version: %s\n", glVer ? reinterpret_cast<const char *>(glVer) : "unknown");
@@ -128,18 +124,18 @@ void Application::initState() {
         return;
     }
 
-    app.ground = std::make_unique<Model>("models/plane.obj");
-    app.bunny = std::make_unique<Model>("models/bunny_lp.obj");
-    app.sphere = std::make_unique<Model>("models/sphere.obj");
-    app.bvhModel = std::make_unique<Model>("models/bunny_lp.obj");
-    std::snprintf(app.bvhPicker.currentPath, sizeof(app.bvhPicker.currentPath), "models/bunny_lp.obj");
+    app.ground = std::make_unique<Model>("../models/plane.obj");
+    app.bunny = std::make_unique<Model>("../models/bunny_lp.obj");
+    app.sphere = std::make_unique<Model>("../models/sphere.obj");
+    app.bvhModel = std::make_unique<Model>("../models/bunny_lp.obj");
+    std::snprintf(app.bvhPicker.currentPath, sizeof(app.bvhPicker.currentPath), "../models/bunny_lp.obj");
 
     rebuild_bvh_from_model_path(app.bvhPicker.currentPath, app.bvhTransform, app.bvhModel, app.bvhNodeCount,
                                 app.bvhTriCount, app.bvh);
 
     app.input.sppPerFrame = app.params.sppPerFrame;
     app.input.exposure = app.params.exposure;
-    app.input.fpsModeActive = true;
+    app.input.sceneInputEnabled = true;
     app.input.firstMouse = true;
     io::init(app.input);
 
@@ -165,16 +161,16 @@ void Application::mainLoop() {
         const bool cameraChangedFromZoom = app.input.cameraChangedThisFrame;
 
         if (app.input.toggledPointerMode) {
-            app.input.fpsModeActive = !app.input.fpsModeActive;
+            app.input.sceneInputEnabled = !app.input.sceneInputEnabled;
             ui::Log("[INPUT] Scene input %s (mouse %s)\n",
-                    app.input.fpsModeActive ? "ENABLED" : "DISABLED",
-                    app.input.fpsModeActive ? "captured" : "released");
+                    app.input.sceneInputEnabled ? "ENABLED" : "DISABLED",
+                    app.input.sceneInputEnabled ? "captured" : "released");
             glfwSetInputMode(window, GLFW_CURSOR,
-                             app.input.fpsModeActive ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
-            if (app.input.fpsModeActive) app.input.firstMouse = true;
+                             app.input.sceneInputEnabled ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+            if (app.input.sceneInputEnabled) app.input.firstMouse = true;
         }
         if (app.input.quitRequested) glfwSetWindowShouldClose(window, GLFW_TRUE);
-        if (app.input.fpsModeActive) app.camera.ProcessKeyboardInput(window, app.deltaTime);
+        if (app.input.sceneInputEnabled) app.camera.ProcessKeyboardInput(window, app.deltaTime);
 
         const glm::mat4 currView = app.camera.GetViewMatrix();
         const glm::mat4 currProj = app.camera.GetProjectionMatrix();

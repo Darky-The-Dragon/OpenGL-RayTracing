@@ -34,16 +34,10 @@ struct InputState {
         bool firstMouse = true;
         float lastX = 400.0f;
         float lastY = 300.0f;
-        bool fpsModeActive = true;
+        bool sceneInputEnabled = true;
 
         // Set when zoom/FOV changes this frame (mouse wheel)
         bool cameraChangedThisFrame = false;
-    };
-
-    struct CallbackPayload {
-        Camera *cam = nullptr;
-        InputState *state = nullptr;
-        AppState *app = nullptr;
     };
 
     // Initialize once (placeholder for future use)
@@ -53,6 +47,6 @@ struct InputState {
     // Returns true if anything changed that should reset accumulation
     bool update(InputState &s, GLFWwindow *win);
 
-    // Hook GLFW callbacks for mouse/scroll (uses glfwSetWindowUserPointer under the hood)
-    void attach_callbacks(GLFWwindow *window, Camera *cam, InputState *state, CallbackPayload &payload);
+    // Hook GLFW callbacks for mouse/scroll
+    void attach_callbacks(GLFWwindow *window);
 } // namespace io
