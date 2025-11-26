@@ -3,29 +3,13 @@
 #include "scene/bvh.h"
 #include "ui/gui.h"
 #include "io/input.h"
+#include "app/paths.h"
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
-#include <filesystem>
 #include <string>
-
-static std::string resolveShaderPath(const std::string &relative) {
-    namespace fs = std::filesystem;
-    fs::path preferred = fs::path("..") / relative;
-    if (fs::exists(preferred)) return preferred.string();
-    fs::path fallback = fs::path(relative);
-    return fallback.string();
-}
-
-static std::string resolveModelPath(const std::string &relative) {
-    namespace fs = std::filesystem;
-    fs::path preferred = fs::path("..") / relative;
-    if (fs::exists(preferred)) return preferred.string();
-    fs::path fallback = fs::path(relative);
-    return fallback.string();
-}
 
 static float halton(int index, const int base) {
     float f = 1.0f;
@@ -133,11 +117,11 @@ void Application::initState() {
     ui::Log("[INIT] OpenGL version: %s\n", glVer ? reinterpret_cast<const char *>(glVer) : "unknown");
     ui::Init(window);
 
-    const std::string rtVertPath = resolveShaderPath("shaders/rt/rt_fullscreen.vert");
-    const std::string rtFragPath = resolveShaderPath("shaders/rt/rt.frag");
-    const std::string presentFragPath = resolveShaderPath("shaders/rt/rt_present.frag");
-    const std::string rasterVertPath = resolveShaderPath("shaders/basic.vert");
-    const std::string rasterFragPath = resolveShaderPath("shaders/basic.frag");
+    const std::string rtVertPath = util::resolve_path("shaders/rt/rt_fullscreen.vert");
+    const std::string rtFragPath = util::resolve_path("shaders/rt/rt.frag");
+    const std::string presentFragPath = util::resolve_path("shaders/rt/rt_present.frag");
+    const std::string rasterVertPath = util::resolve_path("shaders/basic.vert");
+    const std::string rasterFragPath = util::resolve_path("shaders/basic.frag");
 
     app.rtShader = std::make_unique<Shader>(rtVertPath.c_str(), rtFragPath.c_str());
     app.presentShader = std::make_unique<Shader>(rtVertPath.c_str(), presentFragPath.c_str());
@@ -148,11 +132,11 @@ void Application::initState() {
         return;
     }
 
-    app.ground = std::make_unique<Model>(resolveModelPath("models/plane.obj"));
-    app.bunny = std::make_unique<Model>(resolveModelPath("models/bunny_lp.obj"));
-    app.sphere = std::make_unique<Model>(resolveModelPath("models/sphere.obj"));
-    app.bvhModel = std::make_unique<Model>(resolveModelPath("models/bunny_lp.obj"));
-    const std::string initModelPath = resolveModelPath("models/bunny_lp.obj");
+    app.ground = std::make_unique<Model>(util::resolve_path("models/plane.obj"));
+    app.bunny = std::make_unique<Model>(util::resolve_path("models/bunny_lp.obj"));
+    app.sphere = std::make_unique<Model>(util::resolve_path("models/sphere.obj"));
+    app.bvhModel = std::make_unique<Model>(util::resolve_path("models/bunny_lp.obj"));
+    const std::string initModelPath = util::resolve_path("models/bunny_lp.obj");
     std::snprintf(app.bvhPicker.currentPath, sizeof(app.bvhPicker.currentPath), "%s", initModelPath.c_str());
 
     rebuild_bvh_from_model_path(app.bvhPicker.currentPath, app.bvhTransform, app.bvhModel, app.bvhNodeCount,

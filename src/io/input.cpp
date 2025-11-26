@@ -1,4 +1,4 @@
-#include "app/state.h" // ensures glad is included before GLFW via state.h
+#include "app/state.h"
 #include "io/input.h"
 #include "io/Camera.h"
 #include <GLFW/glfw3.h>
@@ -187,8 +187,10 @@ namespace io {
         app->camera.Fov -= static_cast<float>(yOff) * 2.0f;
         if (app->camera.Fov < 20.0f) app->camera.Fov = 20.0f;
         if (app->camera.Fov > 90.0f) app->camera.Fov = 90.0f;
-        app->input.cameraChangedThisFrame = true; // This flag is used in Application::mainLoop() to reset accumulation when FOV changes.
+        app->input.cameraChangedThisFrame = true;
+        // This flag is used in Application::mainLoop() to reset accumulation when FOV changes.
     }
+
     void attach_callbacks(GLFWwindow *window) {
         glfwSetCursorPosCallback(window, mouse_cb);
         glfwSetScrollCallback(window, scroll_cb);

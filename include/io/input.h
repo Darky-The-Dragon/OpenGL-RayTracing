@@ -1,12 +1,11 @@
 #pragma once
 
 class AppState; // fwd
-class Camera;   // fwd
+class Camera; // fwd
 struct GLFWwindow; // fwd
 
 namespace io {
-
-struct InputState {
+    struct InputState {
         // runtime-tunable params
         int sppPerFrame = 1; // 1/2/4/8/16
         float exposure = 1.0f;

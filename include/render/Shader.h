@@ -23,6 +23,7 @@ public:
     ~Shader();
 
     void use() const;
+
     [[nodiscard]] bool isValid() const { return valid; }
 
     void setBool(const std::string &name, bool value) const;

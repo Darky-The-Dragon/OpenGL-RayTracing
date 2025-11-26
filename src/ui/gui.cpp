@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <vector>
 #include <string>
+#include "app/paths.h"
 
 namespace ui {
     // ============================================================================
@@ -604,9 +605,7 @@ namespace ui {
             // Scan ../models (or fallback to models) for .obj files once (or when forced)
             if (!gModelScanDone) {
                 namespace fs = std::filesystem;
-                fs::path preferred = "../models";
-                fs::path fallback = "models";
-                gModelDir = fs::exists(preferred) ? preferred.string() : fallback.string();
+                gModelDir = util::resolve_dir("models");
                 gModelFiles.clear();
                 try {
                     for (const auto &entry: fs::directory_iterator(gModelDir)) {
@@ -647,7 +646,7 @@ namespace ui {
                     ImGuiWindowFlags_NoCollapse;
 
             if (ImGui::Begin("BVH Model Picker", nullptr, pickerFlags)) {
-            ImGui::Text("Models in %s/", gModelDir.c_str());
+                ImGui::Text("Models in %s/", gModelDir.c_str());
                 ImGui::Separator();
 
                 if (gModelFiles.empty()) {
