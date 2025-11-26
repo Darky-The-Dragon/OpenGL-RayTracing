@@ -56,11 +56,3 @@ struct RenderParams {
     // Debug
     float motionScale = 4.0f;
 };
-
-struct RenderParamsUBO {
-    std::uint32_t ubo = 0;
-
-    void create();
-    void destroy();
-    void upload(const RenderParams &p);
-};

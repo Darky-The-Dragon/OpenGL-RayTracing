@@ -3,16 +3,16 @@
 #define RT_LIGHTING_GLSL
 
 // ------------- Light --------------
-const vec3  kLightCenter = vec3(0.0, 5.0, -3.0);
-const vec3  kLightN      = normalize(vec3(0.0, -1.0, 0.2));
+const vec3 kLightCenter = vec3(0.0, 5.0, -3.0);
+const vec3 kLightN = normalize(vec3(0.0, -1.0, 0.2));
 const float kLightRadius = 1.2;
-const vec3  kLightCol    = vec3(18.0);
+const vec3 kLightCol = vec3(18.0);
 
 // ---- Unified shadow test for both modes
 bool occludedToward(vec3 p, vec3 q) {
-    vec3 rd   = normalize(q - p);
+    vec3 rd = normalize(q - p);
     float maxT = length(q - p);
-    float eps  = epsForDist(maxT);
+    float eps = epsForDist(maxT);
     if (uUseBVH == 1) {
         return traceBVHShadow(p + rd * eps, rd, maxT - eps);
     } else {
@@ -38,11 +38,11 @@ void buildONB(in vec3 N, out vec3 T, out vec3 B) {
 vec3 sampleHemisphereCosine(vec3 N, vec2 u) {
     // cosine-weighted sample in local space (around +Y)
     float phi = 2.0 * uPI * u.x;
-    float r   = sqrt(u.y);
-    float x   = r * cos(phi);
-    float z   = r * sin(phi);
-    float y   = sqrt(max(0.0, 1.0 - u.y));
-    vec3 l    = vec3(x, y, z); // local (+Y hemisphere)
+    float r = sqrt(u.y);
+    float x = r * cos(phi);
+    float z = r * sin(phi);
+    float y = sqrt(max(0.0, 1.0 - u.y));
+    vec3 l = vec3(x, y, z); // local (+Y hemisphere)
 
     // build tangent frame once
     vec3 T, B;
@@ -60,7 +60,7 @@ vec3 sampleHemisphereCosine(vec3 N, vec2 u) {
 vec2 cpOffset(vec2 pix, int frame) {
     // Per-pixel hash → [0,1)^2
     vec2 h = vec2(
-    rand(pix,    frame * 911),
+    rand(pix, frame * 911),
     rand(pix.yx, frame * 577)
     );
     // Per-frame low-discrepancy rotation
@@ -88,7 +88,7 @@ vec3 directLight(Hit h, int frame, vec3 Vdir) {
     for (int i = 0; i < SOFT_SHADOW_SAMPLES; ++i) {
         // base random
         vec2 u = vec2(
-        rand(gl_FragCoord.xy + float(i),          frame),
+        rand(gl_FragCoord.xy + float(i), frame),
         rand(gl_FragCoord.yx + float(31 * i + 7), frame)
         );
         // Cranley–Patterson rotation + wrap
@@ -97,13 +97,13 @@ vec3 directLight(Hit h, int frame, vec3 Vdir) {
         vec2 d = concentricSample(u) * kLightRadius;
         vec3 xL = kLightCenter + t * d.x + b * d.y;
 
-        vec3 L   = normalize(xL - h.p);
+        vec3 L = normalize(xL - h.p);
         float ndl = max(dot(N, L), 0.0);
         float cosThetaL = max(dot(-kLightN, L), 0.0);
         float r2 = max(dot(xL - h.p, xL - h.p), 1e-4);
 
         float geom = (ndl * cosThetaL) / r2;
-        float vis  = occludedToward(h.p, xL) ? 0.0 : 1.0;
+        float vis = occludedToward(h.p, xL) ? 0.0 : 1.0;
 
         // Incoming radiance from the disk
         vec3 Li = kLightCol * geom * vis;
@@ -132,20 +132,20 @@ vec3 directLightBVH(Hit h, int frame, vec3 Vdir) {
     vec3 sum = vec3(0.0);
 
     // Hardcoded BVH material: white plastic
-    const vec3  albedo       = vec3(0.85);
+    const vec3 albedo = vec3(0.85);
     const float specStrength = 0.25;
-    const float gloss        = 32.0;
+    const float gloss = 32.0;
 
     vec3 t = normalize(abs(kLightN.y) < 0.99 ? cross(kLightN, vec3(0, 1, 0))
                        : cross(kLightN, vec3(1, 0, 0)));
     vec3 b = cross(kLightN, t);
 
     vec2 rot = cpOffset(gl_FragCoord.xy, uFrameIndex);
-    vec3 V   = normalize(Vdir);
+    vec3 V = normalize(Vdir);
 
     for (int i = 0; i < SOFT_SHADOW_SAMPLES; ++i) {
         vec2 u = vec2(
-        rand(gl_FragCoord.xy + float(i),          frame),
+        rand(gl_FragCoord.xy + float(i), frame),
         rand(gl_FragCoord.yx + float(31 * i + 7), frame)
         );
         u = fract(u + rot);
@@ -153,13 +153,13 @@ vec3 directLightBVH(Hit h, int frame, vec3 Vdir) {
         vec2 d = concentricSample(u) * kLightRadius;
         vec3 xL = kLightCenter + t * d.x + b * d.y;
 
-        vec3 L   = normalize(xL - h.p);
+        vec3 L = normalize(xL - h.p);
         float ndl = max(dot(N, L), 0.0);
         float cosThetaL = max(dot(-kLightN, L), 0.0);
         float r2 = max(dot(xL - h.p, xL - h.p), 1e-4);
 
         float geom = (ndl * cosThetaL) / r2;
-        float vis  = occludedToward(h.p, xL) ? 0.0 : 1.0;
+        float vis = occludedToward(h.p, xL) ? 0.0 : 1.0;
 
         vec3 Li = kLightCol * geom * vis;
 
@@ -216,9 +216,9 @@ vec3 oneBounceGIAnalytic(Hit h0, int frame, int seed) {
 vec3 oneBounceGIBVH(Hit h0, int frame, int seed)
 {
     // Hard-coded BVH albedo (same spirit as directLightBVH)
-    const vec3  albedo0         = vec3(0.85);
-    const float MAX_GI_LUM      = 8.0;   // tweak: 4–12 depending on light power
-    const float MIN_COS_THETA   = 0.1;   // avoid super-grazing bounces
+    const vec3 albedo0 = vec3(0.85);
+    const float MAX_GI_LUM = 8.0;   // tweak: 4–12 depending on light power
+    const float MIN_COS_THETA = 0.1;   // avoid super-grazing bounces
 
     // Random sample on hemisphere (per-pixel, per-seed)
     vec2 u = vec2(
@@ -238,7 +238,7 @@ vec3 oneBounceGIBVH(Hit h0, int frame, int seed)
     // This is more robust for thin triangles / sharp corners.
     vec3 origin = h0.p + N0 * uEPS;
 
-    Hit  h1;
+    Hit h1;
     bool hit1 = traceBVH(origin, wi, h1);
 
     vec3 Li;
@@ -275,7 +275,7 @@ float computeAO(Hit h, int frame)
     for (int i = 0; i < uAO_SAMPLES; ++i) {
         // deterministic but decorrelated per-pixel/per-sample noise
         vec2 u = vec2(
-        rand(gl_FragCoord.xy + float(37 * i + 3),  frame),
+        rand(gl_FragCoord.xy + float(37 * i + 3), frame),
         rand(gl_FragCoord.yx + float(19 * i + 11), frame)
         );
 
@@ -298,7 +298,7 @@ float computeAO(Hit h, int frame)
     }
 
     float occ = float(occludedCount) / float(uAO_SAMPLES); // 0..1
-    float ao  = 1.0 - occ;                                // 1=open, 0=closed
+    float ao = 1.0 - occ;                                // 1=open, 0=closed
 
     // Keep a minimum so nothing goes pitch-black
     ao = clamp(mix(uAO_MIN, 1.0, ao), uAO_MIN, 1.0);

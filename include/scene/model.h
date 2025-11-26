@@ -55,7 +55,7 @@ public:
 
     // Renders all meshes in the model
     void Draw() const {
-        for (const auto &mesh : meshes)
+        for (const auto &mesh: meshes)
             mesh.Draw();
     }
 

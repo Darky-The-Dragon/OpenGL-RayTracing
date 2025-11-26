@@ -25,7 +25,7 @@ uniform vec2 uResolution;
 uniform sampler2D uPrevAccum;
 uniform int uSpp;
 uniform vec2 uJitter;
-uniform int  uEnableJitter;
+uniform int uEnableJitter;
 
 // ---- Scene mode
 uniform int uUseBVH;     // 0 = analytic (plane+spheres), 1 = BVH triangle scene

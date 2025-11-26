@@ -5,6 +5,7 @@
 class Application {
 public:
     Application();
+
     ~Application();
 
     int run();
@@ -14,9 +15,13 @@ private:
     GLFWwindow *window = nullptr;
 
     bool initWindow();
+
     void initGLResources();
+
     void initState();
+
     void mainLoop();
+
     void shutdown();
 };
 

@@ -9,9 +9,9 @@
 // ---------------- Hit payload ----------------
 struct Hit {
     float t;
-    vec3  p;
-    vec3  n;
-    int   mat;
+    vec3 p;
+    vec3 n;
+    int mat;
 };
 
 // -------- Random & helpers ----------
@@ -69,7 +69,7 @@ vec2 concentricSample(vec2 u) {
 // ---- Motion helpers
 vec2 ndcFromWorld(vec3 p, mat4 VP) {
     vec4 clip = VP * vec4(p, 1.0);
-    vec3 ndc  = clip.xyz / max(clip.w, 1e-6);
+    vec3 ndc = clip.xyz / max(clip.w, 1e-6);
     return ndc.xy; // [-1,1]
 }
 

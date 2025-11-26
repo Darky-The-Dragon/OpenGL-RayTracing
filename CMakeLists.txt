@@ -50,15 +50,21 @@ include_directories(
         include/scene
         include/io
         include/ui
-        src
-        src/app
-        src/render
-        src/scene
-        src/io
-        src/ui
 )
 
-file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS src/*.cpp)
+set(SRC_FILES
+        src/app/application.cpp
+        src/app/main.cpp
+        src/render/render.cpp
+        src/render/Shader.cpp
+        src/render/accum.cpp
+        src/render/gbuffer.cpp
+        src/scene/bvh.cpp
+        src/io/input.cpp
+        src/io/Camera.cpp
+        src/ui/gui.cpp
+)
+
 add_executable(OpenGLRayTracing ${SRC_FILES})
 
 # ------------------------------------------------------------

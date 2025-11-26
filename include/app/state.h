@@ -28,7 +28,6 @@ struct AppState {
     rt::GBuffer gBuffer;
     rt::FrameState frame;
     RenderParams params;
-    RenderParamsUBO paramsUBO;
     bool rayMode = true;
     bool showMotion = false;
 
@@ -55,5 +54,6 @@ struct AppState {
     io::InputState input;
 
     AppState()
-        : camera(glm::vec3(0.0f, 2.0f, 8.0f), -90.0f, -10.0f, 60.0f, 1920.0f / 1080.0f) {}
+        : camera(glm::vec3(0.0f, 2.0f, 8.0f), -90.0f, -10.0f, 60.0f, 1920.0f / 1080.0f) {
+    }
 };

@@ -33,8 +33,8 @@ NodeSOA nodeFetch(int nodeIdx) {
     vec4 n1 = texelFetch(uBvhNodes, base + 1);
     vec4 n2 = texelFetch(uBvhNodes, base + 2);
     NodeSOA N;
-    N.bmin  = n0.xyz; N.left  = int(n0.w + 0.5);
-    N.bmax  = n1.xyz; N.right = int(n1.w + 0.5);
+    N.bmin = n0.xyz; N.left = int(n0.w + 0.5);
+    N.bmax = n1.xyz; N.right = int(n1.w + 0.5);
     N.first = int(n2.x + 0.5);
     N.count = int(n2.y + 0.5);
     return N;
@@ -95,11 +95,11 @@ bool traceBVH(vec3 ro, vec3 rd, out Hit hitOut) {
                 int triIdx = N.first + i;
                 TriSOA T = triFetch(triIdx);
                 float t;
-                vec3  n;
+                vec3 n;
                 if (triHit(ro, rd, T, hitOut.t, t, n)) {
-                    hitOut.t   = t;
-                    hitOut.p   = ro + rd * t;
-                    hitOut.n   = n;
+                    hitOut.t = t;
+                    hitOut.p = ro + rd * t;
+                    hitOut.n = n;
                     hitOut.mat = 1; // triangles = diffuse
                 }
             }
@@ -112,7 +112,7 @@ bool traceBVH(vec3 ro, vec3 rd, out Hit hitOut) {
             if (hitL && hitR) {
                 bool leftFirst = tminL < tminR;
                 stack[sp++] = leftFirst ? N.right : N.left;
-                stack[sp++] = leftFirst ? N.left  : N.right;
+                stack[sp++] = leftFirst ? N.left : N.right;
             } else if (hitL) {
                 stack[sp++] = N.left;
             } else if (hitR) {
@@ -143,7 +143,7 @@ bool traceBVHShadow(vec3 ro, vec3 rd, float tMax) {
                 int triIdx = N.first + i;
                 TriSOA T = triFetch(triIdx);
                 float t;
-                vec3  n;
+                vec3 n;
                 if (triHit(ro, rd, T, tMax, t, n)) {
                     return true; // any hit before light → occluded
                 }
@@ -157,7 +157,7 @@ bool traceBVHShadow(vec3 ro, vec3 rd, float tMax) {
             if (hitL && hitR) {
                 bool leftFirst = tminL < tminR;
                 stack[sp++] = leftFirst ? N.right : N.left;
-                stack[sp++] = leftFirst ? N.left  : N.right;
+                stack[sp++] = leftFirst ? N.left : N.right;
             } else if (hitL) {
                 stack[sp++] = N.left;
             } else if (hitR) {

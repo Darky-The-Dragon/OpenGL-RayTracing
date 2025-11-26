@@ -19,10 +19,22 @@ struct BVHHandle {
     GLuint triBuf = 0;
 
     void release() {
-        if (nodeTex) { glDeleteTextures(1, &nodeTex); nodeTex = 0; }
-        if (triTex)  { glDeleteTextures(1, &triTex);  triTex = 0; }
-        if (nodeBuf) { glDeleteBuffers(1, &nodeBuf); nodeBuf = 0; }
-        if (triBuf)  { glDeleteBuffers(1, &triBuf);  triBuf = 0; }
+        if (nodeTex) {
+            glDeleteTextures(1, &nodeTex);
+            nodeTex = 0;
+        }
+        if (triTex) {
+            glDeleteTextures(1, &triTex);
+            triTex = 0;
+        }
+        if (nodeBuf) {
+            glDeleteBuffers(1, &nodeBuf);
+            nodeBuf = 0;
+        }
+        if (triBuf) {
+            glDeleteBuffers(1, &triBuf);
+            triBuf = 0;
+        }
     }
 };
 
@@ -40,7 +52,7 @@ struct BVHNode {
 };
 
 /// Build a simple median-split BVH
-std::vector<BVHNode> build_bvh(std::vector<CPU_Triangle> &tris);
+std::vector<BVHNode> build_bvh(std::vector<CPU_Triangle> & tris);
 
 /// Upload linearized nodes & triangles to GPU as texture buffers (TBOs).
 /// Produces two textures + two buffers (so we can delete buffers safely at shutdown).

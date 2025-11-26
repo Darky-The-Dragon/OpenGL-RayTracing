@@ -10,11 +10,15 @@ public:
 
     // Non-copyable, movable RAII wrapper around a GL program
     Shader(const Shader &) = delete;
+
     Shader &operator=(const Shader &) = delete;
+
     Shader(Shader &&) noexcept;
+
     Shader &operator=(Shader &&) noexcept;
 
     Shader(const char *vertexPath, const char *fragmentPath);
+
     ~Shader();
 
     void use() const;
@@ -33,6 +37,8 @@ public:
 
 private:
     mutable std::unordered_map<std::string, int> uniformCache;
+
     int uniformLocation(const std::string &name) const;
+
     static void checkCompileErrors(unsigned int shader, const std::string &type);
 };

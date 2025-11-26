@@ -173,7 +173,7 @@ void upload_bvh_tbo(const std::vector<BVHNode> &nodes, const std::vector<CPU_Tri
         glGenBuffers(1, &outTriBuf);
     glBindBuffer(GL_TEXTURE_BUFFER, outTriBuf);
     glBufferData(
-        GL_TEXTURE_BUFFER, static_cast<GLsizeiptr>(triData.size() * sizeof(float)), triData.data(),GL_STATIC_DRAW);
+        GL_TEXTURE_BUFFER, static_cast<GLsizeiptr>(triData.size() * sizeof(float)), triData.data(), GL_STATIC_DRAW);
     if (!outTriTex)
         glGenTextures(1, &outTriTex);
     glBindTexture(GL_TEXTURE_BUFFER, outTriTex);

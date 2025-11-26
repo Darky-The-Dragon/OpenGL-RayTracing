@@ -97,12 +97,18 @@ void Application::initGLResources() {
 
 void Application::initState() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetFramebufferSizeCallback(window, [](GLFWwindow *, int width, int height) {
+    glfwSetWindowUserPointer(window, &app);
+    glfwSetFramebufferSizeCallback(window, [](GLFWwindow *w, int width, int height) {
         if (width <= 0 || height <= 0) return;
         glViewport(0, 0, width, height);
         glScissor(0, 0, width, height);
+        auto *appPtr = static_cast<AppState *>(glfwGetWindowUserPointer(w));
+        if (appPtr) {
+            appPtr->camera.AspectRatio = static_cast<float>(width) / static_cast<float>(height);
+            appPtr->accum.recreate(width, height);
+            appPtr->gBuffer.recreate(width, height);
+        }
     });
-
     io::attach_callbacks(window, &app.camera, &app.input);
 
     const GLubyte *glVer = glGetString(GL_VERSION);
@@ -112,7 +118,6 @@ void Application::initState() {
     app.rtShader = std::make_unique<Shader>("../shaders/rt/rt_fullscreen.vert", "../shaders/rt/rt.frag");
     app.presentShader = std::make_unique<Shader>("../shaders/rt/rt_fullscreen.vert", "../shaders/rt/rt_present.frag");
     app.rasterShader = std::make_unique<Shader>("../shaders/basic.vert", "../shaders/basic.frag");
-    app.paramsUBO.create();
 
     app.ground = std::make_unique<Model>("../models/plane.obj");
     app.bunny = std::make_unique<Model>("../models/bunny_lp.obj");
@@ -180,12 +185,26 @@ void Application::mainLoop() {
         }
 
         if (anyChanged) {
-            if (app.input.toggledRayMode) { app.rayMode = !app.rayMode; app.accum.reset(); }
+            if (app.input.toggledRayMode) {
+                app.rayMode = !app.rayMode;
+                app.accum.reset();
+            }
             if (app.input.resetAccum) { app.accum.reset(); }
-            if (app.input.toggledBVH) { app.useBVH = !app.useBVH; app.accum.reset(); }
-            if (app.input.changedSPP) { app.params.sppPerFrame = std::clamp(app.input.sppPerFrame, 1, 64); app.accum.reset(); }
-            if (app.params.exposure != app.input.exposure) app.params.exposure = std::clamp(app.input.exposure, 0.01f, 8.0f);
-            if (app.input.toggledMotionDebug) { app.showMotion = !app.showMotion; app.accum.reset(); }
+            if (app.input.toggledBVH) {
+                app.useBVH = !app.useBVH;
+                app.accum.reset();
+            }
+            if (app.input.changedSPP) {
+                app.params.sppPerFrame = std::clamp(app.input.sppPerFrame, 1, 64);
+                app.accum.reset();
+            }
+            if (app.params.exposure != app.input.exposure)
+                app.params.exposure = std::clamp(
+                    app.input.exposure, 0.01f, 8.0f);
+            if (app.input.toggledMotionDebug) {
+                app.showMotion = !app.showMotion;
+                app.accum.reset();
+            }
         }
 
         glfwGetFramebufferSize(window, &fbw, &fbh);
@@ -193,8 +212,6 @@ void Application::mainLoop() {
         glScissor(0, 0, fbw, fbh);
         glClearColor(0.1f, 0.0f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        app.paramsUBO.upload(app.params);
 
         if (app.rayMode) renderRay(app, fbw, fbh, cameraMoved, currView, currProj);
         else renderRaster(app, fbw, fbh, currView, currProj);
@@ -248,9 +265,11 @@ void Application::shutdown() {
     app.sphere.reset();
     app.bvhModel.reset();
 
-    if (app.fsVao) { glDeleteVertexArrays(1, &app.fsVao); app.fsVao = 0; }
+    if (app.fsVao) {
+        glDeleteVertexArrays(1, &app.fsVao);
+        app.fsVao = 0;
+    }
     app.bvh.release();
-    app.paramsUBO.destroy();
 
     ui::Shutdown();
     if (window) glfwDestroyWindow(window);
