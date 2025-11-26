@@ -53,11 +53,6 @@ namespace rt {
         frameIndex = 0;
     }
 
-    // --- lifetime ----------------------------------------------------------------
-    Accum::~Accum() {
-        release();
-    }
-
     Accum::Accum(Accum &&o) noexcept {
         *this = std::move(o);
     }
