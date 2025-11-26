@@ -32,7 +32,7 @@ namespace io {
         bool firstMouse = true;
         float lastX = 400.0f;
         float lastY = 300.0f;
-        bool sceneInputEnabled = true;
+        bool fpsModeActive = true;
 
         // Set when zoom/FOV changes this frame (mouse wheel)
         bool cameraChangedThisFrame = false;

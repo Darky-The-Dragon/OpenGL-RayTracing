@@ -22,7 +22,7 @@ namespace ui {
         bool reloadRequested = false;
         int selectedIndex = 0;
         // big enough scratch buffer for the current path, if you want to show it
-        char currentPath[256] = "../models/bunny_lp.obj";
+        char currentPath[256] = "models/bunny_lp.obj";
     };
 
     // Draw the control panel.

@@ -58,7 +58,7 @@ namespace io {
         }
         s.prevF6 = nowF6;
 
-        // P: toggle pointer / UI mode (sceneInputEnabled)
+        // P: toggle pointer / UI mode (fpsModeActive)
         const bool nowP = keyDown(win, GLFW_KEY_P);
         if (nowP && !s.prevP) {
             s.toggledPointerMode = true;
@@ -163,7 +163,7 @@ namespace io {
         auto &s = *p->state;
 
         // If UI / pointer mode is active, ignore camera look
-        if (!s.sceneInputEnabled) {
+        if (!s.fpsModeActive) {
             // Still track lastX/lastY to avoid a big jump when re-enabling
             s.lastX = static_cast<float>(xPos);
             s.lastY = static_cast<float>(yPos);

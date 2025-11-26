@@ -98,15 +98,16 @@ void Application::initGLResources() {
 void Application::initState() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetWindowUserPointer(window, &app);
-    glfwSetFramebufferSizeCallback(window, [](GLFWwindow *w, int width, int height) {
+    static AppState *gResizeApp = nullptr;
+    gResizeApp = &app;
+    glfwSetFramebufferSizeCallback(window, [](GLFWwindow *, int width, int height) {
         if (width <= 0 || height <= 0) return;
         glViewport(0, 0, width, height);
         glScissor(0, 0, width, height);
-        auto *appPtr = static_cast<AppState *>(glfwGetWindowUserPointer(w));
-        if (appPtr) {
-            appPtr->camera.AspectRatio = static_cast<float>(width) / static_cast<float>(height);
-            appPtr->accum.recreate(width, height);
-            appPtr->gBuffer.recreate(width, height);
+        if (gResizeApp) {
+            gResizeApp->camera.AspectRatio = static_cast<float>(width) / static_cast<float>(height);
+            gResizeApp->accum.recreate(width, height);
+            gResizeApp->gBuffer.recreate(width, height);
         }
     });
     io::attach_callbacks(window, &app.camera, &app.input);
@@ -124,18 +125,18 @@ void Application::initState() {
         return;
     }
 
-    app.ground = std::make_unique<Model>("../models/plane.obj");
-    app.bunny = std::make_unique<Model>("../models/bunny_lp.obj");
-    app.sphere = std::make_unique<Model>("../models/sphere.obj");
-    app.bvhModel = std::make_unique<Model>("../models/bunny_lp.obj");
-    std::snprintf(app.bvhPicker.currentPath, sizeof(app.bvhPicker.currentPath), "../models/bunny_lp.obj");
+    app.ground = std::make_unique<Model>("models/plane.obj");
+    app.bunny = std::make_unique<Model>("models/bunny_lp.obj");
+    app.sphere = std::make_unique<Model>("models/sphere.obj");
+    app.bvhModel = std::make_unique<Model>("models/bunny_lp.obj");
+    std::snprintf(app.bvhPicker.currentPath, sizeof(app.bvhPicker.currentPath), "models/bunny_lp.obj");
 
     rebuild_bvh_from_model_path(app.bvhPicker.currentPath, app.bvhTransform, app.bvhModel, app.bvhNodeCount,
                                 app.bvhTriCount, app.bvh);
 
     app.input.sppPerFrame = app.params.sppPerFrame;
     app.input.exposure = app.params.exposure;
-    app.input.sceneInputEnabled = true;
+    app.input.fpsModeActive = true;
     app.input.firstMouse = true;
     io::init(app.input);
 
@@ -161,16 +162,16 @@ void Application::mainLoop() {
         const bool cameraChangedFromZoom = app.input.cameraChangedThisFrame;
 
         if (app.input.toggledPointerMode) {
-            app.input.sceneInputEnabled = !app.input.sceneInputEnabled;
+            app.input.fpsModeActive = !app.input.fpsModeActive;
             ui::Log("[INPUT] Scene input %s (mouse %s)\n",
-                    app.input.sceneInputEnabled ? "ENABLED" : "DISABLED",
-                    app.input.sceneInputEnabled ? "captured" : "released");
+                    app.input.fpsModeActive ? "ENABLED" : "DISABLED",
+                    app.input.fpsModeActive ? "captured" : "released");
             glfwSetInputMode(window, GLFW_CURSOR,
-                             app.input.sceneInputEnabled ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
-            if (app.input.sceneInputEnabled) app.input.firstMouse = true;
+                             app.input.fpsModeActive ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+            if (app.input.fpsModeActive) app.input.firstMouse = true;
         }
         if (app.input.quitRequested) glfwSetWindowShouldClose(window, GLFW_TRUE);
-        if (app.input.sceneInputEnabled) app.camera.ProcessKeyboardInput(window, app.deltaTime);
+        if (app.input.fpsModeActive) app.camera.ProcessKeyboardInput(window, app.deltaTime);
 
         const glm::mat4 currView = app.camera.GetViewMatrix();
         const glm::mat4 currProj = app.camera.GetProjectionMatrix();
@@ -236,7 +237,11 @@ void Application::mainLoop() {
             app.bvhPicker.reloadRequested = false;
             if (rebuild_bvh_from_model_path(app.bvhPicker.currentPath, app.bvhTransform, app.bvhModel,
                                             app.bvhNodeCount, app.bvhTriCount, app.bvh)) {
+                ui::Log("[BVH] Rebuilt BVH from '%s': nodes=%d, tris=%d\n",
+                        app.bvhPicker.currentPath, app.bvhNodeCount, app.bvhTriCount);
                 app.accum.reset();
+            } else {
+                ui::Log("[BVH] Failed to build BVH from '%s'\n", app.bvhPicker.currentPath);
             }
         }
 

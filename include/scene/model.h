@@ -97,6 +97,8 @@ private:
         std::vector<Vertex> vertices;
         std::vector<GLuint> indices;
 
+        bool warnedUV = false;
+
         vertices.reserve(mesh->mNumVertices);
         for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
             Vertex vertex{};
@@ -109,11 +111,15 @@ private:
             };
 
             // Normal
-            vertex.Normal = {
-                mesh->mNormals[i].x,
-                mesh->mNormals[i].y,
-                mesh->mNormals[i].z
-            };
+            if (mesh->HasNormals()) {
+                vertex.Normal = {
+                    mesh->mNormals[i].x,
+                    mesh->mNormals[i].y,
+                    mesh->mNormals[i].z
+                };
+            } else {
+                vertex.Normal = glm::vec3(0.0f, 1.0f, 0.0f);
+            }
 
             // Texture Coordinates, Tangent, Bitangent (if available)
             if (mesh->mTextureCoords[0]) {
@@ -121,21 +127,29 @@ private:
                     mesh->mTextureCoords[0][i].x,
                     mesh->mTextureCoords[0][i].y
                 };
-                vertex.Tangent = {
-                    mesh->mTangents[i].x,
-                    mesh->mTangents[i].y,
-                    mesh->mTangents[i].z
-                };
-                vertex.Bitangent = {
-                    mesh->mBitangents[i].x,
-                    mesh->mBitangents[i].y,
-                    mesh->mBitangents[i].z
-                };
+                if (mesh->mTangents && mesh->mBitangents) {
+                    vertex.Tangent = {
+                        mesh->mTangents[i].x,
+                        mesh->mTangents[i].y,
+                        mesh->mTangents[i].z
+                    };
+                    vertex.Bitangent = {
+                        mesh->mBitangents[i].x,
+                        mesh->mBitangents[i].y,
+                        mesh->mBitangents[i].z
+                    };
+                } else {
+                    vertex.Tangent = glm::vec3(0.0f);
+                    vertex.Bitangent = glm::vec3(0.0f);
+                }
             } else {
                 vertex.TexCoords = glm::vec2(0.0f);
                 vertex.Tangent = glm::vec3(0.0f);
                 vertex.Bitangent = glm::vec3(0.0f);
-                std::cout << "WARNING: Model lacks UVs — Tangent/Bitangent set to 0." << std::endl;
+                if (!warnedUV) {
+                    std::cout << "WARNING: Model lacks UVs — Tangent/Bitangent set to 0." << std::endl;
+                    warnedUV = true;
+                }
             }
 
             vertices.emplace_back(vertex);
