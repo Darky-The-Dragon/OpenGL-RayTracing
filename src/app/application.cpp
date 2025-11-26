@@ -291,6 +291,8 @@ void Application::shutdown() {
         app.fsVao = 0;
     }
     app.bvh.release();
+    app.gBuffer.release();
+    app.accum = rt::Accum{};
 
     ui::Shutdown();
     if (window) glfwDestroyWindow(window);
