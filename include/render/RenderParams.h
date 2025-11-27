@@ -21,6 +21,11 @@ struct RenderParams {
     float giScaleAnalytic = 0.35f;
     float giScaleBVH = 0.20f;
 
+    // CubeMap
+    int enableEnvMap = 1;
+    float envMapIntensity = 1.0f;
+
+
     // AO
     int enableAO = 1;
     int aoSamples = 4;

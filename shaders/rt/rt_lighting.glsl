@@ -53,6 +53,59 @@ vec3 sampleHemisphereCosine(vec3 N, vec2 u) {
 }
 
 // ============================================================================
+// Glass shading helper
+// ============================================================================
+
+// wo = direction *from hit toward the camera* (i.e. -rayDir)
+vec3 shadeGlass(const Hit h, const vec3 wo, const MaterialProps mat) {
+    vec3 N = normalize(h.n);
+    vec3 I = -normalize(wo); // incident (from camera toward surface)
+
+    float etai = 1.0;
+    float etat = mat.ior;
+    float cosi = clamp(dot(-I, N), -1.0, 1.0);
+    vec3 n = N;
+
+    // Entering / exiting medium
+    if (cosi < 0.0) {
+        // we are inside the medium, flip normal and swap indices
+        cosi = -cosi;
+        n = -N;
+        float tmp = etai;
+        etai = etat;
+        etat = tmp;
+    }
+
+    float etaRatio = etai / etat;
+    float sint2 = etaRatio * etaRatio * (1.0 - cosi * cosi);
+
+    vec3 reflDir = normalize(reflect(I, n));
+    vec3 reflCol = sky(reflDir);          // env / sky handles env map
+
+    float kr;
+    vec3 refrCol = vec3(0.0);
+
+    if (sint2 > 1.0) {
+        // Total internal reflection
+        kr = 1.0;
+    } else {
+        float cost = sqrt(1.0 - sint2);
+        vec3 refrDir = normalize(etaRatio * I + (etaRatio * cosi - cost) * n);
+
+        // Fresnel using exact formula
+        float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+        float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+        kr = clamp(0.5 * (Rs * Rs + Rp * Rp), 0.0, 1.0);
+
+        // Use albedo as a tint for refraction
+        refrCol = sky(refrDir) * mat.albedo;
+    }
+
+    // Blend reflection and refraction
+    return mix(refrCol, reflCol, kr);
+}
+
+// ============================================================================
 // Direct lighting
 // ============================================================================
 
@@ -111,7 +164,7 @@ vec3 directLight(Hit h, int frame, vec3 Vdir) {
         // Diffuse (Lambert)
         vec3 diffuse = mat.albedo * (ndl / uPI);
 
-        // Cheap Phong specular (only for non-mirror mats)
+        // Cheap Phong specular (only for non-mirror, non-glass)
         vec3 spec = vec3(0.0);
         if (mat.type == 0 && mat.specStrength > 0.0) {
             vec3 H = normalize(L + V);               // halfway vector

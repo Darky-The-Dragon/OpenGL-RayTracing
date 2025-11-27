@@ -1,4 +1,5 @@
 #include "app/application.h"
+#include "render/cubemap.h"
 #include "render/render.h"
 #include "scene/bvh.h"
 #include "ui/gui.h"
@@ -40,8 +41,10 @@ static bool paramsChanged(const RenderParams &a, const RenderParams &b) {
     if (a.enableTAA != b.enableTAA) return true;
     if (a.enableSVGF != b.enableSVGF) return true;
     if (a.aoSamples != b.aoSamples) return true;
+    if (a.enableEnvMap != b.enableEnvMap) return true;
     if (a.enableJitter != b.enableJitter) return true;
 
+    if (diff(a.envMapIntensity, b.envMapIntensity)) return true;
     if (diff(a.jitterStillScale, b.jitterStillScale)) return true;
     if (diff(a.jitterMovingScale, b.jitterMovingScale)) return true;
     if (diff(a.giScaleAnalytic, b.giScaleAnalytic)) return true;
@@ -152,6 +155,26 @@ void Application::initState() {
     rebuild_bvh_from_model_path(app.bvhPicker.currentPath, app.bvhTransform, app.bvhModel, app.bvhNodeCount,
                                 app.bvhTriCount, app.bvh);
 
+    const std::string defaultEnvPath = util::resolve_path("cubemaps/Sky_16.png");
+
+    // Store the path in the picker so GUI reflects it
+    std::snprintf(app.envPicker.currentPath,
+                  sizeof(app.envPicker.currentPath),
+                  "%s",
+                  defaultEnvPath.c_str());
+
+    // Ensure correct selection index (GUI cosmetic)
+    app.envPicker.selectedIndex = 0;
+
+    // Tell mainLoop to load this cubemap on the first frame
+    app.envPicker.reloadRequested = true;
+
+    // Enable env map from the very start
+    app.params.enableEnvMap = 1;
+
+    ui::Log("[ENV] Default cubemap set to: %s (will load next frame)\n",
+            defaultEnvPath.c_str());
+
     app.input.sppPerFrame = app.params.sppPerFrame;
     app.input.exposure = app.params.exposure;
     app.input.sceneInputEnabled = true;
@@ -172,7 +195,7 @@ void Application::mainLoop() {
         glfwPollEvents();
         ui::BeginFrame();
 
-        auto tNow = static_cast<float>(glfwGetTime());
+        const auto tNow = static_cast<float>(glfwGetTime());
         app.deltaTime = tNow - app.lastFrame;
         app.lastFrame = tNow;
 
@@ -203,7 +226,7 @@ void Application::mainLoop() {
 
         if (app.params.enableJitter) {
             glm::vec2 baseJitter = generateJitter2D(app.accum.frameIndex);
-            float scale = cameraMoved ? app.params.jitterMovingScale : app.params.jitterStillScale;
+            const float scale = cameraMoved ? app.params.jitterMovingScale : app.params.jitterStillScale;
             app.frame.jitter = baseJitter * scale;
         } else {
             app.frame.jitter = glm::vec2(0.0f);
@@ -245,11 +268,11 @@ void Application::mainLoop() {
         app.frame.endFrame();
 
         RenderParams prevGuiParams = app.params;
-        bool prevRayMode = app.rayMode;
-        bool prevUseBVH = app.useBVH;
-        bool prevShowMotion = app.showMotion;
+        const bool prevRayMode = app.rayMode;
+        const bool prevUseBVH = app.useBVH;
+        const bool prevShowMotion = app.showMotion;
 
-        ui::Draw(app.params, app.frame, app.input, app.rayMode, app.useBVH, app.showMotion, app.bvhPicker);
+        ui::Draw(app.params, app.frame, app.input, app.rayMode, app.useBVH, app.showMotion, app.bvhPicker, app.envPicker);
         ui::EndFrame();
 
         if (app.bvhPicker.reloadRequested) {
@@ -261,6 +284,22 @@ void Application::mainLoop() {
                 app.accum.reset();
             } else {
                 ui::Log("[BVH] Failed to build BVH from '%s'\n", app.bvhPicker.currentPath);
+            }
+        }
+
+        if (app.envPicker.reloadRequested) {
+            app.envPicker.reloadRequested = false;
+
+            const GLuint newTex = loadCubeMapFromCross(app.envPicker.currentPath);
+            if (newTex != 0) {
+                if (app.envMapTex) {
+                    glDeleteTextures(1, &app.envMapTex);
+                }
+                app.envMapTex = newTex;
+                ui::Log("[ENV] Loaded cubemap: %s\n", app.envPicker.currentPath);
+                app.accum.reset();
+            } else {
+                ui::Log("[ENV] FAILED to load cubemap: %s\n", app.envPicker.currentPath);
             }
         }
 
@@ -305,13 +344,18 @@ void Application::shutdown() {
     app.sphere.reset();
     app.bvhModel.reset();
 
+    if (app.envMapTex) {
+        glDeleteTextures(1, &app.envMapTex);
+        app.envMapTex = 0;
+    }
+
     if (app.fsVao) {
         glDeleteVertexArrays(1, &app.fsVao);
         app.fsVao = 0;
     }
     app.bvh.release();
     app.gBuffer.release();
-    app.accum = rt::Accum{};
+    app.accum.release();
 
     ui::Shutdown();
 

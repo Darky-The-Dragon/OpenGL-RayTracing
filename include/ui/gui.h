@@ -21,8 +21,13 @@ namespace ui {
     struct BvhModelPickerState {
         bool reloadRequested = false;
         int selectedIndex = 0;
-        // big enough scratch buffer for the current path, if you want to show it
         char currentPath[256] = "../models/bunny_lp.obj";
+    };
+
+    struct EnvMapPickerState {
+        bool reloadRequested = false;
+        int  selectedIndex   = 0;
+        char currentPath[256] = "../cubemaps/Sky_16.png";
     };
 
     // Draw the control panel.
@@ -31,7 +36,7 @@ namespace ui {
     //  - InputState is only read (for debug display).
     //  - We MODIFY bvhPicker when BVH is enabled (choose model, request reload).
     void Draw(RenderParams &params, const rt::FrameState &frame, const io::InputState &input, bool &rayMode,
-              bool &useBVH, bool &showMotion, BvhModelPickerState &bvhPicker);
+              bool &useBVH, bool &showMotion, BvhModelPickerState &bvhPicker, EnvMapPickerState &envPicker);
 
     void Log(const char *fmt, ...);
 } // namespace ui

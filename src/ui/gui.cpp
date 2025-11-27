@@ -109,6 +109,12 @@ namespace ui {
     static bool gModelScanDone = false;
     static std::string gModelDir = "../models";
 
+    // Cached env-map list for env picker
+    static std::vector<std::string> gEnvFiles;
+    static bool gEnvScanDone = false;
+    static std::string gEnvDir = "../cubemaps";
+
+
     // Forward declarations
     static void DrawKeybindLegend();
 
@@ -241,6 +247,28 @@ namespace ui {
                     Log("[GUI] Exposure changed: %.4f -> %.4f\n", oldExp, params.exposure);
                 }
             }
+        }
+
+        // ------------------------------------------------------------------------
+        // Environment
+        // ------------------------------------------------------------------------
+        if (ImGui::CollapsingHeader("Environment")) {
+            bool envEnabled = (params.enableEnvMap != 0);
+            if (ImGui::Checkbox("Use Env Map (sky)", &envEnabled)) {
+                params.enableEnvMap = envEnabled ? 1 : 0;
+                Log("[ENV] Env map: %s\n", envEnabled ? "ENABLED" : "DISABLED");
+            }
+
+            const float oldIntensity = params.envMapIntensity;
+            if (ImGui::SliderFloat("Env Intensity", &params.envMapIntensity,
+                                   0.0f, 5.0f, "%.2f")) {
+                if (params.envMapIntensity != oldIntensity) {
+                    Log("[ENV] Intensity: %.3f -> %.3f\n",
+                        oldIntensity, params.envMapIntensity);
+                }
+            }
+
+            ImGui::TextWrapped("Select the actual cubemap in the \"Env Map Picker\" window (top-right).");
         }
 
         // ------------------------------------------------------------------------
@@ -575,7 +603,7 @@ namespace ui {
     // Public draw entry
     // ============================================================================
     void Draw(RenderParams &params, const rt::FrameState &frame, const io::InputState &input, bool &rayMode,
-              bool &useBVH, bool &showMotion, BvhModelPickerState &bvhPicker) {
+              bool &useBVH, bool &showMotion, BvhModelPickerState &bvhPicker, EnvMapPickerState &envPicker) {
         // --------------------------------------------------------------
         // Disable ALL ImGui mouse input when scene input (captured mouse) is active.
         // This prevents hovering, clicking, tooltips, highlights, etc.
@@ -587,8 +615,8 @@ namespace ui {
             io.MousePos = ImVec2(-FLT_MAX, -FLT_MAX);
 
             // Disable mouse buttons so UI cannot click anything
-            for (int i = 0; i < ImGuiMouseButton_COUNT; ++i)
-                io.MouseDown[i] = false;
+            for (bool &i: io.MouseDown)
+                i = false;
 
             // Optional: ensure wheel scrolling doesn't affect UI
             io.MouseWheel = 0.0f;
@@ -677,6 +705,94 @@ namespace ui {
 
                 ImGui::Separator();
                 ImGui::TextWrapped("Current: %s", bvhPicker.currentPath);
+            }
+            ImGui::End();
+        }
+
+                // --------------------------------------------------------------------
+        // Env Map picker (top-right, under BVH picker)
+        // --------------------------------------------------------------------
+        {
+            // Scan ./cubemaps (or ../cubemaps) for image files once (or when forced)
+            if (!gEnvScanDone) {
+                namespace fs = std::filesystem;
+                gEnvDir = util::resolve_dir("cubemaps");
+                gEnvFiles.clear();
+                try {
+                    for (const auto &entry : fs::directory_iterator(gEnvDir)) {
+                        if (!entry.is_regular_file()) continue;
+                        const auto &p = entry.path();
+                        auto ext = p.extension().string();
+                        if (ext == ".png" || ext == ".jpg" ||
+                            ext == ".jpeg" || ext == ".hdr" ||
+                            ext == ".exr") {
+                            gEnvFiles.push_back(p.string());
+                        }
+                    }
+                } catch (const std::exception &e) {
+                    Log("[ENV GUI] Failed to scan '%s': %s\n",
+                        gEnvDir.c_str(), e.what());
+                }
+
+                if (envPicker.selectedIndex >= static_cast<int>(gEnvFiles.size())) {
+                    envPicker.selectedIndex = 0;
+                }
+
+                if (!gEnvFiles.empty()) {
+                    std::snprintf(envPicker.currentPath,
+                                  sizeof(envPicker.currentPath),
+                                  "%s",
+                                  gEnvFiles[envPicker.selectedIndex].c_str());
+                }
+
+                gEnvScanDone = true;
+            }
+
+            const ImGuiViewport *vp = ImGui::GetMainViewport();
+            // Slightly below the BVH picker (offset y by ~120 px)
+            const ImVec2 pos(vp->WorkPos.x + vp->WorkSize.x - 10.0f,
+                             vp->WorkPos.y + 130.0f);
+
+            ImGui::SetNextWindowPos(pos, ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+
+            constexpr ImGuiWindowFlags pickerFlags =
+                    ImGuiWindowFlags_NoResize |
+                    ImGuiWindowFlags_AlwaysAutoResize |
+                    ImGuiWindowFlags_NoSavedSettings |
+                    ImGuiWindowFlags_NoCollapse;
+
+            if (ImGui::Begin("Env Map Picker", nullptr, pickerFlags)) {
+                ImGui::Text("Cubemaps in %s/", gEnvDir.c_str());
+                ImGui::Separator();
+
+                if (gEnvFiles.empty()) {
+                    ImGui::TextUnformatted("No cubemap images found.");
+                } else {
+                    for (int i = 0; i < static_cast<int>(gEnvFiles.size()); ++i) {
+                        const bool isSelected = (i == envPicker.selectedIndex);
+                        const char *label = gEnvFiles[i].c_str();
+                        if (ImGui::Selectable(label, isSelected)) {
+                            if (!isSelected) {
+                                envPicker.selectedIndex = i;
+                                std::snprintf(envPicker.currentPath,
+                                              sizeof(envPicker.currentPath),
+                                              "%s",
+                                              gEnvFiles[i].c_str());
+                                envPicker.reloadRequested = true;
+                                Log("[ENV GUI] Selected env map: %s\n",
+                                    envPicker.currentPath);
+                            }
+                        }
+                    }
+                }
+
+                if (ImGui::Button("Rescan folder")) {
+                    gEnvScanDone = false; // trigger rescan next frame
+                    Log("[ENV GUI] Rescanning '%s'...\n", gEnvDir.c_str());
+                }
+
+                ImGui::Separator();
+                ImGui::TextWrapped("Current: %s", envPicker.currentPath);
             }
             ImGui::End();
         }

@@ -58,7 +58,9 @@ set(SRC_FILES
         src/render/render.cpp
         src/render/Shader.cpp
         src/render/accum.cpp
+        src/render/cubemap.cpp
         src/render/gbuffer.cpp
+        src/render/stb_image_impl.cpp
         src/scene/bvh.cpp
         src/io/input.cpp
         src/io/Camera.cpp

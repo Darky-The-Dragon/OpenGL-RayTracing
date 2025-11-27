@@ -37,17 +37,27 @@ bool traceAnalytic(vec3 ro, vec3 rd, out Hit hit) {
     Hit h;
     if (intersectPlane(ro, rd, vec3(0, 1, 0), 0.0, h, 0) && h.t < hit.t) hit = h;
     if (intersectSphere(ro, rd, vec3(-1.2, 1.0, -3.5), 1.0, h, 1) && h.t < hit.t) hit = h;
+    if (intersectSphere(ro, rd, vec3(0.7, 1.0, -5.0), 1.0, h, 2) && h.t < hit.t) hit = h;
     if (intersectSphere(ro, rd, vec3(1.2, 0.7, -2.5), 0.7, h, 3) && h.t < hit.t) hit = h;
     return hit.t < uINF;
 }
 
 // -------- Sky ----------
-vec3 sky(vec3 d) {
-    float t = clamp(0.5 * (d.y + 1.0), 0.0, 1.0);
+vec3 sky(vec3 dir) {
+    // If an environment cubemap is enabled, use it; otherwise fall back to analytic sky.
+    if (uUseEnvMap == 1) {
+        // Assume uEnvMap is in linear space; apply simple intensity scale.
+        vec3 env = texture(uEnvMap, dir).rgb;
+        return env * uEnvIntensity;
+    }
+
+    // Fallback analytic sky (unchanged)
+    float t = clamp(0.5 * (dir.y + 1.0), 0.0, 1.0);
     vec3 col = mix(vec3(0.6, 0.7, 0.9) * 0.3,
                    vec3(0.1, 0.15, 0.3) * 0.3,
                    1.0 - t);
     return col;
 }
+
 
 #endif // RT_SCENE_ANALYTIC_GLSL

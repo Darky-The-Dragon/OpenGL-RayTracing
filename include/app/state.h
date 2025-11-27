@@ -51,6 +51,9 @@ struct AppState {
     std::unique_ptr<Model> bvhModel;
     ui::BvhModelPickerState bvhPicker;
 
+    GLuint envMapTex = 0;
+    ui::EnvMapPickerState envPicker;
+
     io::InputState input;
 
     AppState()

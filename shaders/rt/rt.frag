@@ -24,6 +24,13 @@ uniform int uFrameIndex;
 uniform vec2 uResolution;
 uniform sampler2D uPrevAccum;
 uniform int uSpp;
+
+// ---- CubeMap
+uniform samplerCube uEnvMap;
+uniform int uUseEnvMap;
+uniform float uEnvIntensity;
+
+// ---- Jitter
 uniform vec2 uJitter;
 uniform int uEnableJitter;
 
@@ -110,6 +117,7 @@ void main() {
         : traceAnalytic(uCamPos, dir, h);
 
         vec3 radiance;
+
         if (hitAny) {
             // Only write motion + GBuffer once (first sample) to keep them stable
             if (s == 0) {
@@ -121,62 +129,88 @@ void main() {
                 outGNrm = vec4(normalize(h.n), 0.0);
             }
 
-            vec3 V = -dir;
+            vec3 V = -dir; // direction from hit → camera
 
-            // Primary lighting: direct from area light
-            radiance = (uUseBVH == 1)
-            ? directLightBVH(h, seed, V)
-            : directLight(h, seed, V);
+            if (uUseBVH == 1) {
+                // ==========================================================
+                // BVH SCENE (unchanged behaviour)
+                // ==========================================================
+                radiance = directLightBVH(h, seed, V);
 
-            // -----------------------------------------------------------------
-            // One-bounce diffuse GI (indirect lighting)
-            // -----------------------------------------------------------------
-            if (uEnableGI == 1) {
-                if (uUseBVH == 1) {
-                    // BVH scene GI (more conservative)
+                if (uEnableGI == 1) {
                     radiance += uGiScaleBVH * oneBounceGIBVH(h, uFrameIndex, seed);
+                }
+
+                #if ENABLE_MIRROR_BOUNCE
+                if (uEnableMirror == 1 && h.mat == 3) {
+                    vec3 rdir = reflect(dir, h.n);
+                    vec3 rorg = h.p + rdir * uEPS;
+
+                    Hit h2;
+                    bool hit2 = traceBVH(rorg, rdir, h2);
+
+                    if (hit2) {
+                        vec3 V2 = -rdir;
+                        vec3 bounced = directLightBVH(h2, seed, V2);
+                        radiance += uMirrorStrength * bounced;
+                    } else {
+                        radiance += uMirrorStrength * sky(rdir);
+                    }
+                }
+                #endif
+
+                if (uEnableAO == 1) {
+                    float ao = computeAO(h, uFrameIndex);
+                    radiance *= ao;
+                }
+            } else {
+                // ==========================================================
+                // ANALYTIC SCENE (plane + spheres)
+                // ==========================================================
+                MaterialProps mat = getMaterial(h.mat);
+
+                if (mat.type == 2) {
+                    // GLASS MATERIAL
+                    // Use env-based glass shader; skip direct light / GI / AO
+                    radiance = shadeGlass(h, V, mat);
                 } else {
-                    MaterialProps m0 = getMaterial(h.mat);
-                    if (m0.type == 0) { // skip mirrors for GI
-                                        radiance += uGiScaleAnalytic * oneBounceGIAnalytic(h, uFrameIndex, seed);
+                    // ---- Direct lighting (analytic)
+                    radiance = directLight(h, seed, V);
+
+                    // ---- One-bounce diffuse GI (analytic)
+                    if (uEnableGI == 1 && mat.type == 0) {
+                        // Only for diffuse/spec – skip mirrors / special mats
+                        radiance += uGiScaleAnalytic * oneBounceGIAnalytic(h, uFrameIndex, seed);
+                    }
+
+                    #if ENABLE_MIRROR_BOUNCE
+                    // Optional mirror reflection (analytic mirror sphere h.mat == 3)
+                    if (uEnableMirror == 1 && h.mat == 3) {
+                        vec3 rdir = reflect(dir, h.n);
+                        vec3 rorg = h.p + rdir * uEPS;
+
+                        Hit h2;
+                        bool hit2 = traceAnalytic(rorg, rdir, h2);
+
+                        if (hit2) {
+                            vec3 V2 = -rdir;
+                            vec3 bounced = directLight(h2, seed, V2);
+                            radiance += uMirrorStrength * bounced;
+                        } else {
+                            radiance += uMirrorStrength * sky(rdir);
+                        }
+                    }
+                    #endif
+
+                    // ---- Ambient Occlusion modulation (subtle)
+                    if (uEnableAO == 1) {
+                        float ao = computeAO(h, uFrameIndex);
+                        radiance *= ao;
                     }
                 }
             }
-
-            // -----------------------------------------------------------------
-            // Optional mirror reflection
-            // -----------------------------------------------------------------
-            #if ENABLE_MIRROR_BOUNCE
-            if (uEnableMirror == 1 && h.mat == 3) {
-                vec3 rdir = reflect(dir, h.n);
-                vec3 rorg = h.p + rdir * uEPS;
-
-                Hit h2;
-                bool hit2 = (uUseBVH == 1)
-                ? traceBVH(rorg, rdir, h2)
-                : traceAnalytic(rorg, rdir, h2);
-
-                if (hit2) {
-                    vec3 V2 = -rdir;
-                    vec3 bounced = (uUseBVH == 1)
-                    ? directLightBVH(h2, seed, V2)
-                    : directLight(h2, seed, V2);
-                    radiance += uMirrorStrength * bounced;
-                } else {
-                    radiance += uMirrorStrength * sky(rdir);
-                }
-            }
-            #endif
-
-            // -----------------------------------------------------------------
-            // Ambient Occlusion modulation (subtle)
-            // -----------------------------------------------------------------
-            if (uEnableAO == 1) {
-                float ao = computeAO(h, uFrameIndex);
-                radiance *= ao;
-            }
         } else {
-            // MISS → sky
+            // MISS → sky / environment
             radiance = sky(dir);
 
             // If the camera actually moved this frame, we want this pixel to

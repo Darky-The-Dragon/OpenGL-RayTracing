@@ -27,6 +27,11 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
     rt.setInt("uFrameIndex", app.accum.frameIndex);
     rt.setVec2("uResolution", glm::vec2(fbw, fbh));
     rt.setInt("uSpp", app.showMotion ? 1 : app.params.sppPerFrame);
+
+    rt.setInt("uUseEnvMap", app.params.enableEnvMap && app.envMapTex ? 1 : 0);
+    rt.setFloat("uEnvIntensity", app.params.envMapIntensity);
+    rt.setInt("uEnvMap", 5);
+
     rt.setVec2("uJitter", app.frame.jitter);
     rt.setInt("uEnableJitter", app.params.enableJitter ? 1 : 0);
 
@@ -59,9 +64,9 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
     rt.setMat4("uCurrViewProj", app.frame.currViewProj);
     rt.setVec2("uResolution", glm::vec2(fbw, fbh));
 
-    rt.setFloat("uEPS", app.params.EPS);
-    rt.setFloat("uPI", app.params.PI);
-    rt.setFloat("uINF", app.params.INF);
+    rt.setFloat("uEPS", RenderParams::EPS);
+    rt.setFloat("uPI", RenderParams::PI);
+    rt.setFloat("uINF", RenderParams::INF);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, app.accum.readTex());
@@ -74,6 +79,11 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_BUFFER, app.bvh.triTex);
     rt.setInt("uBvhTris", 2);
+
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, app.envMapTex);
+    rt.setInt("uEnvMap", 5);
+    rt.setInt("uUseEnvMap", (app.params.enableEnvMap && app.envMapTex) ? 1 : 0);
 
     glBindVertexArray(app.fsVao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -120,7 +130,7 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
     app.accum.swapAfterFrame();
 }
 
-void renderRaster(AppState &app, const int fbw, const int fbh, const glm::mat4 &currView, const glm::mat4 &currProj) {
+void renderRaster(const AppState &app, const int fbw, const int fbh, const glm::mat4 &currView, const glm::mat4 &currProj) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_SCISSOR_TEST);
     glViewport(0, 0, fbw, fbh);
