@@ -2,7 +2,23 @@
 #ifndef RT_LIGHTING_GLSL
 #define RT_LIGHTING_GLSL
 
-// ------------- Light --------------
+// Hybrid lighting: Sun + Sky + Point
+uniform int uSunEnabled;
+uniform vec3 uSunColor;
+uniform float uSunIntensity;
+uniform vec3 uSunDir;       // direction FROM light TO scene (i.e. sun rays = -uSunDir)
+
+uniform int uSkyEnabled;
+uniform vec3 uSkyColor;
+uniform float uSkyIntensity;
+uniform vec3 uSkyUpDir;     // "up" direction for sky dome
+
+uniform int uPointLightEnabled;
+uniform vec3 uPointLightPos;
+uniform vec3 uPointLightColor;
+uniform float uPointLightIntensity;
+
+// ------------- Disk area light (existing) --------------
 const vec3 kLightCenter = vec3(0.0, 5.0, -3.0);
 const vec3 kLightN = normalize(vec3(0.0, -1.0, 0.2));
 const float kLightRadius = 1.2;
@@ -20,6 +36,123 @@ bool occludedToward(vec3 p, vec3 q) {
         if (traceAnalytic(p + rd * eps, rd, h) && h.t < maxT - eps) return true;
         return false;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Shared BRDF helper: Lambert + optional Phong spec
+// ---------------------------------------------------------------------------
+vec3 shadeLambertPhong(
+    vec3 N, vec3 V, vec3 L, vec3 Li,
+    vec3 albedo, float specStrength, float gloss)
+{
+    float ndl = max(dot(N, L), 0.0);
+    if (ndl <= 0.0) return vec3(0.0);
+
+    // Diffuse
+    vec3 diffuse = albedo * (ndl / uPI);
+
+    // Specular (Phong)
+    vec3 spec = vec3(0.0);
+    if (specStrength > 0.0) {
+        vec3 H = normalize(L + V);
+        float ndh = max(dot(N, H), 0.0);
+        float phong = pow(ndh, gloss);
+        spec = specStrength * phong * vec3(1.0);
+    }
+
+    return (diffuse + spec) * Li;
+}
+
+// ---------------------------------------------------------------------------
+// Sun light (directional, shadowed)
+// ---------------------------------------------------------------------------
+vec3 sunDirect(Hit h, MaterialProps mat, vec3 Vdir)
+{
+    if (uSunEnabled == 0) return vec3(0.0);
+
+    vec3 N = normalize(h.n);
+    vec3 V = normalize(Vdir);
+    vec3 L = normalize(-uSunDir); // light dir from hit -> sun
+
+    float ndl = max(dot(N, L), 0.0);
+    if (ndl <= 0.0) return vec3(0.0);
+
+    // Shadow ray toward sun (approx "infinite" distance)
+    float maxT = 1000.0;
+    float eps = epsForDist(maxT);
+    vec3 origin = h.p + N * eps;
+
+    bool blocked;
+    if (uUseBVH == 1) {
+        blocked = traceBVHShadow(origin, L, maxT - eps);
+    } else {
+        Hit tmp;
+        blocked = traceAnalytic(origin, L, tmp);
+    }
+    if (blocked) return vec3(0.0);
+
+    vec3 Li = uSunColor * uSunIntensity;
+
+    // Only non-mirror/non-glass get Phong spec
+    float specStrength = (mat.type == 0) ? mat.specStrength : 0.0;
+    return shadeLambertPhong(N, V, L, Li, mat.albedo, specStrength, mat.gloss);
+}
+
+// ---------------------------------------------------------------------------
+// Sky dome (ambient-ish, no extra shadows; AO will handle occlusion feel)
+// ---------------------------------------------------------------------------
+vec3 skyDirect(Hit h, MaterialProps mat, vec3 Vdir)
+{
+    if (uSkyEnabled == 0) return vec3(0.0);
+
+    vec3 N = normalize(h.n);
+    vec3 U = normalize(uSkyUpDir);
+
+    float ndl = max(dot(N, U), 0.0);
+    if (ndl <= 0.0) return vec3(0.0);
+
+    // Simple cosine-weighted dome around U
+    vec3 Li = uSkyColor * uSkyIntensity;
+
+    // Diffuse only, no specular
+    return mat.albedo * (ndl / uPI) * Li;
+}
+
+// ---------------------------------------------------------------------------
+// Point light (shadowed, inverse-square falloff)
+// ---------------------------------------------------------------------------
+vec3 pointDirect(Hit h, MaterialProps mat, vec3 Vdir)
+{
+    if (uPointLightEnabled == 0) return vec3(0.0);
+
+    vec3 N = normalize(h.n);
+    vec3 V = normalize(Vdir);
+    vec3 toL = uPointLightPos - h.p;
+    float dist2 = dot(toL, toL);
+    if (dist2 <= 1e-6) return vec3(0.0);
+
+    float dist = sqrt(dist2);
+    vec3 L = toL / dist;
+    float ndl = max(dot(N, L), 0.0);
+    if (ndl <= 0.0) return vec3(0.0);
+
+    float eps = epsForDist(dist);
+    vec3 origin = h.p + L * eps;
+
+    bool blocked;
+    if (uUseBVH == 1) {
+        blocked = traceBVHShadow(origin, L, dist - eps);
+    } else {
+        Hit tmp;
+        blocked = traceAnalytic(origin, L, tmp) && tmp.t < dist - eps;
+    }
+    if (blocked) return vec3(0.0);
+
+    // Inverse-square falloff
+    vec3 Li = uPointLightColor * (uPointLightIntensity / max(dist2, 1e-4));
+
+    float specStrength = (mat.type == 0) ? mat.specStrength : 0.0;
+    return shadeLambertPhong(N, V, L, Li, mat.albedo, specStrength, mat.gloss);
 }
 
 // ============================================================================
@@ -75,7 +208,16 @@ vec2 cpOffset(vec2 pix, int frame) {
     return fract(h + ld);
 }
 
-// ---- Direct lighting (analytic) with cheap specular
+// Small helper for Phong spec
+vec3 evalPhongSpec(vec3 N, vec3 V, vec3 L, float gloss, float specStrength) {
+    if (specStrength <= 0.0) return vec3(0.0);
+    vec3 H = normalize(L + V);
+    float ndh = max(dot(N, H), 0.0);
+    float phong = pow(ndh, gloss);
+    return specStrength * phong * vec3(1.0);
+}
+
+// ---- Direct lighting (analytic) with cheap specular + hybrid lights
 vec3 directLight(Hit h, int frame, vec3 Vdir) {
     vec3 N = normalize(h.n);
     vec3 sum = vec3(0.0);
@@ -83,21 +225,21 @@ vec3 directLight(Hit h, int frame, vec3 Vdir) {
     MaterialProps mat = getMaterial(h.mat);
 
     // Orthonormal basis for disk light
-    vec3 t, b;
-    buildLightFrame(t, b);
+    vec3 t = normalize(abs(kLightN.y) < 0.99 ? cross(kLightN, vec3(0, 1, 0))
+                       : cross(kLightN, vec3(1, 0, 0)));
+    vec3 b = cross(kLightN, t);
 
-    // Per-pixel rotated sampling
+    // Per-pixel rotated sampling like before
     vec2 rot = cpOffset(gl_FragCoord.xy, uFrameIndex);
 
     vec3 V = normalize(Vdir); // from hit → camera
 
+    // Existing soft disk area light
     for (int i = 0; i < SOFT_SHADOW_SAMPLES; ++i) {
-        // base random
         vec2 u = vec2(
         rand(gl_FragCoord.xy + float(i), frame),
         rand(gl_FragCoord.yx + float(31 * i + 7), frame)
         );
-        // Cranley–Patterson rotation + wrap
         u = fract(u + rot);
 
         vec2 d = concentricSample(u) * kLightRadius;
@@ -111,28 +253,23 @@ vec3 directLight(Hit h, int frame, vec3 Vdir) {
         float geom = (ndl * cosThetaL) / r2;
         float vis = occludedToward(h.p, xL) ? 0.0 : 1.0;
 
-        // Incoming radiance from the disk
         vec3 Li = kLightCol * geom * vis;
 
-        // Diffuse (Lambert)
-        vec3 diffuse = mat.albedo * (ndl / uPI);
-
-        // Cheap Phong specular (only for non-mirror, non-glass)
-        vec3 spec = vec3(0.0);
-        if (mat.type == 0 && mat.specStrength > 0.0) {
-            vec3 H = normalize(L + V);               // halfway vector
-            float ndh = max(dot(N, H), 0.0);
-            float phong = pow(ndh, mat.gloss);
-            spec = mat.specStrength * phong * vec3(1.0);
-        }
-
-        sum += (diffuse + spec) * Li;
+        float specStrength = (mat.type == 0) ? mat.specStrength : 0.0;
+        sum += shadeLambertPhong(N, V, L, Li, mat.albedo, specStrength, mat.gloss);
     }
 
-    return sum / float(SOFT_SHADOW_SAMPLES);
+    sum /= float(SOFT_SHADOW_SAMPLES);
+
+    // Add hybrid lights
+    sum += sunDirect(h, mat, V);
+    sum += skyDirect(h, mat, V);
+    sum += pointDirect(h, mat, V);
+
+    return sum;
 }
 
-// ---- Direct lighting for BVH triangles (simple white plastic)
+// ---- Direct lighting for BVH triangles (simple white plastic) + hybrid lights
 vec3 directLightBVH(Hit h, int frame, vec3 Vdir) {
     vec3 N = normalize(h.n);
     vec3 sum = vec3(0.0);
@@ -142,12 +279,14 @@ vec3 directLightBVH(Hit h, int frame, vec3 Vdir) {
     const float specStrength = 0.25;
     const float gloss = 32.0;
 
-    vec3 t, b;
-    buildLightFrame(t, b);
+    vec3 t = normalize(abs(kLightN.y) < 0.99 ? cross(kLightN, vec3(0, 1, 0))
+                       : cross(kLightN, vec3(1, 0, 0)));
+    vec3 b = cross(kLightN, t);
 
     vec2 rot = cpOffset(gl_FragCoord.xy, uFrameIndex);
     vec3 V = normalize(Vdir);
 
+    // Disk area light
     for (int i = 0; i < SOFT_SHADOW_SAMPLES; ++i) {
         vec2 u = vec2(
         rand(gl_FragCoord.xy + float(i), frame),
@@ -168,16 +307,24 @@ vec3 directLightBVH(Hit h, int frame, vec3 Vdir) {
 
         vec3 Li = kLightCol * geom * vis;
 
-        vec3 diffuse = albedo * (ndl / uPI);
-
-        vec3 H = normalize(L + V);
-        float ndh = max(dot(N, H), 0.0);
-        float phong = pow(ndh, gloss);
-        vec3 spec = specStrength * phong * vec3(1.0);
-
-        sum += (diffuse + spec) * Li;
+        sum += shadeLambertPhong(N, V, L, Li, albedo, specStrength, gloss);
     }
-    return sum / float(SOFT_SHADOW_SAMPLES);
+
+    sum /= float(SOFT_SHADOW_SAMPLES);
+
+    // Approximate analytic MaterialProps for hybrid lights
+    MaterialProps fakeMat;
+    fakeMat.albedo = albedo;
+    fakeMat.specStrength = specStrength;
+    fakeMat.gloss = gloss;
+    fakeMat.type = 0;      // diffuse-ish
+    fakeMat.ior = 1.0;
+
+    sum += sunDirect(h, fakeMat, V);
+    sum += skyDirect(h, fakeMat, V);
+    sum += pointDirect(h, fakeMat, V);
+
+    return sum;
 }
 
 
@@ -210,7 +357,7 @@ vec3 oneBounceGIAnalytic(Hit h0, int frame, int seed) {
 
     vec3 Li;
     if (hit1) {
-        // Direct lighting at the secondary point
+        // Direct lighting at the secondary point (includes all lights)
         vec3 V1 = -wi;
         Li = directLight(h1, frame, V1);
     } else {
@@ -252,6 +399,7 @@ vec3 oneBounceGIBVH(Hit h0, int frame, int seed) {
     vec3 Li;
     if (hit1) {
         vec3 V1 = -wi;
+        // Includes disk, sky directional, and point light
         Li = directLightBVH(h1, frame, V1);
     } else {
         Li = sky(wi);
@@ -377,7 +525,7 @@ vec3 shadeMirror(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
 
     vec3 col;
     if (hit2) {
-        // Direct lighting at the reflected hit
+        // Direct lighting at the reflected hit (all lights)
         vec3 V2 = -R;
         col = directLight(h2, frame, V2);
 
@@ -403,8 +551,6 @@ vec3 shadeMirror(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
 
 // ---------------------------------------------------------------------------
 // Ambient Occlusion (AO)
-// Returns a factor in [0,1] (1 = fully open, 0 = fully occluded).
-// Designed to be *subtle* so it doesn't nuke the lighting.
 // ---------------------------------------------------------------------------
 float computeAO(Hit h, int frame) {
     vec3 N = normalize(h.n);
@@ -436,7 +582,7 @@ float computeAO(Hit h, int frame) {
     }
 
     float occ = float(occludedCount) / float(uAO_SAMPLES); // 0..1
-    float ao = 1.0 - occ;                                // 1=open, 0=closed
+    float ao = 1.0 - occ;                                 // 1=open, 0=closed
 
     // Keep a minimum so nothing goes pitch-black
     ao = clamp(mix(uAO_MIN, 1.0, ao), uAO_MIN, 1.0);

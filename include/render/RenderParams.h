@@ -35,12 +35,40 @@ struct RenderParams {
     int enableEnvMap = 1;
     float envMapIntensity = 1.0f;
 
+    // --- Lights (Hybrid: Sun + Sky + Point) ---
+
+    // Sun (directional light)
+    int sunEnabled = 1;
+    float sunColor[3] = {1.0f, 0.95f, 0.85f};
+    float sunIntensity = 0.45f; // key light strength
+    float sunYaw = 45.0f; // degrees
+    float sunPitch = -35.0f; // degrees (negative = from above)
+
+    // Sky (ambient-ish dome, AO will handle occlusion feel)
+    int skyEnabled = 1;
+    float skyColor[3] = {0.4f, 0.5f, 1.0f};
+    float skyIntensity = 1.0f;
+    float skyYaw = 0.0f; // mostly for artistic tweak
+    float skyPitch = 90.0f; // up direction
+
+    // Point light above the plane
+    int pointLightEnabled = 1;
+    float pointLightColor[3] = {1.0f, 0.9f, 0.7f};
+    float pointLightIntensity = 20.0f;
+
+    // Base position (also acts as orbit center)
+    float pointLightPos[3] = {0.0f, 2.5f, -3.0f};
+
+    // Orbit controls (around Y axis)
+    int pointLightOrbitEnabled = 0; // 0 = static, 1 = orbit
+    float pointLightOrbitRadius = 3.5f; // orbit radius in XZ plane
+    float pointLightOrbitSpeed = 0.02f; // radians per frame
 
     // AO
     int enableAO = 1;
     int aoSamples = 4;
-    float aoRadius = 0.8;
-    float aoBias = 2e-3;
+    float aoRadius = 0.8f;
+    float aoBias = 2e-3f;
     float aoMin = 0.5f;
 
     // TAA
@@ -64,9 +92,9 @@ struct RenderParams {
     float svgfMotionEPS = 0.005f;
 
     // Constants
-    static constexpr float EPS = 1e-4;
-    static constexpr float PI = 3.1415926535;
-    static constexpr float INF = 1e30;
+    static constexpr float EPS = 1e-4f;
+    static constexpr float PI = 3.1415926535f;
+    static constexpr float INF = 1e30f;
 
     // Debug
     float motionScale = 4.0f;

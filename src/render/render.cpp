@@ -4,6 +4,43 @@
 
 #include "glm/gtc/type_ptr.hpp"
 
+static glm::vec3 computePointLightWorldPos(const RenderParams &params, int frameIndex) {
+    glm::vec3 center(params.pointLightPos[0],
+                     params.pointLightPos[1],
+                     params.pointLightPos[2]);
+
+    if (!params.pointLightOrbitEnabled) {
+        return center;
+    }
+
+    float angle = params.pointLightOrbitSpeed * static_cast<float>(frameIndex);
+    float radius = params.pointLightOrbitRadius;
+
+    glm::vec3 pos = center;
+    pos.x = center.x + std::cos(angle) * radius;
+    pos.z = center.z + std::sin(angle) * radius;
+    // keep Y the same as base center
+    return pos;
+}
+
+static glm::vec3 dirFromYawPitch(float yawDeg, float pitchDeg) {
+    float yaw   = glm::radians(yawDeg);
+    float pitch = glm::radians(pitchDeg);
+
+    float cp = std::cos(pitch);
+    float sp = std::sin(pitch);
+    float cy = std::cos(yaw);
+    float sy = std::sin(yaw);
+
+    glm::vec3 d(cp * cy, sp, cp * sy);
+
+    // Fallback if direction degenerates
+    if (glm::dot(d, d) < 1e-6f) {
+        return glm::vec3(0.0f, -1.0f, 0.0f);
+    }
+    return glm::normalize(d);
+}
+
 void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMoved,
                const glm::mat4 &currView, const glm::mat4 &currProj) {
     glEnable(GL_SCISSOR_TEST);
@@ -46,17 +83,21 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
     rt.setVec3("uMatMirror_Albedo", glm::make_vec3(app.params.matMirrorColor));
     rt.setFloat("uMatMirror_Gloss", app.params.matMirrorGloss);
 
-    rt.setInt("uUseEnvMap", app.params.enableEnvMap && app.envMapTex ? 1 : 0);
+    // Env map
+    rt.setInt("uUseEnvMap", (app.params.enableEnvMap && app.envMapTex) ? 1 : 0);
     rt.setFloat("uEnvIntensity", app.params.envMapIntensity);
     rt.setInt("uEnvMap", 5);
 
+    // Jitter
     rt.setVec2("uJitter", app.frame.jitter);
     rt.setInt("uEnableJitter", app.params.enableJitter ? 1 : 0);
 
+    // Scene / BVH
     rt.setInt("uUseBVH", app.useBVH ? 1 : 0);
     rt.setInt("uNodeCount", app.bvhNodeCount);
     rt.setInt("uTriCount", app.bvhTriCount);
 
+    // TAA
     rt.setFloat("uTaaStillThresh", app.params.taaStillThresh);
     rt.setFloat("uTaaHardMovingThresh", app.params.taaHardMovingThresh);
     rt.setFloat("uTaaHistoryMinWeight", app.params.taaHistoryMinWeight);
@@ -65,6 +106,7 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
     rt.setFloat("uTaaHistoryBoxSize", app.params.taaHistoryBoxSize);
     rt.setInt("uEnableTAA", app.params.enableTAA);
 
+    // GI / AO
     rt.setFloat("uGiScaleAnalytic", app.params.giScaleAnalytic);
     rt.setFloat("uGiScaleBVH", app.params.giScaleBVH);
     rt.setInt("uEnableGI", app.params.enableGI);
@@ -74,15 +116,42 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
     rt.setFloat("uAO_BIAS", app.params.aoBias);
     rt.setFloat("uAO_MIN", app.params.aoMin);
 
+    // Motion / reprojection
     rt.setInt("uShowMotion", app.showMotion ? 1 : 0);
     rt.setInt("uCameraMoved", cameraMoved ? 1 : 0);
     rt.setMat4("uPrevViewProj", app.frame.prevViewProj);
     rt.setMat4("uCurrViewProj", app.frame.currViewProj);
-    rt.setVec2("uResolution", glm::vec2(fbw, fbh));
+    rt.setVec2("uResolution", glm::vec2(fbw, fbh)); // (duplicated, harmless)
 
+    // Constants
     rt.setFloat("uEPS", RenderParams::EPS);
     rt.setFloat("uPI", RenderParams::PI);
     rt.setFloat("uINF", RenderParams::INF);
+
+    // --- Lights: Sun / Sky / Point ---
+
+    // Sun
+    glm::vec3 sunDir = dirFromYawPitch(app.params.sunYaw, app.params.sunPitch);
+    rt.setInt("uSunEnabled", app.params.sunEnabled);
+    rt.setVec3("uSunColor", glm::make_vec3(app.params.sunColor));
+    rt.setFloat("uSunIntensity", app.params.sunIntensity);
+    rt.setVec3("uSunDir", sunDir);
+
+    // Sky
+    glm::vec3 skyDir = dirFromYawPitch(app.params.skyYaw, app.params.skyPitch);
+    rt.setInt("uSkyEnabled", app.params.skyEnabled);
+    rt.setVec3("uSkyColor", glm::make_vec3(app.params.skyColor));
+    rt.setFloat("uSkyIntensity", app.params.skyIntensity);
+    rt.setVec3("uSkyUpDir", skyDir);
+
+    // Point
+    glm::vec3 pointPos = computePointLightWorldPos(app.params, app.accum.frameIndex);
+    rt.setInt("uPointLightEnabled", app.params.pointLightEnabled);
+    rt.setVec3("uPointLightPos", pointPos);
+    rt.setVec3("uPointLightColor", glm::make_vec3(app.params.pointLightColor));
+    rt.setFloat("uPointLightIntensity", app.params.pointLightIntensity);
+
+    // --- Textures / buffers ---
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, app.accum.readTex());
@@ -101,14 +170,17 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
     rt.setInt("uEnvMap", 5);
     rt.setInt("uUseEnvMap", (app.params.enableEnvMap && app.envMapTex) ? 1 : 0);
 
+    // --- Fullscreen tri for ray pass ---
     glBindVertexArray(app.fsVao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
+    // ------------------------------------------------------------------------
+    // Present pass
+    // ------------------------------------------------------------------------
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, fbw, fbh);
     const Shader &present = *app.presentShader;
     present.use();
-
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, app.accum.writeTex());
@@ -146,7 +218,8 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
     app.accum.swapAfterFrame();
 }
 
-void renderRaster(const AppState &app, const int fbw, const int fbh, const glm::mat4 &currView, const glm::mat4 &currProj) {
+void renderRaster(const AppState &app, const int fbw, const int fbh,
+                  const glm::mat4 &currView, const glm::mat4 &currProj) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_SCISSOR_TEST);
     glViewport(0, 0, fbw, fbh);
@@ -161,20 +234,36 @@ void renderRaster(const AppState &app, const int fbw, const int fbh, const glm::
     raster.setMat4("view", currView);
     raster.setMat4("projection", currProj);
 
+    // Ground
     auto model = glm::mat4(1.0f);
     raster.setMat4("model", model);
     raster.setVec3("uColor", glm::vec3(0.1f, 0.4f, 0.1f));
     app.ground->Draw();
 
+    // Bunny
     model = glm::translate(glm::mat4(1.0f), glm::vec3(-2.0f, 1.5f, 0.0f));
     model = glm::scale(model, glm::vec3(0.5f));
     raster.setMat4("model", model);
     raster.setVec3("uColor", glm::vec3(0.9f));
     app.bunny->Draw();
 
+    // Sphere
     model = glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, 1.0f, 0.0f));
     model = glm::scale(model, glm::vec3(0.5f));
     raster.setMat4("model", model);
     raster.setVec3("uColor", glm::vec3(0.3f, 0.6f, 1.0f));
     app.sphere->Draw();
+
+    // Point light marker (small emissive sphere)
+    if (app.params.pointLightEnabled) {
+        glm::vec3 pointPos = computePointLightWorldPos(app.params, app.accum.frameIndex);
+
+        model = glm::translate(glm::mat4(1.0f), pointPos);
+        model = glm::scale(model, glm::vec3(0.15f)); // small sphere
+        raster.setMat4("model", model);
+
+        glm::vec3 col = glm::make_vec3(app.params.pointLightColor) * 3.0f;
+        raster.setVec3("uColor", col);
+        app.sphere->Draw();
+    }
 }

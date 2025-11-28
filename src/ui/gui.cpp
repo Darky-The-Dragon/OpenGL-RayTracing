@@ -252,8 +252,7 @@ namespace ui {
         // ------------------------------------------------------------------------
         // Materials
         // ------------------------------------------------------------------------
-        if (ImGui::CollapsingHeader("Materials"))
-        {
+        if (ImGui::CollapsingHeader("Materials")) {
             // --- Albedo ---
             ImGui::SeparatorText("Albedo Material");
 
@@ -264,12 +263,11 @@ namespace ui {
             // --- Glass ---
             ImGui::SeparatorText("Glass Material");
 
-            ImGui::Checkbox("Enable Glass", (bool*)&params.matGlassEnabled);
+            ImGui::Checkbox("Enable Glass", (bool *) &params.matGlassEnabled);
 
             ImGui::ColorEdit3("Glass Tint", params.matGlassColor);
 
-            if (params.matGlassEnabled)
-            {
+            if (params.matGlassEnabled) {
                 ImGui::SliderFloat("Glass IOR", &params.matGlassIOR, 1.0f, 2.5f);
                 ImGui::SliderFloat("Glass Distortion", &params.matGlassDistortion, 0.0f, 1.0f);
             }
@@ -277,20 +275,20 @@ namespace ui {
             // --- Mirror ---
             ImGui::SeparatorText("Mirror Material");
 
-            ImGui::Checkbox("Enable Mirror", (bool*)&params.matMirrorEnabled);
+            ImGui::Checkbox("Enable Mirror", (bool *) &params.matMirrorEnabled);
 
             ImGui::ColorEdit3("Mirror Tint", params.matMirrorColor);
 
-            if (params.matMirrorEnabled)
-            {
+            if (params.matMirrorEnabled) {
                 ImGui::SliderFloat("Mirror Gloss", &params.matMirrorGloss, 1.0f, 256.0f);
             }
         }
 
         // ------------------------------------------------------------------------
-        // Environment
+        // Environment + Lighting
         // ------------------------------------------------------------------------
         if (ImGui::CollapsingHeader("Environment")) {
+            // --- Env map ---
             bool envEnabled = (params.enableEnvMap != 0);
             if (ImGui::Checkbox("Use Env Map (sky)", &envEnabled)) {
                 params.enableEnvMap = envEnabled ? 1 : 0;
@@ -307,6 +305,59 @@ namespace ui {
             }
 
             ImGui::TextWrapped("Select the actual cubemap in the \"Env Map Picker\" window (top-right).");
+
+            // --------------------------------------------------------------------
+            // Lighting (Sun / Sky / Point)
+            // --------------------------------------------------------------------
+            ImGui::SeparatorText("Sun Light"); {
+                bool sunOn = (params.sunEnabled != 0);
+                if (ImGui::Checkbox("Enable Sun", &sunOn)) {
+                    params.sunEnabled = sunOn ? 1 : 0;
+                    Log("[LIGHT] Sun: %s\n", sunOn ? "ENABLED" : "DISABLED");
+                }
+
+                ImGui::ColorEdit3("Sun Color", params.sunColor);
+                ImGui::SliderFloat("Sun Intensity", &params.sunIntensity, 0.0f, 20.0f);
+
+                ImGui::SliderFloat("Sun Yaw", &params.sunYaw, -180.0f, 180.0f);
+                ImGui::SliderFloat("Sun Pitch", &params.sunPitch, -89.0f, 89.0f);
+            }
+
+            ImGui::SeparatorText("Sky Light"); {
+                bool skyOn = (params.skyEnabled != 0);
+                if (ImGui::Checkbox("Enable Sky Light", &skyOn)) {
+                    params.skyEnabled = skyOn ? 1 : 0;
+                    Log("[LIGHT] Sky: %s\n", skyOn ? "ENABLED" : "DISABLED");
+                }
+
+                ImGui::ColorEdit3("Sky Color", params.skyColor);
+                ImGui::SliderFloat("Sky Intensity", &params.skyIntensity, 0.0f, 5.0f);
+
+                ImGui::SliderFloat("Sky Yaw", &params.skyYaw, -180.0f, 180.0f);
+                ImGui::SliderFloat("Sky Pitch", &params.skyPitch, -89.0f, 89.0f);
+            }
+
+            ImGui::SeparatorText("Point Light"); {
+                bool ptOn = (params.pointLightEnabled != 0);
+                if (ImGui::Checkbox("Enable Point Light", &ptOn)) {
+                    params.pointLightEnabled = ptOn ? 1 : 0;
+                    Log("[LIGHT] Point: %s\n", ptOn ? "ENABLED" : "DISABLED");
+                }
+
+                ImGui::ColorEdit3("Point Color", params.pointLightColor);
+                ImGui::SliderFloat("Point Intensity", &params.pointLightIntensity, 0.0f, 100.0f);
+
+                ImGui::DragFloat3("Point Base Pos", params.pointLightPos, 0.05f);
+
+                bool orbitOn = (params.pointLightOrbitEnabled != 0);
+                if (ImGui::Checkbox("Orbit Around Center", &orbitOn)) {
+                    params.pointLightOrbitEnabled = orbitOn ? 1 : 0;
+                    Log("[LIGHT] Point orbit: %s\n", orbitOn ? "ENABLED" : "DISABLED");
+                }
+
+                ImGui::SliderFloat("Orbit Radius", &params.pointLightOrbitRadius, 0.0f, 10.0f);
+                ImGui::SliderFloat("Orbit Speed (rad/frame)", &params.pointLightOrbitSpeed, 0.0f, 0.1f, "%.4f");
+            }
         }
 
         // ------------------------------------------------------------------------
@@ -726,7 +777,7 @@ namespace ui {
             ImGui::End();
         }
 
-                // --------------------------------------------------------------------
+        // --------------------------------------------------------------------
         // Env Map picker (top-right, under BVH picker)
         // --------------------------------------------------------------------
         {
@@ -736,7 +787,7 @@ namespace ui {
                 gEnvDir = util::resolve_dir("cubemaps");
                 gEnvFiles.clear();
                 try {
-                    for (const auto &entry : fs::directory_iterator(gEnvDir)) {
+                    for (const auto &entry: fs::directory_iterator(gEnvDir)) {
                         if (!entry.is_regular_file()) continue;
                         const auto &p = entry.path();
                         auto ext = p.extension().string();

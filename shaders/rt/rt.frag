@@ -166,16 +166,33 @@ void main()
                     radiance = shadeMirror(h, V, mat, seed);
 
                 } else {
-                    // DIFFUSE / PHONG MATERIAL
-                    radiance = directLight(h, seed, V);
+                    // DIFFUSE / PHONG MATERIALS
 
-                    if (uEnableGI == 1) {
-                        radiance += uGiScaleAnalytic * oneBounceGIAnalytic(h, uFrameIndex, seed);
-                    }
+                    // Special case: point-light marker sphere – treat as emissive bulb
+                    if (h.mat == MAT_POINTLIGHT_SPHERE) {
+                        // Simple emissive model – bright, independent of other lights
+                        vec3 baseCol = uPointLightColor * uPointLightIntensity;
 
-                    if (uEnableAO == 1) {
-                        float ao = computeAO(h, uFrameIndex);
-                        radiance *= ao;
+                        // Optional: very mild falloff based on distance to camera,
+                        // so it doesn't look insane when extremely close.
+                        float d = length(h.p - uCamPos);
+                        float falloff = 1.0 / max(d * d * 0.25 + 1.0, 1.0);
+
+                        radiance = baseCol * falloff;
+
+                        // No GI/AO on the emitter – it's self-lit.
+                    } else {
+                        // Regular diffuse objects (floor, main spheres)
+                        radiance = directLight(h, seed, V);
+
+                        if (uEnableGI == 1) {
+                            radiance += uGiScaleAnalytic * oneBounceGIAnalytic(h, uFrameIndex, seed);
+                        }
+
+                        if (uEnableAO == 1) {
+                            float ao = computeAO(h, uFrameIndex);
+                            radiance *= ao;
+                        }
                     }
                 }
             }

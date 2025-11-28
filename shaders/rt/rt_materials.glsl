@@ -2,6 +2,9 @@
 #ifndef RT_MATERIALS_GLSL
 #define RT_MATERIALS_GLSL
 
+// -----------------------------------------------------------------------------
+// Shared material / point-light uniforms
+// -----------------------------------------------------------------------------
 uniform vec3 uMatAlbedo_AlbedoColor;
 uniform float uMatAlbedo_SpecStrength;
 uniform float uMatAlbedo_Gloss;
@@ -15,6 +18,13 @@ uniform vec3 uMatMirror_Albedo;
 uniform float uMatMirror_Gloss;
 uniform int uMatMirror_Enabled;
 
+// Material IDs (must match analytic scene)
+const int MAT_FLOOR = 0;
+const int MAT_ALBEDO_SPHERE = 1;
+const int MAT_GLASS_SPHERE = 2;
+const int MAT_MIRROR_SPHERE = 3;
+const int MAT_POINTLIGHT_SPHERE = 4;
+
 struct MaterialProps {
     vec3 albedo;
     float specStrength;
@@ -26,8 +36,18 @@ struct MaterialProps {
 MaterialProps getMaterial(int id) {
     MaterialProps m;
 
-    // Floor (id = 0)
-    if (id == 0) {
+    // Floor – fixed neutral grey
+    if (id == MAT_FLOOR) {
+        m.albedo = vec3(0.7);
+        m.specStrength = 0.1;
+        m.gloss = 16.0;
+        m.type = 0;
+        m.ior = 1.0;
+        return m;
+    }
+
+    // Left sphere – GUI albedo
+    if (id == MAT_ALBEDO_SPHERE) {
         m.albedo = uMatAlbedo_AlbedoColor;
         m.specStrength = uMatAlbedo_SpecStrength;
         m.gloss = uMatAlbedo_Gloss;
@@ -36,18 +56,8 @@ MaterialProps getMaterial(int id) {
         return m;
     }
 
-    // Left sphere (id = 1) – re-use same group for now
-    if (id == 1) {
-        m.albedo = uMatAlbedo_AlbedoColor;
-        m.specStrength = uMatAlbedo_SpecStrength;
-        m.gloss = uMatAlbedo_Gloss;
-        m.type = 0;
-        m.ior = 1.0;
-        return m;
-    }
-
-    // Glass sphere (id = 2)
-    if (id == 2) {
+    // Glass sphere
+    if (id == MAT_GLASS_SPHERE) {
         if (uMatGlass_Enabled == 0) {
             // behave like diffuse if disabled
             m.albedo = uMatAlbedo_AlbedoColor;
@@ -65,8 +75,8 @@ MaterialProps getMaterial(int id) {
         return m;
     }
 
-    // Mirror sphere (id = 3)
-    if (id == 3) {
+    // Mirror sphere
+    if (id == MAT_MIRROR_SPHERE) {
         if (uMatMirror_Enabled == 0) {
             // fallback to diffuse if disabled
             m.albedo = uMatAlbedo_AlbedoColor;

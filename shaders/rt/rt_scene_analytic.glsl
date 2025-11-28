@@ -6,15 +6,15 @@
 const vec3 kFloorNormal = vec3(0.0, 1.0, 0.0);
 const float kFloorD = 0.0;
 
-// Left red sphere (id = 1)
+// Left red sphere (MAT_ALBEDO_SPHERE)
 const vec3 kSphereLeftCenter = vec3(-1.2, 1.0, -3.5);
 const float kSphereLeftRadius = 1.0;
 
-// Glass sphere (id = 2)
+// Glass sphere (MAT_GLASS_SPHERE)
 const vec3 kGlassCenter = vec3(0.7, 1.0, -5.0);
 const float kGlassRadius = 1.0;
 
-// Mirror sphere (id = 3)
+// Mirror sphere (MAT_MIRROR_SPHERE)
 const vec3 kMirrorCenter = vec3(1.2, 0.7, -2.5);
 const float kMirrorRadius = 0.7;
 
@@ -52,14 +52,27 @@ bool traceAnalyticCore(vec3 ro, vec3 rd, bool includeGlass, out Hit hit) {
     hit.t = uINF;
     Hit h;
 
-    if (intersectPlane(ro, rd, kFloorNormal, kFloorD, h, 0) && h.t < hit.t) hit = h;
-    if (intersectSphere(ro, rd, kSphereLeftCenter, kSphereLeftRadius, h, 1) && h.t < hit.t) hit = h;
-
-    if (includeGlass) {
-        if (intersectSphere(ro, rd, kGlassCenter, kGlassRadius, h, 2) && h.t < hit.t) hit = h;
+    // Floor
+    if (intersectPlane(ro, rd, kFloorNormal, kFloorD, h, MAT_FLOOR) && h.t < hit.t) {
+        hit = h;
     }
 
-    if (intersectSphere(ro, rd, kMirrorCenter, kMirrorRadius, h, 3) && h.t < hit.t) hit = h;
+    // Left albedo sphere
+    if (intersectSphere(ro, rd, kSphereLeftCenter, kSphereLeftRadius, h, MAT_ALBEDO_SPHERE) && h.t < hit.t) {
+        hit = h;
+    }
+
+    // Glass sphere (optionally ignored)
+    if (includeGlass) {
+        if (intersectSphere(ro, rd, kGlassCenter, kGlassRadius, h, MAT_GLASS_SPHERE) && h.t < hit.t) {
+            hit = h;
+        }
+    }
+
+    // Mirror sphere
+    if (intersectSphere(ro, rd, kMirrorCenter, kMirrorRadius, h, MAT_MIRROR_SPHERE) && h.t < hit.t) {
+        hit = h;
+    }
 
     return hit.t < uINF;
 }
@@ -69,6 +82,7 @@ bool traceAnalytic(vec3 ro, vec3 rd, out Hit hit) {
 }
 
 bool traceAnalyticIgnoreGlass(vec3 ro, vec3 rd, out Hit hit) {
+    // Still includes the point-light sphere; only the glass sphere is excluded.
     return traceAnalyticCore(ro, rd, false, hit);
 }
 

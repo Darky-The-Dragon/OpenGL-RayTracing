@@ -36,6 +36,7 @@ static glm::vec2 generateJitter2D(const int frameIndex) {
 static bool paramsChanged(const RenderParams &a, const RenderParams &b) {
     auto diff = [](float x, float y) { return std::fabs(x - y) > 1e-5f; };
 
+    // --- Core / toggles ---
     if (a.sppPerFrame != b.sppPerFrame) return true;
     if (a.enableGI != b.enableGI) return true;
     if (a.enableAO != b.enableAO) return true;
@@ -45,7 +46,7 @@ static bool paramsChanged(const RenderParams &a, const RenderParams &b) {
     if (a.enableEnvMap != b.enableEnvMap) return true;
     if (a.enableJitter != b.enableJitter) return true;
 
-    // --- Albedo ---
+    // --- Albedo material ---
     if (diff(a.matAlbedoColor[0], b.matAlbedoColor[0])) return true;
     if (diff(a.matAlbedoColor[1], b.matAlbedoColor[1])) return true;
     if (diff(a.matAlbedoColor[2], b.matAlbedoColor[2])) return true;
@@ -67,6 +68,7 @@ static bool paramsChanged(const RenderParams &a, const RenderParams &b) {
     if (diff(a.matMirrorColor[2], b.matMirrorColor[2])) return true;
     if (diff(a.matMirrorGloss, b.matMirrorGloss)) return true;
 
+    // --- Env / jitter / GI / AO / TAA / SVGF basic params ---
     if (diff(a.envMapIntensity, b.envMapIntensity)) return true;
     if (diff(a.jitterStillScale, b.jitterStillScale)) return true;
     if (diff(a.jitterMovingScale, b.jitterMovingScale)) return true;
@@ -89,6 +91,39 @@ static bool paramsChanged(const RenderParams &a, const RenderParams &b) {
     if (diff(a.svgfKColorMotion, b.svgfKColorMotion)) return true;
     if (diff(a.svgfVarEPS, b.svgfVarEPS)) return true;
     if (diff(a.svgfMotionEPS, b.svgfMotionEPS)) return true;
+
+    // --- Sun light ---
+    if (a.sunEnabled != b.sunEnabled) return true;
+    if (diff(a.sunColor[0], b.sunColor[0])) return true;
+    if (diff(a.sunColor[1], b.sunColor[1])) return true;
+    if (diff(a.sunColor[2], b.sunColor[2])) return true;
+    if (diff(a.sunIntensity, b.sunIntensity)) return true;
+    if (diff(a.sunYaw, b.sunYaw)) return true;
+    if (diff(a.sunPitch, b.sunPitch)) return true;
+
+    // --- Sky dome ---
+    if (a.skyEnabled != b.skyEnabled) return true;
+    if (diff(a.skyColor[0], b.skyColor[0])) return true;
+    if (diff(a.skyColor[1], b.skyColor[1])) return true;
+    if (diff(a.skyColor[2], b.skyColor[2])) return true;
+    if (diff(a.skyIntensity, b.skyIntensity)) return true;
+    if (diff(a.skyYaw, b.skyYaw)) return true;
+    if (diff(a.skyPitch, b.skyPitch)) return true;
+
+    // --- Point light ---
+    if (a.pointLightEnabled != b.pointLightEnabled) return true;
+    if (diff(a.pointLightColor[0], b.pointLightColor[0])) return true;
+    if (diff(a.pointLightColor[1], b.pointLightColor[1])) return true;
+    if (diff(a.pointLightColor[2], b.pointLightColor[2])) return true;
+    if (diff(a.pointLightIntensity, b.pointLightIntensity)) return true;
+
+    if (diff(a.pointLightPos[0], b.pointLightPos[0])) return true;
+    if (diff(a.pointLightPos[1], b.pointLightPos[1])) return true;
+    if (diff(a.pointLightPos[2], b.pointLightPos[2])) return true;
+
+    if (a.pointLightOrbitEnabled != b.pointLightOrbitEnabled) return true;
+    if (diff(a.pointLightOrbitRadius, b.pointLightOrbitRadius)) return true;
+    if (diff(a.pointLightOrbitSpeed, b.pointLightOrbitSpeed)) return true;
 
     return false;
 }
