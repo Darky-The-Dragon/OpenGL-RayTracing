@@ -67,17 +67,17 @@ bool traceAnalyticIgnoreGlass(vec3 ro, vec3 rd, out Hit hit) {
     Hit h;
 
     // Ground plane (mat 0)
-    if (intersectPlane(ro, rd, vec3(0, 1, 0), 0.0, h, 0) && h.t < hit.t)
+    if (intersectPlane(ro, rd, kFloorNormal, kFloorD, h, 0) && h.t < hit.t)
     hit = h;
 
     // Red sphere (mat 1)
-    if (intersectSphere(ro, rd, vec3(-1.2, 1.0, -3.5), 1.0, h, 1) && h.t < hit.t)
+    if (intersectSphere(ro, rd, kSphereLeftCenter, kSphereLeftRadius, h, 1) && h.t < hit.t)
     hit = h;
 
     // Glass sphere (mat 2) – SKIPPED on purpose
 
     // Mirror sphere (mat 3)
-    if (intersectSphere(ro, rd, vec3(1.2, 0.7, -2.5), 0.7, h, 3) && h.t < hit.t)
+    if (intersectSphere(ro, rd, kMirrorCenter, kMirrorRadius, h, 3) && h.t < hit.t)
     hit = h;
 
     return hit.t < uINF;

@@ -4,10 +4,10 @@
 
 // Simple material model for analytic scene:
 //  - albedo: base color
-//  - specStrength: how strong the specular highlight is (0 = none)
-//  - gloss: Phong exponent (higher = sharper highlight)
-//  - type: 0 = diffuse/specular, 1 = perfect mirror, 2 = glass
-//  - ior: index of refraction for glass (ignored for non-glass)
+//  - specStrength: Phong specular strength (only used for type==0)
+//  - gloss: Phong exponent
+//  - type: 0 = lambert/specular, 1 = perfect mirror, 2 = glass
+//  - ior: index of refraction for glass
 struct MaterialProps {
     vec3 albedo;
     float specStrength;
@@ -29,7 +29,7 @@ MaterialProps getMaterial(int id) {
         return m;
     }
 
-    // Left sphere: red glossy (id = 1) – unchanged behaviour
+    // Left sphere: red glossy (id = 1)
     if (id == 1) {
         m.albedo = vec3(0.85, 0.25, 0.25);
         m.specStrength = 0.35;
@@ -39,7 +39,7 @@ MaterialProps getMaterial(int id) {
         return m;
     }
 
-    // NEW: Glass sphere (id = 2)
+    // Glass sphere (id = 2)
     if (id == 2) {
         m.albedo = vec3(0.9, 0.95, 1.0);
         m.specStrength = 0.0;   // spec comes from glass model
@@ -49,12 +49,12 @@ MaterialProps getMaterial(int id) {
         return m;
     }
 
-    // Right sphere: perfect mirror (id = 3)
+    // Mirror sphere (id = 3)
     if (id == 3) {
         m.albedo = vec3(0.95);
-        m.specStrength = 0.0;   // no local spec – uses mirror bounce instead
+        m.specStrength = 0.0;   // mirror handled in rt.frag via mirror bounce
         m.gloss = 1.0;
-        m.type = 1;
+        m.type = 1;     // MIRROR
         m.ior = 1.0;
         return m;
     }
@@ -68,7 +68,7 @@ MaterialProps getMaterial(int id) {
     return m;
 }
 
-// Kept for compatibility (if used anywhere else)
+// Kept for compatibility
 vec3 materialAlbedo(int id) {
     return getMaterial(id).albedo;
 }
