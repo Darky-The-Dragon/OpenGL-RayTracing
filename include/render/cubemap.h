@@ -2,4 +2,6 @@
 #include <string>
 #include "glad/gl.h"
 
-GLuint loadCubeMapFromCross(const std::string& path);
+GLuint createDummyCubeMap();
+
+GLuint loadCubeMapFromCross(const std::string &path);

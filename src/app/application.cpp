@@ -9,7 +9,9 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <filesystem>
 #include <algorithm>
+#include <vector>
 #include <string>
 
 static float halton(int index, const int base) {
@@ -155,25 +157,33 @@ void Application::initState() {
     rebuild_bvh_from_model_path(app.bvhPicker.currentPath, app.bvhTransform, app.bvhModel, app.bvhNodeCount,
                                 app.bvhTriCount, app.bvh);
 
-    const std::string defaultEnvPath = util::resolve_path("cubemaps/Sky_16.png");
+    // --- Environment Map Initialization ---
 
-    // Store the path in the picker so GUI reflects it
-    std::snprintf(app.envPicker.currentPath,
-                  sizeof(app.envPicker.currentPath),
-                  "%s",
-                  defaultEnvPath.c_str());
+    // Always create a dummy env cubemap so samplerCube never sees texture 0.
+    // This keeps the Apple/Metal GL driver happy (no GLD warnings).
+    app.envMapTex = createDummyCubeMap();
 
-    // Ensure correct selection index (GUI cosmetic)
+    // Resolve the cubemaps directory and build the default env path.
+    const std::string envDir = util::resolve_dir("cubemaps");
+    const std::string defaultEnvPath = envDir + "/Sky_16.png";
+
+    // Reflect this path in the GUI picker
+    std::snprintf(app.envPicker.currentPath, sizeof(app.envPicker.currentPath), "%s", defaultEnvPath.c_str());
     app.envPicker.selectedIndex = 0;
+    app.envPicker.reloadRequested = false;
 
-    // Tell mainLoop to load this cubemap on the first frame
-    app.envPicker.reloadRequested = true;
-
-    // Enable env map from the very start
-    app.params.enableEnvMap = 1;
-
-    ui::Log("[ENV] Default cubemap set to: %s (will load next frame)\n",
-            defaultEnvPath.c_str());
+    // Try to load the default envmap once at startup.
+    const GLuint realEnv = loadCubeMapFromCross(defaultEnvPath);
+    if (realEnv != 0) {
+        glDeleteTextures(1, &app.envMapTex); // replace dummy
+        app.envMapTex = realEnv;
+        app.params.enableEnvMap = 1;
+        ui::Log("[ENV] Loaded startup cubemap: %s\n", defaultEnvPath.c_str());
+    } else {
+        app.params.enableEnvMap = 0;
+        ui::Log("[ENV] Failed to load startup cubemap '%s', using dummy 1x1 cube.\n",
+                defaultEnvPath.c_str());
+    }
 
     app.input.sppPerFrame = app.params.sppPerFrame;
     app.input.exposure = app.params.exposure;
@@ -272,7 +282,8 @@ void Application::mainLoop() {
         const bool prevUseBVH = app.useBVH;
         const bool prevShowMotion = app.showMotion;
 
-        ui::Draw(app.params, app.frame, app.input, app.rayMode, app.useBVH, app.showMotion, app.bvhPicker, app.envPicker);
+        ui::Draw(app.params, app.frame, app.input, app.rayMode, app.useBVH, app.showMotion, app.bvhPicker,
+                 app.envPicker);
         ui::EndFrame();
 
         if (app.bvhPicker.reloadRequested) {

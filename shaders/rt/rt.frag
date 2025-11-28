@@ -172,7 +172,7 @@ void main() {
                 if (mat.type == 2) {
                     // GLASS MATERIAL
                     // Use env-based glass shader; skip direct light / GI / AO
-                    radiance = shadeGlass(h, V, mat);
+                    radiance = shadeGlass(h, V, mat, seed);
                 } else {
                     // ---- Direct lighting (analytic)
                     radiance = directLight(h, seed, V);

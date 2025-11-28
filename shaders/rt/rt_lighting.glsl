@@ -53,59 +53,6 @@ vec3 sampleHemisphereCosine(vec3 N, vec2 u) {
 }
 
 // ============================================================================
-// Glass shading helper
-// ============================================================================
-
-// wo = direction *from hit toward the camera* (i.e. -rayDir)
-vec3 shadeGlass(const Hit h, const vec3 wo, const MaterialProps mat) {
-    vec3 N = normalize(h.n);
-    vec3 I = -normalize(wo); // incident (from camera toward surface)
-
-    float etai = 1.0;
-    float etat = mat.ior;
-    float cosi = clamp(dot(-I, N), -1.0, 1.0);
-    vec3 n = N;
-
-    // Entering / exiting medium
-    if (cosi < 0.0) {
-        // we are inside the medium, flip normal and swap indices
-        cosi = -cosi;
-        n = -N;
-        float tmp = etai;
-        etai = etat;
-        etat = tmp;
-    }
-
-    float etaRatio = etai / etat;
-    float sint2 = etaRatio * etaRatio * (1.0 - cosi * cosi);
-
-    vec3 reflDir = normalize(reflect(I, n));
-    vec3 reflCol = sky(reflDir);          // env / sky handles env map
-
-    float kr;
-    vec3 refrCol = vec3(0.0);
-
-    if (sint2 > 1.0) {
-        // Total internal reflection
-        kr = 1.0;
-    } else {
-        float cost = sqrt(1.0 - sint2);
-        vec3 refrDir = normalize(etaRatio * I + (etaRatio * cosi - cost) * n);
-
-        // Fresnel using exact formula
-        float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
-        float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
-        kr = clamp(0.5 * (Rs * Rs + Rp * Rp), 0.0, 1.0);
-
-        // Use albedo as a tint for refraction
-        refrCol = sky(refrDir) * mat.albedo;
-    }
-
-    // Blend reflection and refraction
-    return mix(refrCol, reflCol, kr);
-}
-
-// ============================================================================
 // Direct lighting
 // ============================================================================
 
@@ -226,6 +173,77 @@ vec3 directLightBVH(Hit h, int frame, vec3 Vdir) {
         sum += (diffuse + spec) * Li;
     }
     return sum / float(SOFT_SHADOW_SAMPLES);
+}
+
+// ============================================================================
+// Glass shading – "soft" thin refraction with reduced magnification
+// ============================================================================
+// wo = direction from hit -> camera (i.e. -rayDir)
+vec3 shadeGlass(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
+{
+    vec3 N = normalize(h.n);
+    vec3 V = normalize(wo);   // hit -> camera
+    vec3 I = -V;              // camera -> hit
+
+    float ior = mat.ior;
+    float eta = 1.0 / max(ior, 1.0001);  // air -> glass
+
+    // How strong the distortion is:
+    // 0.0 = perfectly "flat" glass (just straight-through)
+    // 1.0 = fully physical refraction
+    const float distortionStrength = 0.45;   // TRY: 0.2–0.3 for very soft lens
+
+    // --- Reflection (env / sky only → bright, clean highlight)
+    vec3 R = reflect(I, N);
+    vec3 reflectCol = sky(R);
+
+    // --- Straight-through color (no bending) ------------------------------
+    vec3 straightCol = vec3(0.0);
+    {
+        Hit hStraight;
+        if (traceAnalyticIgnoreGlass(h.p + I * uEPS, I, hStraight)) {
+            vec3 V2 = normalize(uCamPos - hStraight.p);  // from hit -> camera
+            straightCol = directLight(hStraight, frame, V2);
+        } else {
+            straightCol = sky(I);
+        }
+    }
+
+    // --- Bent refraction color (physical, but will get blended down) ------
+    float cosTheta = clamp(dot(-I, N), 0.0, 1.0);
+    float k = 1.0 - eta * eta * (1.0 - cosTheta * cosTheta);
+
+    vec3 refrCol = straightCol;  // fallback: at worst, just see straight through
+
+    if (distortionStrength > 0.0 && k > 0.0) {
+        // Physical refraction direction
+        vec3 T_phys = normalize(refract(I, N, eta));
+
+        // Blend direction between straight and physical
+        vec3 T = normalize(mix(I, T_phys, distortionStrength));
+
+        Hit hRefr;
+        vec3 bentCol;
+        if (traceAnalyticIgnoreGlass(h.p + T * uEPS, T, hRefr)) {
+            vec3 V2 = normalize(uCamPos - hRefr.p);
+            bentCol = directLight(hRefr, frame, V2);
+        } else {
+            bentCol = sky(T);
+        }
+
+        // Blend *colors* so magnification is visually softened
+        refrCol = mix(straightCol, bentCol, distortionStrength);
+    }
+
+    // Tint by glass albedo
+    refrCol *= mat.albedo;
+
+    // --- Fresnel (Schlick) for reflection vs refraction -------------------
+    float F0 = pow((ior - 1.0) / (ior + 1.0), 2.0);
+    float fresnel = F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+
+    // Center = mostly refraction, rim = more reflection
+    return mix(refrCol, reflectCol, fresnel);
 }
 
 // ============================================================================
