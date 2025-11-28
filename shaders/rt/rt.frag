@@ -35,7 +35,7 @@ uniform vec2 uJitter;
 uniform int uEnableJitter;
 
 // ---- Scene mode
-uniform int uUseBVH;     // 0 = analytic (plane+spheres), 1 = BVH triangle scene
+uniform int uUseBVH;      // 0 = analytic (plane+spheres), 1 = BVH triangle scene
 uniform int uNodeCount;
 uniform int uTriCount;
 
@@ -43,11 +43,11 @@ uniform int uTriCount;
 uniform samplerBuffer uBvhNodes;
 uniform samplerBuffer uBvhTris;
 
-// ---- Motion debug (F6)
-uniform int uShowMotion;      // 0 = normal, 1 = visualize motion (present-time)
+// ---- Motion / reprojection
+uniform int uShowMotion;    // 0 = normal, 1 = visualize motion (used in present)
 uniform mat4 uPrevViewProj;
 uniform mat4 uCurrViewProj;
-uniform int uCameraMoved;     // 0 = camera is static, 1 = camera is moving
+uniform int uCameraMoved;   // 0 = camera is static, 1 = camera is moving
 
 // ---- TAA params (from RenderParams)
 uniform float uTaaStillThresh;
@@ -82,31 +82,37 @@ uniform float uINF;
 #include "rt_taa.glsl"
 
 // ================== MAIN ==================
-void main() {
-    vec3 frameSum = vec3(0.0);
+void main()
+{
+    // --------------------------------------------------------------------
+    // Per-pixel setup (same for all SPP samples this frame)
+    // --------------------------------------------------------------------
     int SPP = max(uSpp, 1);
 
-    // Default motion for this pixel:
-    vec2 motionOut = vec2(0.0);
+    // Per-frame camera jitter (same for all SPP samples)
+    vec2 camJit = (uEnableJitter == 1) ? uJitter : vec2(0.0);
 
-    // Initialize GBuffer outputs to something safe
+    // Pixel UV / NDC and primary ray direction
+    vec2 uv = (gl_FragCoord.xy + camJit) / uResolution;
+    vec2 ndc = uv * 2.0 - 1.0;
+
+    vec3 dir = normalize(
+        uCamFwd
+        + ndc.x * uCamRight * (uTanHalfFov * uAspect)
+        + ndc.y * uCamUp * uTanHalfFov
+    );
+
+    // Initialize outputs
+    vec3 frameSum = vec3(0.0);
+    vec2 motionOut = vec2(0.0);
     outGPos = vec4(0.0);
     outGNrm = vec4(0.0);
 
-    // --- Per-frame camera jitter
-    vec2 camJit = (uEnableJitter == 1) ? uJitter : vec2(0.0);
-
+    // --------------------------------------------------------------------
+    // Path loop (per-sample shading, same primary ray; RNG changes per SPP)
+    // --------------------------------------------------------------------
     for (int s = 0; s < SPP; ++s) {
-        int seed = uFrameIndex * max(1, SPP) + s;
-
-        vec2 uv = (gl_FragCoord.xy + camJit) / uResolution;
-        vec2 ndc = uv * 2.0 - 1.0;
-
-        vec3 dir = normalize(
-            uCamFwd
-            + ndc.x * uCamRight * (uTanHalfFov * uAspect)
-            + ndc.y * uCamUp * uTanHalfFov
-        );
+        int seed = uFrameIndex * SPP + s;
 
         // Choose scene
         Hit h;
@@ -117,11 +123,13 @@ void main() {
         vec3 radiance;
 
         if (hitAny) {
-            // Only write motion + GBuffer once (first sample) to keep them stable
+            // ------------------------------------------------------------
+            // First sample: write motion + GBuffer once to keep them stable
+            // ------------------------------------------------------------
             if (s == 0) {
-                vec2 pN = ndcFromWorld(h.p, uPrevViewProj);
-                vec2 cN = ndcFromWorld(h.p, uCurrViewProj);
-                motionOut = cN - pN;
+                vec2 prevNDC = ndcFromWorld(h.p, uPrevViewProj);
+                vec2 currNDC = ndcFromWorld(h.p, uCurrViewProj);
+                motionOut = currNDC - prevNDC;
 
                 outGPos = vec4(h.p, 1.0);
                 outGNrm = vec4(normalize(h.n), 0.0);
@@ -130,9 +138,9 @@ void main() {
             vec3 V = -dir; // direction from hit → camera
 
             if (uUseBVH == 1) {
-                // ==========================================================
-                // BVH SCENE
-                // ==========================================================
+                // =======================================================
+                // BVH SCENE (triangles)
+                // =======================================================
                 radiance = directLightBVH(h, seed, V);
 
                 if (uEnableGI == 1) {
@@ -144,9 +152,9 @@ void main() {
                     radiance *= ao;
                 }
             } else {
-                // ==========================================================
+                // =======================================================
                 // ANALYTIC SCENE (plane + spheres)
-                // ==========================================================
+                // =======================================================
                 MaterialProps mat = getMaterial(h.mat);
 
                 if (mat.type == 2) {
@@ -172,31 +180,36 @@ void main() {
                 }
             }
         } else {
+            // ------------------------------------------------------------
             // MISS → sky / environment
+            // ------------------------------------------------------------
             radiance = sky(dir);
 
-            // If the camera actually moved this frame, we want this pixel to
-            // be treated as a disocclusion in TAA, to avoid "sphere→sky" smearing.
+            // If the camera moved, mark this pixel as a disocclusion for TAA
+            // so we don't smear "geometry → sky" transitions.
             if (uCameraMoved == 1 && s == 0) {
-                motionOut = vec2(4.0, 4.0); // large NDC motion -> uvPrev OOB -> no history
-                // GBuffer stays at default (0), which is fine for sky/background
+                motionOut = vec2(4.0, 4.0); // large NDC motion → uvPrev OOB → no history
+                // GBuffer remains at default (0), which is fine for sky/background
             }
         }
 
         frameSum += radiance;
     }
 
-    // Average current frame samples
+    // --------------------------------------------------------------------
+    // TAA resolve (curr frame average + motion → history blend)
+    // --------------------------------------------------------------------
     vec3 curr = frameSum / float(SPP);
+    vec2 uvCurr = vUV; // for sampling uPrevAccum
 
-    // Current UV
-    vec2 uvCurr = vUV;
-
-    // Effective motion for TAA:
+    // Effective motion for TAA: if camera is "static", treat as zero motion
     vec2 taaMotion = (uCameraMoved == 1) ? motionOut : vec2(0.0);
 
     vec4 taa = resolveTAA(curr, uvCurr, taaMotion, uPrevAccum, uFrameIndex);
 
-    fragColor = taa;        // rgb = color, a = M2
-    outMotion = motionOut;  // full motion kept for debug view (F6)
+    // COLOR0: final accumulated color + M2
+    fragColor = taa;
+
+    // COLOR1: motion stored separately for present-time debug visualization
+    outMotion = motionOut;
 }

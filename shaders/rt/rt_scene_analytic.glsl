@@ -48,39 +48,28 @@ bool intersectSphere(vec3 ro, vec3 rd, vec3 c, float r, out Hit h, int matId) {
     return true;
 }
 
-bool traceAnalytic(vec3 ro, vec3 rd, out Hit hit) {
+bool traceAnalyticCore(vec3 ro, vec3 rd, bool includeGlass, out Hit hit) {
     hit.t = uINF;
     Hit h;
 
     if (intersectPlane(ro, rd, kFloorNormal, kFloorD, h, 0) && h.t < hit.t) hit = h;
     if (intersectSphere(ro, rd, kSphereLeftCenter, kSphereLeftRadius, h, 1) && h.t < hit.t) hit = h;
-    if (intersectSphere(ro, rd, kGlassCenter, kGlassRadius, h, 2) && h.t < hit.t) hit = h;
+
+    if (includeGlass) {
+        if (intersectSphere(ro, rd, kGlassCenter, kGlassRadius, h, 2) && h.t < hit.t) hit = h;
+    }
+
     if (intersectSphere(ro, rd, kMirrorCenter, kMirrorRadius, h, 3) && h.t < hit.t) hit = h;
 
     return hit.t < uINF;
 }
 
-// Trace analytic scene but IGNORE the glass sphere (mat id 2).
-// Used by glass shading to see "what's behind" the glass.
+bool traceAnalytic(vec3 ro, vec3 rd, out Hit hit) {
+    return traceAnalyticCore(ro, rd, true, hit);
+}
+
 bool traceAnalyticIgnoreGlass(vec3 ro, vec3 rd, out Hit hit) {
-    hit.t = uINF;
-    Hit h;
-
-    // Ground plane (mat 0)
-    if (intersectPlane(ro, rd, kFloorNormal, kFloorD, h, 0) && h.t < hit.t)
-    hit = h;
-
-    // Red sphere (mat 1)
-    if (intersectSphere(ro, rd, kSphereLeftCenter, kSphereLeftRadius, h, 1) && h.t < hit.t)
-    hit = h;
-
-    // Glass sphere (mat 2) – SKIPPED on purpose
-
-    // Mirror sphere (mat 3)
-    if (intersectSphere(ro, rd, kMirrorCenter, kMirrorRadius, h, 3) && h.t < hit.t)
-    hit = h;
-
-    return hit.t < uINF;
+    return traceAnalyticCore(ro, rd, false, hit);
 }
 
 // -------- Sky ----------

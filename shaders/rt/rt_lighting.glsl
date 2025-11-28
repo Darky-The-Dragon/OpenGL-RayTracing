@@ -33,6 +33,13 @@ void buildONB(in vec3 N, out vec3 T, out vec3 B) {
     B = cross(N, T);
 }
 
+// Shared disk-light frame around kLightN
+void buildLightFrame(out vec3 t, out vec3 b) {
+    t = normalize(abs(kLightN.y) < 0.99 ? cross(kLightN, vec3(0, 1, 0))
+                  : cross(kLightN, vec3(1, 0, 0)));
+    b = cross(kLightN, t);
+}
+
 // Cosine-weighted hemisphere sample around normal N using shared helpers.
 // u in [0,1]^2.
 vec3 sampleHemisphereCosine(vec3 N, vec2 u) {
@@ -76,11 +83,10 @@ vec3 directLight(Hit h, int frame, vec3 Vdir) {
     MaterialProps mat = getMaterial(h.mat);
 
     // Orthonormal basis for disk light
-    vec3 t = normalize(abs(kLightN.y) < 0.99 ? cross(kLightN, vec3(0, 1, 0))
-                       : cross(kLightN, vec3(1, 0, 0)));
-    vec3 b = cross(kLightN, t);
+    vec3 t, b;
+    buildLightFrame(t, b);
 
-    // Per-pixel rotated sampling like before
+    // Per-pixel rotated sampling
     vec2 rot = cpOffset(gl_FragCoord.xy, uFrameIndex);
 
     vec3 V = normalize(Vdir); // from hit → camera
@@ -136,9 +142,8 @@ vec3 directLightBVH(Hit h, int frame, vec3 Vdir) {
     const float specStrength = 0.25;
     const float gloss = 32.0;
 
-    vec3 t = normalize(abs(kLightN.y) < 0.99 ? cross(kLightN, vec3(0, 1, 0))
-                       : cross(kLightN, vec3(1, 0, 0)));
-    vec3 b = cross(kLightN, t);
+    vec3 t, b;
+    buildLightFrame(t, b);
 
     vec2 rot = cpOffset(gl_FragCoord.xy, uFrameIndex);
     vec3 V = normalize(Vdir);
@@ -185,19 +190,23 @@ vec3 oneBounceGIAnalytic(Hit h0, int frame, int seed) {
     MaterialProps mat0 = getMaterial(h0.mat);
     vec3 albedo0 = mat0.albedo;
 
+    vec3 N0 = normalize(h0.n);
+
     // Random sample on hemisphere (per-pixel, per-seed)
     vec2 u = vec2(
     rand(gl_FragCoord.xy + float(seed * 13), frame),
     rand(gl_FragCoord.yx + float(seed * 37), frame)
     );
 
-    vec3 wi = sampleHemisphereCosine(normalize(h0.n), u);
-    float cosTheta = max(dot(normalize(h0.n), wi), 0.0);
+    vec3 wi = sampleHemisphereCosine(N0, u);
+    float cosTheta = max(dot(N0, wi), 0.0);
     if (cosTheta <= 0.0) return vec3(0.0);
 
-    // Trace from the hit along wi
+    // Trace from the hit using a normal-based offset (more robust than along wi)
+    vec3 origin = h0.p + N0 * uEPS;
+
     Hit h1;
-    bool hit1 = traceAnalytic(h0.p + wi * uEPS, wi, h1);
+    bool hit1 = traceAnalytic(origin, wi, h1);
 
     vec3 Li;
     if (hit1) {
@@ -214,8 +223,7 @@ vec3 oneBounceGIAnalytic(Hit h0, int frame, int seed) {
 }
 
 // BVH scene: one diffuse bounce from primary triangle hit, with clamping
-vec3 oneBounceGIBVH(Hit h0, int frame, int seed)
-{
+vec3 oneBounceGIBVH(Hit h0, int frame, int seed) {
     // Hard-coded BVH albedo (same spirit as directLightBVH)
     const vec3 albedo0 = vec3(0.85);
     const float MAX_GI_LUM = 8.0;   // tweak: 4–12 depending on light power
@@ -236,7 +244,6 @@ vec3 oneBounceGIBVH(Hit h0, int frame, int seed)
     return vec3(0.0);
 
     // IMPORTANT: offset along the surface normal, not along wi
-    // This is more robust for thin triangles / sharp corners.
     vec3 origin = h0.p + N0 * uEPS;
 
     Hit h1;
@@ -359,8 +366,7 @@ vec3 shadeGlass(const Hit h, const vec3 wo, const MaterialProps mat, int frame) 
 // ============================================================================
 // Mirror shading helper – analytic scene only
 // ============================================================================
-vec3 shadeMirror(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
-{
+vec3 shadeMirror(const Hit h, const vec3 wo, const MaterialProps mat, int frame) {
     vec3 N = normalize(h.n);
     vec3 I = -normalize(wo);       // direction from hit → camera
     vec3 R = reflect(I, N);        // perfect mirror reflection
@@ -377,7 +383,8 @@ vec3 shadeMirror(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
 
         // Optional one-bounce GI for the reflected point
         if (uEnableGI == 1) {
-            col += uGiScaleAnalytic * oneBounceGIAnalytic(h2, frame, frame);
+            int giSeed = frame * 131 + 17;
+            col += uGiScaleAnalytic * oneBounceGIAnalytic(h2, frame, giSeed);
         }
     } else {
         // Fallback: environment or sky
@@ -399,8 +406,7 @@ vec3 shadeMirror(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
 // Returns a factor in [0,1] (1 = fully open, 0 = fully occluded).
 // Designed to be *subtle* so it doesn't nuke the lighting.
 // ---------------------------------------------------------------------------
-float computeAO(Hit h, int frame)
-{
+float computeAO(Hit h, int frame) {
     vec3 N = normalize(h.n);
     int occludedCount = 0;
 
@@ -414,8 +420,8 @@ float computeAO(Hit h, int frame)
         // cosine-weighted world-space direction around N
         vec3 dir = sampleHemisphereCosine(N, u);
 
-        // ray origin slightly above the surface
-        vec3 org = h.p + dir * uAO_BIAS;
+        // ray origin slightly above the surface (offset along normal for robustness)
+        vec3 org = h.p + N * uAO_BIAS;
 
         Hit tmp;
         bool hitAny =
