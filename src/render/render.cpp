@@ -2,6 +2,8 @@
 #include <glad/gl.h>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "glm/gtc/type_ptr.hpp"
+
 void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMoved,
                const glm::mat4 &currView, const glm::mat4 &currProj) {
     glEnable(GL_SCISSOR_TEST);
@@ -28,6 +30,22 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
     rt.setVec2("uResolution", glm::vec2(fbw, fbh));
     rt.setInt("uSpp", app.showMotion ? 1 : app.params.sppPerFrame);
 
+    // --- Albedo ---
+    rt.setVec3("uMatAlbedo_AlbedoColor", glm::make_vec3(app.params.matAlbedoColor));
+    rt.setFloat("uMatAlbedo_SpecStrength", app.params.matAlbedoSpecStrength);
+    rt.setFloat("uMatAlbedo_Gloss", app.params.matAlbedoGloss);
+
+    // --- Glass ---
+    rt.setInt("uMatGlass_Enabled", app.params.matGlassEnabled);
+    rt.setVec3("uMatGlass_Albedo", glm::make_vec3(app.params.matGlassColor));
+    rt.setFloat("uMatGlass_IOR", app.params.matGlassIOR);
+    rt.setFloat("uMatGlass_Distortion", app.params.matGlassDistortion);
+
+    // --- Mirror ---
+    rt.setInt("uMatMirror_Enabled", app.params.matMirrorEnabled);
+    rt.setVec3("uMatMirror_Albedo", glm::make_vec3(app.params.matMirrorColor));
+    rt.setFloat("uMatMirror_Gloss", app.params.matMirrorGloss);
+
     rt.setInt("uUseEnvMap", app.params.enableEnvMap && app.envMapTex ? 1 : 0);
     rt.setFloat("uEnvIntensity", app.params.envMapIntensity);
     rt.setInt("uEnvMap", 5);
@@ -51,8 +69,6 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
     rt.setFloat("uGiScaleBVH", app.params.giScaleBVH);
     rt.setInt("uEnableGI", app.params.enableGI);
     rt.setInt("uEnableAO", app.params.enableAO);
-    rt.setInt("uEnableMirror", app.params.enableMirror);
-    rt.setFloat("uMirrorStrength", app.params.mirrorStrength);
     rt.setInt("uAO_SAMPLES", app.params.aoSamples);
     rt.setFloat("uAO_RADIUS", app.params.aoRadius);
     rt.setFloat("uAO_BIAS", app.params.aoBias);

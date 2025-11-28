@@ -39,19 +39,39 @@ static bool paramsChanged(const RenderParams &a, const RenderParams &b) {
     if (a.sppPerFrame != b.sppPerFrame) return true;
     if (a.enableGI != b.enableGI) return true;
     if (a.enableAO != b.enableAO) return true;
-    if (a.enableMirror != b.enableMirror) return true;
     if (a.enableTAA != b.enableTAA) return true;
     if (a.enableSVGF != b.enableSVGF) return true;
     if (a.aoSamples != b.aoSamples) return true;
     if (a.enableEnvMap != b.enableEnvMap) return true;
     if (a.enableJitter != b.enableJitter) return true;
 
+    // --- Albedo ---
+    if (diff(a.matAlbedoColor[0], b.matAlbedoColor[0])) return true;
+    if (diff(a.matAlbedoColor[1], b.matAlbedoColor[1])) return true;
+    if (diff(a.matAlbedoColor[2], b.matAlbedoColor[2])) return true;
+    if (diff(a.matAlbedoSpecStrength, b.matAlbedoSpecStrength)) return true;
+    if (diff(a.matAlbedoGloss, b.matAlbedoGloss)) return true;
+
+    // --- Glass ---
+    if (a.matGlassEnabled != b.matGlassEnabled) return true;
+    if (diff(a.matGlassColor[0], b.matGlassColor[0])) return true;
+    if (diff(a.matGlassColor[1], b.matGlassColor[1])) return true;
+    if (diff(a.matGlassColor[2], b.matGlassColor[2])) return true;
+    if (diff(a.matGlassIOR, b.matGlassIOR)) return true;
+    if (diff(a.matGlassDistortion, b.matGlassDistortion)) return true;
+
+    // --- Mirror ---
+    if (a.matMirrorEnabled != b.matMirrorEnabled) return true;
+    if (diff(a.matMirrorColor[0], b.matMirrorColor[0])) return true;
+    if (diff(a.matMirrorColor[1], b.matMirrorColor[1])) return true;
+    if (diff(a.matMirrorColor[2], b.matMirrorColor[2])) return true;
+    if (diff(a.matMirrorGloss, b.matMirrorGloss)) return true;
+
     if (diff(a.envMapIntensity, b.envMapIntensity)) return true;
     if (diff(a.jitterStillScale, b.jitterStillScale)) return true;
     if (diff(a.jitterMovingScale, b.jitterMovingScale)) return true;
     if (diff(a.giScaleAnalytic, b.giScaleAnalytic)) return true;
     if (diff(a.giScaleBVH, b.giScaleBVH)) return true;
-    if (diff(a.mirrorStrength, b.mirrorStrength)) return true;
     if (diff(a.aoRadius, b.aoRadius)) return true;
     if (diff(a.aoBias, b.aoBias)) return true;
     if (diff(a.aoMin, b.aoMin)) return true;

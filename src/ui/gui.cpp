@@ -250,6 +250,44 @@ namespace ui {
         }
 
         // ------------------------------------------------------------------------
+        // Materials
+        // ------------------------------------------------------------------------
+        if (ImGui::CollapsingHeader("Materials"))
+        {
+            // --- Albedo ---
+            ImGui::SeparatorText("Albedo Material");
+
+            ImGui::ColorEdit3("Albedo Color", params.matAlbedoColor);
+            ImGui::SliderFloat("Albedo Spec Strength", &params.matAlbedoSpecStrength, 0.0f, 1.0f);
+            ImGui::SliderFloat("Albedo Gloss", &params.matAlbedoGloss, 1.0f, 128.0f);
+
+            // --- Glass ---
+            ImGui::SeparatorText("Glass Material");
+
+            ImGui::Checkbox("Enable Glass", (bool*)&params.matGlassEnabled);
+
+            ImGui::ColorEdit3("Glass Tint", params.matGlassColor);
+
+            if (params.matGlassEnabled)
+            {
+                ImGui::SliderFloat("Glass IOR", &params.matGlassIOR, 1.0f, 2.5f);
+                ImGui::SliderFloat("Glass Distortion", &params.matGlassDistortion, 0.0f, 1.0f);
+            }
+
+            // --- Mirror ---
+            ImGui::SeparatorText("Mirror Material");
+
+            ImGui::Checkbox("Enable Mirror", (bool*)&params.matMirrorEnabled);
+
+            ImGui::ColorEdit3("Mirror Tint", params.matMirrorColor);
+
+            if (params.matMirrorEnabled)
+            {
+                ImGui::SliderFloat("Mirror Gloss", &params.matMirrorGloss, 1.0f, 256.0f);
+            }
+        }
+
+        // ------------------------------------------------------------------------
         // Environment
         // ------------------------------------------------------------------------
         if (ImGui::CollapsingHeader("Environment")) {
@@ -372,27 +410,6 @@ namespace ui {
                 if (params.aoMin != oldMin) {
                     Log("[GUI] AO min: %.3f -> %.3f\n",
                         oldMin, params.aoMin);
-                }
-            }
-        }
-
-        // ------------------------------------------------------------------------
-        // Mirror Reflections
-        // ------------------------------------------------------------------------
-        if (ImGui::CollapsingHeader("Mirror Reflections")) {
-            bool mir = params.enableMirror;
-            if (ImGui::Checkbox("Enable Mirror Bounce", &mir)) {
-                params.enableMirror = mir;
-                Log("[GUI] Mirror bounce: %s\n", mir ? "ENABLED" : "DISABLED");
-            }
-
-            ImGui::SeparatorText("Mirror");
-
-            const float oldMirror = params.mirrorStrength;
-            if (ImGui::SliderFloat("Mirror Strength", &params.mirrorStrength, 0.0f, 2.0f)) {
-                if (params.mirrorStrength != oldMirror) {
-                    Log("[GUI] Mirror strength: %.3f -> %.3f\n",
-                        oldMirror, params.mirrorStrength);
                 }
             }
         }

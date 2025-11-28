@@ -63,8 +63,6 @@ uniform float uGiScaleAnalytic;
 uniform float uGiScaleBVH;
 uniform int uEnableGI;
 uniform int uEnableAO;
-uniform int uEnableMirror;
-uniform float uMirrorStrength;
 uniform int uAO_SAMPLES;
 uniform float uAO_RADIUS;
 uniform float uAO_BIAS;
@@ -133,31 +131,13 @@ void main() {
 
             if (uUseBVH == 1) {
                 // ==========================================================
-                // BVH SCENE (unchanged behaviour)
+                // BVH SCENE
                 // ==========================================================
                 radiance = directLightBVH(h, seed, V);
 
                 if (uEnableGI == 1) {
                     radiance += uGiScaleBVH * oneBounceGIBVH(h, uFrameIndex, seed);
                 }
-
-                #if ENABLE_MIRROR_BOUNCE
-                if (uEnableMirror == 1 && h.mat == 3) {
-                    vec3 rdir = reflect(dir, h.n);
-                    vec3 rorg = h.p + rdir * uEPS;
-
-                    Hit h2;
-                    bool hit2 = traceBVH(rorg, rdir, h2);
-
-                    if (hit2) {
-                        vec3 V2 = -rdir;
-                        vec3 bounced = directLightBVH(h2, seed, V2);
-                        radiance += uMirrorStrength * bounced;
-                    } else {
-                        radiance += uMirrorStrength * sky(rdir);
-                    }
-                }
-                #endif
 
                 if (uEnableAO == 1) {
                     float ao = computeAO(h, uFrameIndex);
@@ -171,38 +151,20 @@ void main() {
 
                 if (mat.type == 2) {
                     // GLASS MATERIAL
-                    // Use env-based glass shader; skip direct light / GI / AO
                     radiance = shadeGlass(h, V, mat, seed);
+
+                } else if (mat.type == 1) {
+                    // MIRROR MATERIAL
+                    radiance = shadeMirror(h, V, mat, seed);
+
                 } else {
-                    // ---- Direct lighting (analytic)
+                    // DIFFUSE / PHONG MATERIAL
                     radiance = directLight(h, seed, V);
 
-                    // ---- One-bounce diffuse GI (analytic)
-                    if (uEnableGI == 1 && mat.type == 0) {
-                        // Only for diffuse/spec – skip mirrors / special mats
+                    if (uEnableGI == 1) {
                         radiance += uGiScaleAnalytic * oneBounceGIAnalytic(h, uFrameIndex, seed);
                     }
 
-                    #if ENABLE_MIRROR_BOUNCE
-                    // Optional mirror reflection (analytic mirror sphere h.mat == 3)
-                    if (uEnableMirror == 1 && h.mat == 3) {
-                        vec3 rdir = reflect(dir, h.n);
-                        vec3 rorg = h.p + rdir * uEPS;
-
-                        Hit h2;
-                        bool hit2 = traceAnalytic(rorg, rdir, h2);
-
-                        if (hit2) {
-                            vec3 V2 = -rdir;
-                            vec3 bounced = directLight(h2, seed, V2);
-                            radiance += uMirrorStrength * bounced;
-                        } else {
-                            radiance += uMirrorStrength * sky(rdir);
-                        }
-                    }
-                    #endif
-
-                    // ---- Ambient Occlusion modulation (subtle)
                     if (uEnableAO == 1) {
                         float ao = computeAO(h, uFrameIndex);
                         radiance *= ao;

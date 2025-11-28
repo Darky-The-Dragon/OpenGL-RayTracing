@@ -175,16 +175,99 @@ vec3 directLightBVH(Hit h, int frame, vec3 Vdir) {
     return sum / float(SOFT_SHADOW_SAMPLES);
 }
 
+
 // ============================================================================
-// Glass shading – "soft" thin refraction with reduced magnification
+// One-bounce diffuse GI (indirect lighting)
 // ============================================================================
-// wo = direction from hit -> camera (i.e. -rayDir)
+
+// Analytic scene: one diffuse bounce from primary hit h0
+vec3 oneBounceGIAnalytic(Hit h0, int frame, int seed) {
+    MaterialProps mat0 = getMaterial(h0.mat);
+    vec3 albedo0 = mat0.albedo;
+
+    // Random sample on hemisphere (per-pixel, per-seed)
+    vec2 u = vec2(
+    rand(gl_FragCoord.xy + float(seed * 13), frame),
+    rand(gl_FragCoord.yx + float(seed * 37), frame)
+    );
+
+    vec3 wi = sampleHemisphereCosine(normalize(h0.n), u);
+    float cosTheta = max(dot(normalize(h0.n), wi), 0.0);
+    if (cosTheta <= 0.0) return vec3(0.0);
+
+    // Trace from the hit along wi
+    Hit h1;
+    bool hit1 = traceAnalytic(h0.p + wi * uEPS, wi, h1);
+
+    vec3 Li;
+    if (hit1) {
+        // Direct lighting at the secondary point
+        vec3 V1 = -wi;
+        Li = directLight(h1, frame, V1);
+    } else {
+        // Bounce to sky
+        Li = sky(wi);
+    }
+
+    // Lambertian throughput: albedo0 * (cosTheta / uPI)
+    return albedo0 * (cosTheta / uPI) * Li;
+}
+
+// BVH scene: one diffuse bounce from primary triangle hit, with clamping
+vec3 oneBounceGIBVH(Hit h0, int frame, int seed)
+{
+    // Hard-coded BVH albedo (same spirit as directLightBVH)
+    const vec3 albedo0 = vec3(0.85);
+    const float MAX_GI_LUM = 8.0;   // tweak: 4–12 depending on light power
+    const float MIN_COS_THETA = 0.1;   // avoid super-grazing bounces
+
+    // Random sample on hemisphere (per-pixel, per-seed)
+    vec2 u = vec2(
+    rand(gl_FragCoord.xy + float(seed * 19), frame),
+    rand(gl_FragCoord.yx + float(seed * 41), frame)
+    );
+
+    vec3 N0 = normalize(h0.n);
+    vec3 wi = sampleHemisphereCosine(N0, u);   // cosine-weighted around N
+    float cosTheta = max(dot(N0, wi), 0.0);
+
+    // Discard very grazing bounces (they cause huge variance on tiny triangles)
+    if (cosTheta <= MIN_COS_THETA)
+    return vec3(0.0);
+
+    // IMPORTANT: offset along the surface normal, not along wi
+    // This is more robust for thin triangles / sharp corners.
+    vec3 origin = h0.p + N0 * uEPS;
+
+    Hit h1;
+    bool hit1 = traceBVH(origin, wi, h1);
+
+    vec3 Li;
+    if (hit1) {
+        vec3 V1 = -wi;
+        Li = directLightBVH(h1, frame, V1);
+    } else {
+        Li = sky(wi);
+    }
+
+    // Raw Lambertian contribution
+    vec3 contrib = albedo0 * (cosTheta / uPI) * Li;
+
+    // Luminance-based clamp to kill fireflies
+    float lum = dot(contrib, vec3(0.299, 0.587, 0.114));
+    if (lum > MAX_GI_LUM) {
+        float s = MAX_GI_LUM / max(lum, 1e-6);
+        contrib *= s;
+    }
+
+    return contrib;
+}
+
 // ============================================================================
 // Glass shading – soft thin refraction with local reflections
 // ============================================================================
 // wo = direction from hit -> camera (i.e. -rayDir), frame = random seed
-vec3 shadeGlass(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
-{
+vec3 shadeGlass(const Hit h, const vec3 wo, const MaterialProps mat, int frame) {
     vec3 N = normalize(h.n);
     vec3 V = normalize(wo);   // hit -> camera
     vec3 I = -V;              // camera -> hit
@@ -274,90 +357,41 @@ vec3 shadeGlass(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
 }
 
 // ============================================================================
-// One-bounce diffuse GI (indirect lighting)
+// Mirror shading helper – analytic scene only
 // ============================================================================
-
-// Analytic scene: one diffuse bounce from primary hit h0
-vec3 oneBounceGIAnalytic(Hit h0, int frame, int seed) {
-    MaterialProps mat0 = getMaterial(h0.mat);
-    vec3 albedo0 = mat0.albedo;
-
-    // Random sample on hemisphere (per-pixel, per-seed)
-    vec2 u = vec2(
-    rand(gl_FragCoord.xy + float(seed * 13), frame),
-    rand(gl_FragCoord.yx + float(seed * 37), frame)
-    );
-
-    vec3 wi = sampleHemisphereCosine(normalize(h0.n), u);
-    float cosTheta = max(dot(normalize(h0.n), wi), 0.0);
-    if (cosTheta <= 0.0) return vec3(0.0);
-
-    // Trace from the hit along wi
-    Hit h1;
-    bool hit1 = traceAnalytic(h0.p + wi * uEPS, wi, h1);
-
-    vec3 Li;
-    if (hit1) {
-        // Direct lighting at the secondary point
-        vec3 V1 = -wi;
-        Li = directLight(h1, frame, V1);
-    } else {
-        // Bounce to sky
-        Li = sky(wi);
-    }
-
-    // Lambertian throughput: albedo0 * (cosTheta / uPI)
-    return albedo0 * (cosTheta / uPI) * Li;
-}
-
-// BVH scene: one diffuse bounce from primary triangle hit, with clamping
-vec3 oneBounceGIBVH(Hit h0, int frame, int seed)
+vec3 shadeMirror(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
 {
-    // Hard-coded BVH albedo (same spirit as directLightBVH)
-    const vec3 albedo0 = vec3(0.85);
-    const float MAX_GI_LUM = 8.0;   // tweak: 4–12 depending on light power
-    const float MIN_COS_THETA = 0.1;   // avoid super-grazing bounces
+    vec3 N = normalize(h.n);
+    vec3 I = -normalize(wo);       // direction from hit → camera
+    vec3 R = reflect(I, N);        // perfect mirror reflection
+    vec3 org = h.p + R * uEPS;
 
-    // Random sample on hemisphere (per-pixel, per-seed)
-    vec2 u = vec2(
-    rand(gl_FragCoord.xy + float(seed * 19), frame),
-    rand(gl_FragCoord.yx + float(seed * 41), frame)
-    );
+    Hit h2;
+    bool hit2 = traceAnalytic(org, R, h2);
 
-    vec3 N0 = normalize(h0.n);
-    vec3 wi = sampleHemisphereCosine(N0, u);   // cosine-weighted around N
-    float cosTheta = max(dot(N0, wi), 0.0);
+    vec3 col;
+    if (hit2) {
+        // Direct lighting at the reflected hit
+        vec3 V2 = -R;
+        col = directLight(h2, frame, V2);
 
-    // Discard very grazing bounces (they cause huge variance on tiny triangles)
-    if (cosTheta <= MIN_COS_THETA)
-    return vec3(0.0);
-
-    // IMPORTANT: offset along the surface normal, not along wi
-    // This is more robust for thin triangles / sharp corners.
-    vec3 origin = h0.p + N0 * uEPS;
-
-    Hit h1;
-    bool hit1 = traceBVH(origin, wi, h1);
-
-    vec3 Li;
-    if (hit1) {
-        vec3 V1 = -wi;
-        Li = directLightBVH(h1, frame, V1);
+        // Optional one-bounce GI for the reflected point
+        if (uEnableGI == 1) {
+            col += uGiScaleAnalytic * oneBounceGIAnalytic(h2, frame, frame);
+        }
     } else {
-        Li = sky(wi);
+        // Fallback: environment or sky
+        if (uUseEnvMap == 1) {
+            col = texture(uEnvMap, R).rgb * uEnvIntensity;
+        } else {
+            col = sky(R);
+        }
     }
 
-    // Raw Lambertian contribution
-    vec3 contrib = albedo0 * (cosTheta / uPI) * Li;
+    // Apply mirror tint
+    col *= mat.albedo;
 
-    // Luminance-based clamp to kill fireflies
-    float lum = dot(contrib, vec3(0.299, 0.587, 0.114));
-    if (lum > MAX_GI_LUM) {
-        float s = MAX_GI_LUM / max(lum, 1e-6);
-        contrib *= s;
-    }
-
-    return contrib;
+    return col;
 }
 
 // ---------------------------------------------------------------------------

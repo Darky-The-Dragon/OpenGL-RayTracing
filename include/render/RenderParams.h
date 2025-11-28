@@ -7,9 +7,19 @@ struct RenderParams {
     int sppPerFrame = 1;
     float exposure = 1.0f;
 
-    // Materials
-    int enableMirror = 1;
-    float mirrorStrength = 0.9f;
+    // --- Material Controls ---
+    float matAlbedoColor[3] = {0.85f, 0.25f, 0.25f};
+    float matAlbedoSpecStrength = 0.35f;
+    float matAlbedoGloss = 48.0f;
+
+    int matGlassEnabled = 1;
+    float matGlassColor[3] = {0.95f, 0.98f, 1.0f};
+    float matGlassIOR = 1.5f;
+    float matGlassDistortion = 0.05f;
+
+    int matMirrorEnabled = 1;
+    float matMirrorColor[3] = {1.0f, 1.0f, 1.0f};
+    float matMirrorGloss = 256.0f;
 
     // Jitter
     int enableJitter = 1;
