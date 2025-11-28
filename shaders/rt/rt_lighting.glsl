@@ -179,6 +179,10 @@ vec3 directLightBVH(Hit h, int frame, vec3 Vdir) {
 // Glass shading – "soft" thin refraction with reduced magnification
 // ============================================================================
 // wo = direction from hit -> camera (i.e. -rayDir)
+// ============================================================================
+// Glass shading – soft thin refraction with local reflections
+// ============================================================================
+// wo = direction from hit -> camera (i.e. -rayDir), frame = random seed
 vec3 shadeGlass(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
 {
     vec3 N = normalize(h.n);
@@ -188,16 +192,38 @@ vec3 shadeGlass(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
     float ior = mat.ior;
     float eta = 1.0 / max(ior, 1.0001);  // air -> glass
 
-    // How strong the distortion is:
-    // 0.0 = perfectly "flat" glass (just straight-through)
+    // 0.0 = no distortion (just straight-through)
     // 1.0 = fully physical refraction
-    const float distortionStrength = 0.45;   // TRY: 0.2–0.3 for very soft lens
+    const float distortionStrength = 0.45;
 
-    // --- Reflection (env / sky only → bright, clean highlight)
+    // ------------------------------------------------------------------------
+    // REFLECTION: env + local scene
+    // ------------------------------------------------------------------------
     vec3 R = reflect(I, N);
-    vec3 reflectCol = sky(R);
 
-    // --- Straight-through color (no bending) ------------------------------
+    // Env reflection (cubemap/sky)
+    vec3 reflectEnv = sky(R);
+
+    // Local reflection: what the sphere "sees" around it
+    vec3 reflectLocal = reflectEnv;
+    {
+        Hit hRefl;
+        if (traceAnalyticIgnoreGlass(h.p + R * uEPS, R, hRefl)) {
+            vec3 V2 = normalize(uCamPos - hRefl.p);   // hit -> camera
+            reflectLocal = directLight(hRefl, frame, V2);
+        }
+    }
+
+    // Blend env + local so nearby objects show up as small highlights,
+    // but the sphere doesn't turn into a full-on mirror.
+    const float localReflWeight = 0.4;    // tweak 0.2–0.6
+    vec3 reflectCol = mix(reflectEnv, reflectLocal, localReflWeight);
+
+    // ------------------------------------------------------------------------
+    // REFRACTION: straight-through + softened bent refraction
+    // ------------------------------------------------------------------------
+
+    // Straight-through color (no bending – acts like thin glass)
     vec3 straightCol = vec3(0.0);
     {
         Hit hStraight;
@@ -209,7 +235,7 @@ vec3 shadeGlass(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
         }
     }
 
-    // --- Bent refraction color (physical, but will get blended down) ------
+    // Bent refraction color (physical direction, blended down)
     float cosTheta = clamp(dot(-I, N), 0.0, 1.0);
     float k = 1.0 - eta * eta * (1.0 - cosTheta * cosTheta);
 
@@ -219,7 +245,7 @@ vec3 shadeGlass(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
         // Physical refraction direction
         vec3 T_phys = normalize(refract(I, N, eta));
 
-        // Blend direction between straight and physical
+        // Soften the effect to avoid crazy magnification
         vec3 T = normalize(mix(I, T_phys, distortionStrength));
 
         Hit hRefr;
@@ -231,14 +257,15 @@ vec3 shadeGlass(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
             bentCol = sky(T);
         }
 
-        // Blend *colors* so magnification is visually softened
         refrCol = mix(straightCol, bentCol, distortionStrength);
     }
 
     // Tint by glass albedo
     refrCol *= mat.albedo;
 
-    // --- Fresnel (Schlick) for reflection vs refraction -------------------
+    // ------------------------------------------------------------------------
+    // Fresnel (Schlick) – mix reflection vs refraction
+    // ------------------------------------------------------------------------
     float F0 = pow((ior - 1.0) / (ior + 1.0), 2.0);
     float fresnel = F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 
