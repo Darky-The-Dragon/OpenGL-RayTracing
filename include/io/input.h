@@ -1,8 +1,9 @@
 #pragma once
 
+#include <GLFW/glfw3.h>
+
 class AppState; // fwd
 class Camera; // fwd
-struct GLFWwindow; // fwd
 
 namespace io {
     struct InputState {
