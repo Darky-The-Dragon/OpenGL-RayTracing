@@ -13,67 +13,8 @@ layout (location = 2) out vec4 outGPos;
 // COLOR3: world-space normal (xyz, w unused)
 layout (location = 3) out vec4 outGNrm;
 
-// ---- Camera & accumulation
-uniform vec3 uCamPos;
-uniform vec3 uCamRight;
-uniform vec3 uCamUp;
-uniform vec3 uCamFwd;
-uniform float uTanHalfFov;
-uniform float uAspect;
-uniform int uFrameIndex;
-uniform vec2 uResolution;
-uniform sampler2D uPrevAccum;
-uniform int uSpp;
-
-// ---- CubeMap
-uniform samplerCube uEnvMap;
-uniform int uUseEnvMap;
-uniform float uEnvIntensity;
-
-// ---- Jitter
-uniform vec2 uJitter;
-uniform int uEnableJitter;
-
-// ---- Scene mode
-uniform int uUseBVH;      // 0 = analytic (plane+spheres), 1 = BVH triangle scene
-uniform int uNodeCount;
-uniform int uTriCount;
-
-// ---- BVH TBOs (only used if uUseBVH==1)
-uniform samplerBuffer uBvhNodes;
-uniform samplerBuffer uBvhTris;
-
-// ---- Motion / reprojection
-uniform int uShowMotion;    // 0 = normal, 1 = visualize motion (used in present)
-uniform mat4 uPrevViewProj;
-uniform mat4 uCurrViewProj;
-uniform int uCameraMoved;   // 0 = camera is static, 1 = camera is moving
-
-// ---- TAA params (from RenderParams)
-uniform float uTaaStillThresh;
-uniform float uTaaHardMovingThresh;
-uniform float uTaaHistoryMinWeight;
-uniform float uTaaHistoryAvgWeight;
-uniform float uTaaHistoryMaxWeight;
-uniform float uTaaHistoryBoxSize;
-uniform int uEnableTAA;
-
-// ---- GI / AO / mirror params (from RenderParams)
-uniform float uGiScaleAnalytic;
-uniform float uGiScaleBVH;
-uniform int uEnableGI;
-uniform int uEnableAO;
-uniform int uAO_SAMPLES;
-uniform float uAO_RADIUS;
-uniform float uAO_BIAS;
-uniform float uAO_MIN;
-
-// ---- Constants (from RenderParams)
-uniform float uEPS;
-uniform float uPI;
-uniform float uINF;
-
 // Includes
+#include "rt_uniforms.glsl"
 #include "rt_common.glsl"
 #include "rt_materials.glsl"
 #include "rt_scene_analytic.glsl"

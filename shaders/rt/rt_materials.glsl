@@ -2,22 +2,6 @@
 #ifndef RT_MATERIALS_GLSL
 #define RT_MATERIALS_GLSL
 
-// -----------------------------------------------------------------------------
-// Shared material / point-light uniforms
-// -----------------------------------------------------------------------------
-uniform vec3 uMatAlbedo_AlbedoColor;
-uniform float uMatAlbedo_SpecStrength;
-uniform float uMatAlbedo_Gloss;
-
-uniform vec3 uMatGlass_Albedo;
-uniform float uMatGlass_IOR;
-uniform float uMatGlass_Distortion;
-uniform int uMatGlass_Enabled;
-
-uniform vec3 uMatMirror_Albedo;
-uniform float uMatMirror_Gloss;
-uniform int uMatMirror_Enabled;
-
 // Material IDs (must match analytic scene)
 const int MAT_FLOOR = 0;
 const int MAT_ALBEDO_SPHERE = 1;

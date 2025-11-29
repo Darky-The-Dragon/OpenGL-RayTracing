@@ -263,7 +263,7 @@ namespace ui {
             // --- Glass ---
             ImGui::SeparatorText("Glass Material");
 
-            ImGui::Checkbox("Enable Glass", (bool *) &params.matGlassEnabled);
+            ImGui::Checkbox("Enable Glass", reinterpret_cast<bool *>(&params.matGlassEnabled));
 
             ImGui::ColorEdit3("Glass Tint", params.matGlassColor);
 
@@ -275,7 +275,7 @@ namespace ui {
             // --- Mirror ---
             ImGui::SeparatorText("Mirror Material");
 
-            ImGui::Checkbox("Enable Mirror", (bool *) &params.matMirrorEnabled);
+            ImGui::Checkbox("Enable Mirror", reinterpret_cast<bool *>(&params.matMirrorEnabled));
 
             ImGui::ColorEdit3("Mirror Tint", params.matMirrorColor);
 
@@ -356,7 +356,11 @@ namespace ui {
                 }
 
                 ImGui::SliderFloat("Orbit Radius", &params.pointLightOrbitRadius, 0.0f, 10.0f);
-                ImGui::SliderFloat("Orbit Speed (rad/frame)", &params.pointLightOrbitSpeed, 0.0f, 0.1f, "%.4f");
+                ImGui::SliderFloat("Orbit Speed (deg/s)", &params.pointLightOrbitSpeed, 0.0f, 360.0f);
+
+                // NEW: direct yaw/pitch control (works even if orbit is off)
+                ImGui::SliderFloat("Yaw (deg)", &params.pointLightYaw, -180.0f, 180.0f);
+                ImGui::SliderFloat("Pitch (deg)", &params.pointLightPitch, -89.0f, 89.0f);
             }
         }
 

@@ -8,17 +8,11 @@ GLuint createDummyCubeMap() {
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_CUBE_MAP, tex);
 
-    const unsigned char px[4] = {128, 128, 255, 255}; // neutral-ish sky
+    constexpr unsigned char px[4] = {128, 128, 255, 255}; // neutral-ish sky
 
     for (int face = 0; face < 6; ++face) {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face,
-                     0,
-                     GL_RGBA8,
-                     1, 1,
-                     0,
-                     GL_RGBA,
-                     GL_UNSIGNED_BYTE,
-                     px);
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0,GL_RGBA8, 1, 1,
+                     0,GL_RGBA,GL_UNSIGNED_BYTE, px);
     }
 
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -67,7 +61,9 @@ GLuint loadCubeMapFromCross(const std::string &path) {
             memcpy(dstRow, srcRow, faceSize * channels);
         }
 
-        glTexImage2D(faceTarget, 0, internalFormat, faceSize, faceSize, 0, format,GL_UNSIGNED_BYTE, faceBuf.data());
+        glTexImage2D(faceTarget,
+                     0, static_cast<GLint>(internalFormat), faceSize, faceSize, 0, format,GL_UNSIGNED_BYTE,
+                     faceBuf.data());
     };
 
     // Layout:

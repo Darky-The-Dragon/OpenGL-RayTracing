@@ -26,7 +26,7 @@ namespace ui {
 
     struct EnvMapPickerState {
         bool reloadRequested = false;
-        int  selectedIndex   = 0;
+        int selectedIndex = 0;
         char currentPath[256] = "../cubemaps/Sky_16.png";
     };
 

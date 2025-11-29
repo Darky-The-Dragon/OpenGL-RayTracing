@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 #include <memory>
-#include <glm/glm.hpp>
 #include <glad/gl.h>
 
 class Model; // forward decl to avoid include-order brittleness
@@ -52,7 +51,7 @@ struct BVHNode {
 };
 
 /// Build a simple median-split BVH
-std::vector<BVHNode> build_bvh(std::vector<CPU_Triangle> & tris);
+std::vector<BVHNode> build_bvh(std::vector<CPU_Triangle> &tris);
 
 /// Upload linearized nodes & triangles to GPU as texture buffers (TBOs).
 /// Produces two textures + two buffers (so we can delete buffers safely at shutdown).

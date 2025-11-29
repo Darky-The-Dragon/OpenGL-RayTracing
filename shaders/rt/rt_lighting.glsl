@@ -2,22 +2,6 @@
 #ifndef RT_LIGHTING_GLSL
 #define RT_LIGHTING_GLSL
 
-// Hybrid lighting: Sun + Sky + Point
-uniform int uSunEnabled;
-uniform vec3 uSunColor;
-uniform float uSunIntensity;
-uniform vec3 uSunDir;       // direction FROM light TO scene (i.e. sun rays = -uSunDir)
-
-uniform int uSkyEnabled;
-uniform vec3 uSkyColor;
-uniform float uSkyIntensity;
-uniform vec3 uSkyUpDir;     // "up" direction for sky dome
-
-uniform int uPointLightEnabled;
-uniform vec3 uPointLightPos;
-uniform vec3 uPointLightColor;
-uniform float uPointLightIntensity;
-
 // ------------- Disk area light (existing) --------------
 const vec3 kLightCenter = vec3(0.0, 5.0, -3.0);
 const vec3 kLightN = normalize(vec3(0.0, -1.0, 0.2));
@@ -144,7 +128,8 @@ vec3 pointDirect(Hit h, MaterialProps mat, vec3 Vdir)
         blocked = traceBVHShadow(origin, L, dist - eps);
     } else {
         Hit tmp;
-        blocked = traceAnalytic(origin, L, tmp) && tmp.t < dist - eps;
+        // IMPORTANT: do NOT let the marker sphere shadow its own light
+        blocked = traceAnalyticIgnorePointLight(origin, L, tmp) && tmp.t < dist - eps;
     }
     if (blocked) return vec3(0.0);
 

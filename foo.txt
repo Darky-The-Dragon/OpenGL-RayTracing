@@ -1,0 +1,1109 @@
+diff --git a/include/app/state.h b/include/app/state.h
+index 966659d..3cd464a 100644
+--- a/include/app/state.h
++++ b/include/app/state.h
+@@ -23,7 +23,8 @@ inline glm::mat4 defaultBvhTransform() {
+ }
+ 
+ // Centralized state that used to live as globals in main.cpp
+-struct AppState {
++class AppState {
++public:
+     rt::Accum accum;
+     rt::GBuffer gBuffer;
+     rt::FrameState frame;
+diff --git a/include/io/input.h b/include/io/input.h
+index e0b6947..b4dc9da 100644
+--- a/include/io/input.h
++++ b/include/io/input.h
+@@ -2,7 +2,7 @@
+ 
+ class AppState; // fwd
+ class Camera; // fwd
+-struct GLFWwindow; // fwd
++struct GLFWWindow; // fwd
+ 
+ namespace io {
+     struct InputState {
+@@ -43,8 +43,8 @@ namespace io {
+     }
+ 
+     // Returns true if anything changed that should reset accumulation
+-    bool update(InputState &s, GLFWwindow *win);
++    bool update(InputState &s, GLFWWindow *win);
+ 
+     // Hook GLFW callbacks for mouse/scroll
+-    void attach_callbacks(GLFWwindow *window);
++    void attach_callbacks(GLFWWindow *window);
+ } // namespace io
+diff --git a/include/render/RenderParams.h b/include/render/RenderParams.h
+index cdb3e06..85e01b6 100644
+--- a/include/render/RenderParams.h
++++ b/include/render/RenderParams.h
+@@ -1,7 +1,5 @@
+ #pragma once
+ 
+-#include <cstdint>
+-
+ struct RenderParams {
+     // core
+     int sppPerFrame = 1;
+@@ -62,7 +60,11 @@ struct RenderParams {
+     // Orbit controls (around Y axis)
+     int pointLightOrbitEnabled = 0; // 0 = static, 1 = orbit
+     float pointLightOrbitRadius = 3.5f; // orbit radius in XZ plane
+-    float pointLightOrbitSpeed = 0.02f; // radians per frame
++    float pointLightOrbitSpeed = 20.0f; // degrees per second
++
++    // NEW: explicit point-light orbit angles (in degrees)
++    float pointLightYaw = 0.0f; // yaw around Y axis
++    float pointLightPitch = 0.0f; // pitch up/down
+ 
+     // AO
+     int enableAO = 1;
+diff --git a/include/scene/bvh.h b/include/scene/bvh.h
+index 8b99840..9b1f4a7 100644
+--- a/include/scene/bvh.h
++++ b/include/scene/bvh.h
+@@ -1,7 +1,6 @@
+ #pragma once
+ #include <vector>
+ #include <memory>
+-#include <glm/glm.hpp>
+ #include <glad/gl.h>
+ 
+ class Model; // forward decl to avoid include-order brittleness
+diff --git a/libs/glfw b/libs/glfw
+--- a/libs/glfw
++++ b/libs/glfw
+@@ -1 +1 @@
+-Subproject commit e7ea71be039836da3a98cea55ae5569cb5eb885c
++Subproject commit e7ea71be039836da3a98cea55ae5569cb5eb885c-dirty
+diff --git a/libs/imgui b/libs/imgui
+--- a/libs/imgui
++++ b/libs/imgui
+@@ -1 +1 @@
+-Subproject commit 77f1d3b317c400c34ee02fe9a5354d0d757b55ca
++Subproject commit 77f1d3b317c400c34ee02fe9a5354d0d757b55ca-dirty
+diff --git a/shaders/rt/rt.frag b/shaders/rt/rt.frag
+index 22b12d5..05a61aa 100644
+--- a/shaders/rt/rt.frag
++++ b/shaders/rt/rt.frag
+@@ -13,67 +13,8 @@ layout (location = 2) out vec4 outGPos;
+ // COLOR3: world-space normal (xyz, w unused)
+ layout (location = 3) out vec4 outGNrm;
+ 
+-// ---- Camera & accumulation
+-uniform vec3 uCamPos;
+-uniform vec3 uCamRight;
+-uniform vec3 uCamUp;
+-uniform vec3 uCamFwd;
+-uniform float uTanHalfFov;
+-uniform float uAspect;
+-uniform int uFrameIndex;
+-uniform vec2 uResolution;
+-uniform sampler2D uPrevAccum;
+-uniform int uSpp;
+-
+-// ---- CubeMap
+-uniform samplerCube uEnvMap;
+-uniform int uUseEnvMap;
+-uniform float uEnvIntensity;
+-
+-// ---- Jitter
+-uniform vec2 uJitter;
+-uniform int uEnableJitter;
+-
+-// ---- Scene mode
+-uniform int uUseBVH;      // 0 = analytic (plane+spheres), 1 = BVH triangle scene
+-uniform int uNodeCount;
+-uniform int uTriCount;
+-
+-// ---- BVH TBOs (only used if uUseBVH==1)
+-uniform samplerBuffer uBvhNodes;
+-uniform samplerBuffer uBvhTris;
+-
+-// ---- Motion / reprojection
+-uniform int uShowMotion;    // 0 = normal, 1 = visualize motion (used in present)
+-uniform mat4 uPrevViewProj;
+-uniform mat4 uCurrViewProj;
+-uniform int uCameraMoved;   // 0 = camera is static, 1 = camera is moving
+-
+-// ---- TAA params (from RenderParams)
+-uniform float uTaaStillThresh;
+-uniform float uTaaHardMovingThresh;
+-uniform float uTaaHistoryMinWeight;
+-uniform float uTaaHistoryAvgWeight;
+-uniform float uTaaHistoryMaxWeight;
+-uniform float uTaaHistoryBoxSize;
+-uniform int uEnableTAA;
+-
+-// ---- GI / AO / mirror params (from RenderParams)
+-uniform float uGiScaleAnalytic;
+-uniform float uGiScaleBVH;
+-uniform int uEnableGI;
+-uniform int uEnableAO;
+-uniform int uAO_SAMPLES;
+-uniform float uAO_RADIUS;
+-uniform float uAO_BIAS;
+-uniform float uAO_MIN;
+-
+-// ---- Constants (from RenderParams)
+-uniform float uEPS;
+-uniform float uPI;
+-uniform float uINF;
+-
+ // Includes
++#include "rt_uniforms.glsl"
+ #include "rt_common.glsl"
+ #include "rt_materials.glsl"
+ #include "rt_scene_analytic.glsl"
+diff --git a/shaders/rt/rt_lighting.glsl b/shaders/rt/rt_lighting.glsl
+index 695b937..8f7a28f 100644
+--- a/shaders/rt/rt_lighting.glsl
++++ b/shaders/rt/rt_lighting.glsl
+@@ -2,22 +2,6 @@
+ #ifndef RT_LIGHTING_GLSL
+ #define RT_LIGHTING_GLSL
+ 
+-// Hybrid lighting: Sun + Sky + Point
+-uniform int uSunEnabled;
+-uniform vec3 uSunColor;
+-uniform float uSunIntensity;
+-uniform vec3 uSunDir;       // direction FROM light TO scene (i.e. sun rays = -uSunDir)
+-
+-uniform int uSkyEnabled;
+-uniform vec3 uSkyColor;
+-uniform float uSkyIntensity;
+-uniform vec3 uSkyUpDir;     // "up" direction for sky dome
+-
+-uniform int uPointLightEnabled;
+-uniform vec3 uPointLightPos;
+-uniform vec3 uPointLightColor;
+-uniform float uPointLightIntensity;
+-
+ // ------------- Disk area light (existing) --------------
+ const vec3 kLightCenter = vec3(0.0, 5.0, -3.0);
+ const vec3 kLightN = normalize(vec3(0.0, -1.0, 0.2));
+@@ -144,7 +128,8 @@ vec3 pointDirect(Hit h, MaterialProps mat, vec3 Vdir)
+         blocked = traceBVHShadow(origin, L, dist - eps);
+     } else {
+         Hit tmp;
+-        blocked = traceAnalytic(origin, L, tmp) && tmp.t < dist - eps;
++        // IMPORTANT: do NOT let the marker sphere shadow its own light
++        blocked = traceAnalyticIgnorePointLight(origin, L, tmp) && tmp.t < dist - eps;
+     }
+     if (blocked) return vec3(0.0);
+ 
+diff --git a/shaders/rt/rt_materials.glsl b/shaders/rt/rt_materials.glsl
+index 2d9bd44..6893b20 100644
+--- a/shaders/rt/rt_materials.glsl
++++ b/shaders/rt/rt_materials.glsl
+@@ -2,22 +2,6 @@
+ #ifndef RT_MATERIALS_GLSL
+ #define RT_MATERIALS_GLSL
+ 
+-// -----------------------------------------------------------------------------
+-// Shared material / point-light uniforms
+-// -----------------------------------------------------------------------------
+-uniform vec3 uMatAlbedo_AlbedoColor;
+-uniform float uMatAlbedo_SpecStrength;
+-uniform float uMatAlbedo_Gloss;
+-
+-uniform vec3 uMatGlass_Albedo;
+-uniform float uMatGlass_IOR;
+-uniform float uMatGlass_Distortion;
+-uniform int uMatGlass_Enabled;
+-
+-uniform vec3 uMatMirror_Albedo;
+-uniform float uMatMirror_Gloss;
+-uniform int uMatMirror_Enabled;
+-
+ // Material IDs (must match analytic scene)
+ const int MAT_FLOOR = 0;
+ const int MAT_ALBEDO_SPHERE = 1;
+diff --git a/shaders/rt/rt_scene_analytic.glsl b/shaders/rt/rt_scene_analytic.glsl
+index a1ff16f..53b423e 100644
+--- a/shaders/rt/rt_scene_analytic.glsl
++++ b/shaders/rt/rt_scene_analytic.glsl
+@@ -18,6 +18,10 @@ const float kGlassRadius = 1.0;
+ const vec3 kMirrorCenter = vec3(1.2, 0.7, -2.5);
+ const float kMirrorRadius = 0.7;
+ 
++// Point light marker sphere (MAT_POINTLIGHT_SPHERE)
++// (center = uPointLightPos, radius just for analytic intersection)
++const float kPointLightRadius = 0.15;
++
+ // -------- Analytic intersections --------
+ bool intersectPlane(vec3 ro, vec3 rd, vec3 n, float d, out Hit h, int matId) {
+     float denom = dot(n, rd);
+@@ -48,7 +52,7 @@ bool intersectSphere(vec3 ro, vec3 rd, vec3 c, float r, out Hit h, int matId) {
+     return true;
+ }
+ 
+-bool traceAnalyticCore(vec3 ro, vec3 rd, bool includeGlass, out Hit hit) {
++bool traceAnalyticCore(vec3 ro, vec3 rd, bool includeGlass, bool includePointLightSphere, out Hit hit) {
+     hit.t = uINF;
+     Hit h;
+ 
+@@ -74,16 +78,30 @@ bool traceAnalyticCore(vec3 ro, vec3 rd, bool includeGlass, out Hit hit) {
+         hit = h;
+     }
+ 
++    // Point-light marker sphere (optional)
++    if (includePointLightSphere && uPointLightEnabled == 1) {
++        // Center is the actual point light position
++        if (intersectSphere(ro, rd, uPointLightPos, kPointLightRadius, h, MAT_POINTLIGHT_SPHERE) && h.t < hit.t) {
++            hit = h;
++        }
++    }
++
+     return hit.t < uINF;
+ }
+ 
++// Full analytic scene: floor + all spheres + point-light marker
+ bool traceAnalytic(vec3 ro, vec3 rd, out Hit hit) {
+-    return traceAnalyticCore(ro, rd, true, hit);
++    return traceAnalyticCore(ro, rd, true, true, hit);
+ }
+ 
++// Analytic scene without glass (e.g., for glass rays), still sees the bulb
+ bool traceAnalyticIgnoreGlass(vec3 ro, vec3 rd, out Hit hit) {
+-    // Still includes the point-light sphere; only the glass sphere is excluded.
+-    return traceAnalyticCore(ro, rd, false, hit);
++    return traceAnalyticCore(ro, rd, false, true, hit);
++}
++
++// NEW: analytic scene used for point-light shadow rays – ignore marker sphere
++bool traceAnalyticIgnorePointLight(vec3 ro, vec3 rd, out Hit hit) {
++    return traceAnalyticCore(ro, rd, true, false, hit);
+ }
+ 
+ // -------- Sky ----------
+diff --git a/src/app/application.cpp b/src/app/application.cpp
+index 035f23c..604f5db 100644
+--- a/src/app/application.cpp
++++ b/src/app/application.cpp
+@@ -1,132 +1,147 @@
+ #include "app/application.h"
++
++#include "app/paths.h"
++#include "io/input.h"
+ #include "render/cubemap.h"
+ #include "render/render.h"
+ #include "scene/bvh.h"
+ #include "ui/gui.h"
+-#include "io/input.h"
+-#include "app/paths.h"
+-#include <glad/gl.h>
++
+ #include <GLFW/glfw3.h>
++#include <glad/gl.h>
++
+ #include <glm/glm.hpp>
+ #include <glm/gtc/matrix_transform.hpp>
+-#include <filesystem>
++
+ #include <algorithm>
+-#include <vector>
++#include <filesystem>
+ #include <string>
+ 
+-static float halton(int index, const int base) {
+-    float f = 1.0f;
+-    float r = 0.0f;
+-    while (index > 0) {
+-        f *= 0.5f;
+-        const int digit = index % base;
+-        r += f * static_cast<float>(digit);
+-        index /= base;
++// ============================================================================
++// Anonymous namespace – local helpers
++// ============================================================================
++namespace {
++    float halton(int index, int base) {
++        float f = 1.0f;
++        float r = 0.0f;
++        while (index > 0) {
++            f *= 0.5f;
++            const int digit = index % base;
++            r += f * static_cast<float>(digit);
++            index /= base;
++        }
++        return r;
+     }
+-    return r;
+-}
+ 
+-static glm::vec2 generateJitter2D(const int frameIndex) {
+-    const int idx = frameIndex & 1023;
+-    float jx = halton(idx + 1, 2) - 0.5f;
+-    float jy = halton(idx + 1, 3) - 0.5f;
+-    return {jx, jy};
+-}
++    glm::vec2 generateJitter2D(int frameIndex) {
++        const int idx = frameIndex & 1023;
++        const float jx = halton(idx + 1, 2) - 0.5f;
++        const float jy = halton(idx + 1, 3) - 0.5f;
++        return {jx, jy};
++    }
+ 
+-static bool paramsChanged(const RenderParams &a, const RenderParams &b) {
+-    auto diff = [](float x, float y) { return std::fabs(x - y) > 1e-5f; };
+-
+-    // --- Core / toggles ---
+-    if (a.sppPerFrame != b.sppPerFrame) return true;
+-    if (a.enableGI != b.enableGI) return true;
+-    if (a.enableAO != b.enableAO) return true;
+-    if (a.enableTAA != b.enableTAA) return true;
+-    if (a.enableSVGF != b.enableSVGF) return true;
+-    if (a.aoSamples != b.aoSamples) return true;
+-    if (a.enableEnvMap != b.enableEnvMap) return true;
+-    if (a.enableJitter != b.enableJitter) return true;
+-
+-    // --- Albedo material ---
+-    if (diff(a.matAlbedoColor[0], b.matAlbedoColor[0])) return true;
+-    if (diff(a.matAlbedoColor[1], b.matAlbedoColor[1])) return true;
+-    if (diff(a.matAlbedoColor[2], b.matAlbedoColor[2])) return true;
+-    if (diff(a.matAlbedoSpecStrength, b.matAlbedoSpecStrength)) return true;
+-    if (diff(a.matAlbedoGloss, b.matAlbedoGloss)) return true;
+-
+-    // --- Glass ---
+-    if (a.matGlassEnabled != b.matGlassEnabled) return true;
+-    if (diff(a.matGlassColor[0], b.matGlassColor[0])) return true;
+-    if (diff(a.matGlassColor[1], b.matGlassColor[1])) return true;
+-    if (diff(a.matGlassColor[2], b.matGlassColor[2])) return true;
+-    if (diff(a.matGlassIOR, b.matGlassIOR)) return true;
+-    if (diff(a.matGlassDistortion, b.matGlassDistortion)) return true;
+-
+-    // --- Mirror ---
+-    if (a.matMirrorEnabled != b.matMirrorEnabled) return true;
+-    if (diff(a.matMirrorColor[0], b.matMirrorColor[0])) return true;
+-    if (diff(a.matMirrorColor[1], b.matMirrorColor[1])) return true;
+-    if (diff(a.matMirrorColor[2], b.matMirrorColor[2])) return true;
+-    if (diff(a.matMirrorGloss, b.matMirrorGloss)) return true;
+-
+-    // --- Env / jitter / GI / AO / TAA / SVGF basic params ---
+-    if (diff(a.envMapIntensity, b.envMapIntensity)) return true;
+-    if (diff(a.jitterStillScale, b.jitterStillScale)) return true;
+-    if (diff(a.jitterMovingScale, b.jitterMovingScale)) return true;
+-    if (diff(a.giScaleAnalytic, b.giScaleAnalytic)) return true;
+-    if (diff(a.giScaleBVH, b.giScaleBVH)) return true;
+-    if (diff(a.aoRadius, b.aoRadius)) return true;
+-    if (diff(a.aoBias, b.aoBias)) return true;
+-    if (diff(a.aoMin, b.aoMin)) return true;
+-    if (diff(a.taaStillThresh, b.taaStillThresh)) return true;
+-    if (diff(a.taaHardMovingThresh, b.taaHardMovingThresh)) return true;
+-    if (diff(a.taaHistoryMinWeight, b.taaHistoryMinWeight)) return true;
+-    if (diff(a.taaHistoryAvgWeight, b.taaHistoryAvgWeight)) return true;
+-    if (diff(a.taaHistoryMaxWeight, b.taaHistoryMaxWeight)) return true;
+-    if (diff(a.taaHistoryBoxSize, b.taaHistoryBoxSize)) return true;
+-    if (diff(a.svgfStrength, b.svgfStrength)) return true;
+-    if (diff(a.svgfVarMax, b.svgfVarMax)) return true;
+-    if (diff(a.svgfKVar, b.svgfKVar)) return true;
+-    if (diff(a.svgfKColor, b.svgfKColor)) return true;
+-    if (diff(a.svgfKVarMotion, b.svgfKVarMotion)) return true;
+-    if (diff(a.svgfKColorMotion, b.svgfKColorMotion)) return true;
+-    if (diff(a.svgfVarEPS, b.svgfVarEPS)) return true;
+-    if (diff(a.svgfMotionEPS, b.svgfMotionEPS)) return true;
+-
+-    // --- Sun light ---
+-    if (a.sunEnabled != b.sunEnabled) return true;
+-    if (diff(a.sunColor[0], b.sunColor[0])) return true;
+-    if (diff(a.sunColor[1], b.sunColor[1])) return true;
+-    if (diff(a.sunColor[2], b.sunColor[2])) return true;
+-    if (diff(a.sunIntensity, b.sunIntensity)) return true;
+-    if (diff(a.sunYaw, b.sunYaw)) return true;
+-    if (diff(a.sunPitch, b.sunPitch)) return true;
+-
+-    // --- Sky dome ---
+-    if (a.skyEnabled != b.skyEnabled) return true;
+-    if (diff(a.skyColor[0], b.skyColor[0])) return true;
+-    if (diff(a.skyColor[1], b.skyColor[1])) return true;
+-    if (diff(a.skyColor[2], b.skyColor[2])) return true;
+-    if (diff(a.skyIntensity, b.skyIntensity)) return true;
+-    if (diff(a.skyYaw, b.skyYaw)) return true;
+-    if (diff(a.skyPitch, b.skyPitch)) return true;
+-
+-    // --- Point light ---
+-    if (a.pointLightEnabled != b.pointLightEnabled) return true;
+-    if (diff(a.pointLightColor[0], b.pointLightColor[0])) return true;
+-    if (diff(a.pointLightColor[1], b.pointLightColor[1])) return true;
+-    if (diff(a.pointLightColor[2], b.pointLightColor[2])) return true;
+-    if (diff(a.pointLightIntensity, b.pointLightIntensity)) return true;
+-
+-    if (diff(a.pointLightPos[0], b.pointLightPos[0])) return true;
+-    if (diff(a.pointLightPos[1], b.pointLightPos[1])) return true;
+-    if (diff(a.pointLightPos[2], b.pointLightPos[2])) return true;
+-
+-    if (a.pointLightOrbitEnabled != b.pointLightOrbitEnabled) return true;
+-    if (diff(a.pointLightOrbitRadius, b.pointLightOrbitRadius)) return true;
+-    if (diff(a.pointLightOrbitSpeed, b.pointLightOrbitSpeed)) return true;
+-
+-    return false;
+-}
++    bool paramsChanged(const RenderParams &a, const RenderParams &b) {
++        auto diff = [](float x, float y) { return std::fabs(x - y) > 1e-5f; };
++
++        // --- Core / toggles ---
++        if (a.sppPerFrame != b.sppPerFrame) return true;
++        if (a.enableGI != b.enableGI) return true;
++        if (a.enableAO != b.enableAO) return true;
++        if (a.enableTAA != b.enableTAA) return true;
++        if (a.enableSVGF != b.enableSVGF) return true;
++        if (a.aoSamples != b.aoSamples) return true;
++        if (a.enableEnvMap != b.enableEnvMap) return true;
++        if (a.enableJitter != b.enableJitter) return true;
++
++        // --- Albedo material ---
++        if (diff(a.matAlbedoColor[0], b.matAlbedoColor[0])) return true;
++        if (diff(a.matAlbedoColor[1], b.matAlbedoColor[1])) return true;
++        if (diff(a.matAlbedoColor[2], b.matAlbedoColor[2])) return true;
++        if (diff(a.matAlbedoSpecStrength, b.matAlbedoSpecStrength)) return true;
++        if (diff(a.matAlbedoGloss, b.matAlbedoGloss)) return true;
++
++        // --- Glass ---
++        if (a.matGlassEnabled != b.matGlassEnabled) return true;
++        if (diff(a.matGlassColor[0], b.matGlassColor[0])) return true;
++        if (diff(a.matGlassColor[1], b.matGlassColor[1])) return true;
++        if (diff(a.matGlassColor[2], b.matGlassColor[2])) return true;
++        if (diff(a.matGlassIOR, b.matGlassIOR)) return true;
++        if (diff(a.matGlassDistortion, b.matGlassDistortion)) return true;
++
++        // --- Mirror ---
++        if (a.matMirrorEnabled != b.matMirrorEnabled) return true;
++        if (diff(a.matMirrorColor[0], b.matMirrorColor[0])) return true;
++        if (diff(a.matMirrorColor[1], b.matMirrorColor[1])) return true;
++        if (diff(a.matMirrorColor[2], b.matMirrorColor[2])) return true;
++        if (diff(a.matMirrorGloss, b.matMirrorGloss)) return true;
++
++        // --- Env / jitter / GI / AO / TAA / SVGF ---
++        if (diff(a.envMapIntensity, b.envMapIntensity)) return true;
++        if (diff(a.jitterStillScale, b.jitterStillScale)) return true;
++        if (diff(a.jitterMovingScale, b.jitterMovingScale)) return true;
++        if (diff(a.giScaleAnalytic, b.giScaleAnalytic)) return true;
++        if (diff(a.giScaleBVH, b.giScaleBVH)) return true;
++        if (diff(a.aoRadius, b.aoRadius)) return true;
++        if (diff(a.aoBias, b.aoBias)) return true;
++        if (diff(a.aoMin, b.aoMin)) return true;
++        if (diff(a.taaStillThresh, b.taaStillThresh)) return true;
++        if (diff(a.taaHardMovingThresh, b.taaHardMovingThresh)) return true;
++        if (diff(a.taaHistoryMinWeight, b.taaHistoryMinWeight)) return true;
++        if (diff(a.taaHistoryAvgWeight, b.taaHistoryAvgWeight)) return true;
++        if (diff(a.taaHistoryMaxWeight, b.taaHistoryMaxWeight)) return true;
++        if (diff(a.taaHistoryBoxSize, b.taaHistoryBoxSize)) return true;
++        if (diff(a.svgfStrength, b.svgfStrength)) return true;
++        if (diff(a.svgfVarMax, b.svgfVarMax)) return true;
++        if (diff(a.svgfKVar, b.svgfKVar)) return true;
++        if (diff(a.svgfKColor, b.svgfKColor)) return true;
++        if (diff(a.svgfKVarMotion, b.svgfKVarMotion)) return true;
++        if (diff(a.svgfKColorMotion, b.svgfKColorMotion)) return true;
++        if (diff(a.svgfVarEPS, b.svgfVarEPS)) return true;
++        if (diff(a.svgfMotionEPS, b.svgfMotionEPS)) return true;
++
++        // --- Sun light ---
++        if (a.sunEnabled != b.sunEnabled) return true;
++        if (diff(a.sunColor[0], b.sunColor[0])) return true;
++        if (diff(a.sunColor[1], b.sunColor[1])) return true;
++        if (diff(a.sunColor[2], b.sunColor[2])) return true;
++        if (diff(a.sunIntensity, b.sunIntensity)) return true;
++        if (diff(a.sunYaw, b.sunYaw)) return true;
++        if (diff(a.sunPitch, b.sunPitch)) return true;
++
++        // --- Sky dome ---
++        if (a.skyEnabled != b.skyEnabled) return true;
++        if (diff(a.skyColor[0], b.skyColor[0])) return true;
++        if (diff(a.skyColor[1], b.skyColor[1])) return true;
++        if (diff(a.skyColor[2], b.skyColor[2])) return true;
++        if (diff(a.skyIntensity, b.skyIntensity)) return true;
++        if (diff(a.skyYaw, b.skyYaw)) return true;
++        if (diff(a.skyPitch, b.skyPitch)) return true;
++
++        // --- Point light ---
++        if (a.pointLightEnabled != b.pointLightEnabled) return true;
++        if (diff(a.pointLightColor[0], b.pointLightColor[0])) return true;
++        if (diff(a.pointLightColor[1], b.pointLightColor[1])) return true;
++        if (diff(a.pointLightColor[2], b.pointLightColor[2])) return true;
++        if (diff(a.pointLightIntensity, b.pointLightIntensity)) return true;
++
++        if (diff(a.pointLightPos[0], b.pointLightPos[0])) return true;
++        if (diff(a.pointLightPos[1], b.pointLightPos[1])) return true;
++        if (diff(a.pointLightPos[2], b.pointLightPos[2])) return true;
++
++        if (a.pointLightOrbitEnabled != b.pointLightOrbitEnabled) return true;
++        if (diff(a.pointLightOrbitRadius, b.pointLightOrbitRadius)) return true;
++        if (diff(a.pointLightOrbitSpeed, b.pointLightOrbitSpeed)) return true;
++
++        if (diff(a.pointLightYaw, b.pointLightYaw)) return true;
++        if (diff(a.pointLightPitch, b.pointLightPitch)) return true;
++
++        return false;
++    }
++} // namespace
++
++// ============================================================================
++// Application lifecycle
++// ============================================================================
+ 
+ Application::Application() = default;
+ 
+@@ -134,14 +149,19 @@ Application::~Application() {
+     shutdown();
+ }
+ 
++// ----------------------------------------------------------------------------
++// Window + GL context init
++// ----------------------------------------------------------------------------
+ bool Application::initWindow() {
+     if (!glfwInit()) return false;
++
+     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+ #ifdef __APPLE__
+     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+ #endif
++
+     window = glfwCreateWindow(1920, 1080, "OpenGL Ray/Path Tracing - Darky", nullptr, nullptr);
+     if (!window) {
+         glfwTerminate();
+@@ -159,34 +179,49 @@ bool Application::initWindow() {
+     return true;
+ }
+ 
++// ----------------------------------------------------------------------------
++// GL resources (FBOs, VAO) that depend on the framebuffer size
++// ----------------------------------------------------------------------------
+ void Application::initGLResources() {
+     int fbw = 0, fbh = 0;
+     glfwGetFramebufferSize(window, &fbw, &fbh);
++
+     app.accum.recreate(fbw, fbh);
+     app.gBuffer.recreate(fbw, fbh);
++
+     glGenVertexArrays(1, &app.fsVao);
+ }
+ 
++// ----------------------------------------------------------------------------
++// High-level app state: callbacks, shaders, models, env map, input, frame state
++// ----------------------------------------------------------------------------
+ void Application::initState() {
++    // Input & callbacks -------------------------------------------------------
+     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+     glfwSetWindowUserPointer(window, &app);
++
+     glfwSetFramebufferSizeCallback(window, [](GLFWwindow *win, int width, int height) {
+         if (width <= 0 || height <= 0) return;
++
+         glViewport(0, 0, width, height);
+         glScissor(0, 0, width, height);
+-        auto *payload = static_cast<AppState *>(glfwGetWindowUserPointer(win));
+-        if (payload) {
++
++        if (auto *payload = static_cast<AppState *>(glfwGetWindowUserPointer(win))) {
+             payload->camera.AspectRatio = static_cast<float>(width) / static_cast<float>(height);
+             payload->accum.recreate(width, height);
+             payload->gBuffer.recreate(width, height);
+         }
+     });
++
+     io::attach_callbacks(window);
+ 
++    // UI init -----------------------------------------------------------------
+     const GLubyte *glVer = glGetString(GL_VERSION);
+-    ui::Log("[INIT] OpenGL version: %s\n", glVer ? reinterpret_cast<const char *>(glVer) : "unknown");
++    ui::Log("[INIT] OpenGL version: %s\n",
++            glVer ? reinterpret_cast<const char *>(glVer) : "unknown");
+     ui::Init(window);
+ 
++    // Shaders -----------------------------------------------------------------
+     const std::string rtVertPath = util::resolve_path("shaders/rt/rt_fullscreen.vert");
+     const std::string rtFragPath = util::resolve_path("shaders/rt/rt.frag");
+     const std::string presentFragPath = util::resolve_path("shaders/rt/rt_present.frag");
+@@ -196,41 +231,48 @@ void Application::initState() {
+     app.rtShader = std::make_unique<Shader>(rtVertPath.c_str(), rtFragPath.c_str());
+     app.presentShader = std::make_unique<Shader>(rtVertPath.c_str(), presentFragPath.c_str());
+     app.rasterShader = std::make_unique<Shader>(rasterVertPath.c_str(), rasterFragPath.c_str());
++
+     if (!app.rtShader->isValid() || !app.presentShader->isValid() || !app.rasterShader->isValid()) {
+         ui::Log("[INIT] Shader compile/link failed. Exiting.\n");
+         glfwSetWindowShouldClose(window, GLFW_TRUE);
+         return;
+     }
+ 
++    // Models / BVH ------------------------------------------------------------
+     app.ground = std::make_unique<Model>(util::resolve_path("models/plane.obj"));
+     app.bunny = std::make_unique<Model>(util::resolve_path("models/bunny_lp.obj"));
+     app.sphere = std::make_unique<Model>(util::resolve_path("models/sphere.obj"));
+     app.bvhModel = std::make_unique<Model>(util::resolve_path("models/bunny_lp.obj"));
+-    const std::string initModelPath = util::resolve_path("models/bunny_lp.obj");
+-    std::snprintf(app.bvhPicker.currentPath, sizeof(app.bvhPicker.currentPath), "%s", initModelPath.c_str());
+ 
+-    rebuild_bvh_from_model_path(app.bvhPicker.currentPath, app.bvhTransform, app.bvhModel, app.bvhNodeCount,
+-                                app.bvhTriCount, app.bvh);
++    const std::string initModelPath = util::resolve_path("models/bunny_lp.obj");
++    std::snprintf(app.bvhPicker.currentPath,
++                  sizeof(app.bvhPicker.currentPath),
++                  "%s",
++                  initModelPath.c_str());
+ 
+-    // --- Environment Map Initialization ---
++    rebuild_bvh_from_model_path(app.bvhPicker.currentPath,
++                                app.bvhTransform,
++                                app.bvhModel,
++                                app.bvhNodeCount,
++                                app.bvhTriCount,
++                                app.bvh);
+ 
+-    // Always create a dummy env cubemap so samplerCube never sees texture 0.
+-    // This keeps the Apple/Metal GL driver happy (no GLD warnings).
+-    app.envMapTex = createDummyCubeMap();
++    // Environment map ---------------------------------------------------------
++    app.envMapTex = createDummyCubeMap(); // non-zero texture, GL-driver friendly
+ 
+-    // Resolve the cubemaps directory and build the default env path.
+     const std::string envDir = util::resolve_dir("cubemaps");
+     const std::string defaultEnvPath = envDir + "/Sky_16.png";
+ 
+-    // Reflect this path in the GUI picker
+-    std::snprintf(app.envPicker.currentPath, sizeof(app.envPicker.currentPath), "%s", defaultEnvPath.c_str());
++    std::snprintf(app.envPicker.currentPath,
++                  sizeof(app.envPicker.currentPath),
++                  "%s",
++                  defaultEnvPath.c_str());
+     app.envPicker.selectedIndex = 0;
+     app.envPicker.reloadRequested = false;
+ 
+-    // Try to load the default envmap once at startup.
+     const GLuint realEnv = loadCubeMapFromCross(defaultEnvPath);
+     if (realEnv != 0) {
+-        glDeleteTextures(1, &app.envMapTex); // replace dummy
++        glDeleteTextures(1, &app.envMapTex);
+         app.envMapTex = realEnv;
+         app.params.enableEnvMap = 1;
+         ui::Log("[ENV] Loaded startup cubemap: %s\n", defaultEnvPath.c_str());
+@@ -240,12 +282,14 @@ void Application::initState() {
+                 defaultEnvPath.c_str());
+     }
+ 
++    // Input mirroring ---------------------------------------------------------
+     app.input.sppPerFrame = app.params.sppPerFrame;
+     app.input.exposure = app.params.exposure;
+     app.input.sceneInputEnabled = true;
+     app.input.firstMouse = true;
+     io::init(app.input);
+ 
++    // Frame state -------------------------------------------------------------
+     const glm::mat4 initView = app.camera.GetViewMatrix();
+     const glm::mat4 initProj = app.camera.GetProjectionMatrix();
+     app.frame.beginFrame(initView, initProj, app.camera.Position);
+@@ -254,9 +298,16 @@ void Application::initState() {
+     app.lastFrame = static_cast<float>(glfwGetTime());
+ }
+ 
++// ============================================================================
++// Main loop
++// ============================================================================
+ void Application::mainLoop() {
+     int fbw = 0, fbh = 0;
++
+     while (!glfwWindowShouldClose(window)) {
++        // --------------------------------------------------------------------
++        // 1. Time + begin UI frame
++        // --------------------------------------------------------------------
+         glfwPollEvents();
+         ui::BeginFrame();
+ 
+@@ -264,6 +315,17 @@ void Application::mainLoop() {
+         app.deltaTime = tNow - app.lastFrame;
+         app.lastFrame = tNow;
+ 
++        // Point-light orbit animation (deg/s * s)
++        if (app.params.pointLightOrbitEnabled) {
++            app.params.pointLightYaw += app.params.pointLightOrbitSpeed * app.deltaTime;
++
++            if (app.params.pointLightYaw > 360.0f) app.params.pointLightYaw -= 360.0f;
++            if (app.params.pointLightYaw < -360.0f) app.params.pointLightYaw += 360.0f;
++        }
++
++        // --------------------------------------------------------------------
++        // 2. Input / camera update
++        // --------------------------------------------------------------------
+         const bool anyChanged = io::update(app.input, window);
+         const bool cameraChangedFromZoom = app.input.cameraChangedThisFrame;
+ 
+@@ -272,84 +334,138 @@ void Application::mainLoop() {
+             ui::Log("[INPUT] Scene input %s (mouse %s)\n",
+                     app.input.sceneInputEnabled ? "ENABLED" : "DISABLED",
+                     app.input.sceneInputEnabled ? "captured" : "released");
+-            glfwSetInputMode(window, GLFW_CURSOR,
++
++            glfwSetInputMode(window,
++                             GLFW_CURSOR,
+                              app.input.sceneInputEnabled ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+-            if (app.input.sceneInputEnabled) app.input.firstMouse = true;
++            if (app.input.sceneInputEnabled)
++                app.input.firstMouse = true;
+         }
+-        if (app.input.quitRequested) glfwSetWindowShouldClose(window, GLFW_TRUE);
+-        if (app.input.sceneInputEnabled) app.camera.ProcessKeyboardInput(window, app.deltaTime);
+ 
++        if (app.input.quitRequested)
++            glfwSetWindowShouldClose(window, GLFW_TRUE);
++
++        if (app.input.sceneInputEnabled)
++            app.camera.ProcessKeyboardInput(window, app.deltaTime);
++
++        // --------------------------------------------------------------------
++        // 3. Build frame state (view/proj, motion, jitter)
++        // --------------------------------------------------------------------
+         const glm::mat4 currView = app.camera.GetViewMatrix();
+         const glm::mat4 currProj = app.camera.GetProjectionMatrix();
+         app.frame.beginFrame(currView, currProj, app.camera.Position);
+ 
+         float vpDiff = 0.0f;
+-        for (int c = 0; c < 4; ++c)
+-            for (int r = 0; r < 4; ++r)
+-                vpDiff = std::max(vpDiff, std::fabs(app.frame.currViewProj[c][r] - app.frame.prevViewProj[c][r]));
++        for (int c = 0; c < 4; ++c) {
++            for (int r = 0; r < 4; ++r) {
++                vpDiff = std::max(vpDiff,
++                                  std::fabs(app.frame.currViewProj[c][r] -
++                                            app.frame.prevViewProj[c][r]));
++            }
++        }
+         const bool cameraMoved = (vpDiff > 1e-5f);
+ 
++        // Jitter based on camera motion
+         if (app.params.enableJitter) {
+             glm::vec2 baseJitter = generateJitter2D(app.accum.frameIndex);
+-            const float scale = cameraMoved ? app.params.jitterMovingScale : app.params.jitterStillScale;
++            const float scale =
++                    cameraMoved ? app.params.jitterMovingScale : app.params.jitterStillScale;
+             app.frame.jitter = baseJitter * scale;
+         } else {
+             app.frame.jitter = glm::vec2(0.0f);
+         }
+ 
++        // --------------------------------------------------------------------
++        // 4. Hotkey-driven state changes (modes, SPP, exposure, motion debug)
++        // --------------------------------------------------------------------
+         if (anyChanged) {
+             if (app.input.toggledRayMode) {
+                 app.rayMode = !app.rayMode;
+                 app.accum.reset();
+             }
+-            if (app.input.resetAccum) { app.accum.reset(); }
++
++            if (app.input.resetAccum) {
++                app.accum.reset();
++            }
++
+             if (app.input.toggledBVH) {
+                 app.useBVH = !app.useBVH;
+                 app.accum.reset();
+             }
++
+             if (app.input.changedSPP) {
+-                // Hotkeys support up to 16; clamp here for consistency.
+-                app.params.sppPerFrame = std::clamp(app.input.sppPerFrame, 1, 16);
++                app.params.sppPerFrame =
++                        std::clamp(app.input.sppPerFrame, 1, 16);
+                 app.accum.reset();
+             }
+-            if (app.params.exposure != app.input.exposure)
+-                app.params.exposure = std::clamp(
+-                    app.input.exposure, 0.01f, 8.0f);
++
++            if (app.params.exposure != app.input.exposure) {
++                app.params.exposure =
++                        std::clamp(app.input.exposure, 0.01f, 8.0f);
++            }
++
+             if (app.input.toggledMotionDebug) {
+                 app.showMotion = !app.showMotion;
+                 app.accum.reset();
+             }
+         }
+ 
++        // --------------------------------------------------------------------
++        // 5. Rendering (ray or raster)
++        // --------------------------------------------------------------------
+         glfwGetFramebufferSize(window, &fbw, &fbh);
+         glViewport(0, 0, fbw, fbh);
+         glScissor(0, 0, fbw, fbh);
++
+         glClearColor(0.1f, 0.0f, 0.2f, 1.0f);
+         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+ 
+-        if (app.rayMode) renderRay(app, fbw, fbh, cameraMoved, currView, currProj);
+-        else renderRaster(app, fbw, fbh, currView, currProj);
++        if (app.rayMode) {
++            renderRay(app, fbw, fbh, cameraMoved, currView, currProj);
++        } else {
++            renderRaster(app, fbw, fbh, currView, currProj);
++        }
+ 
+         app.frame.endFrame();
+ 
++        // --------------------------------------------------------------------
++        // 6. GUI (ImGui) – this can change RenderParams, mode toggles, pickers
++        // --------------------------------------------------------------------
+         RenderParams prevGuiParams = app.params;
+         const bool prevRayMode = app.rayMode;
+         const bool prevUseBVH = app.useBVH;
+         const bool prevShowMotion = app.showMotion;
+ 
+-        ui::Draw(app.params, app.frame, app.input, app.rayMode, app.useBVH, app.showMotion, app.bvhPicker,
++        ui::Draw(app.params,
++                 app.frame,
++                 app.input,
++                 app.rayMode,
++                 app.useBVH,
++                 app.showMotion,
++                 app.bvhPicker,
+                  app.envPicker);
+         ui::EndFrame();
+ 
++        // --------------------------------------------------------------------
++        // 7. Async reloads (BVH, environment map)
++        // --------------------------------------------------------------------
+         if (app.bvhPicker.reloadRequested) {
+             app.bvhPicker.reloadRequested = false;
+-            if (rebuild_bvh_from_model_path(app.bvhPicker.currentPath, app.bvhTransform, app.bvhModel,
+-                                            app.bvhNodeCount, app.bvhTriCount, app.bvh)) {
++
++            if (rebuild_bvh_from_model_path(app.bvhPicker.currentPath,
++                                            app.bvhTransform,
++                                            app.bvhModel,
++                                            app.bvhNodeCount,
++                                            app.bvhTriCount,
++                                            app.bvh)) {
+                 ui::Log("[BVH] Rebuilt BVH from '%s': nodes=%d, tris=%d\n",
+-                        app.bvhPicker.currentPath, app.bvhNodeCount, app.bvhTriCount);
++                        app.bvhPicker.currentPath,
++                        app.bvhNodeCount,
++                        app.bvhTriCount);
+                 app.accum.reset();
+             } else {
+-                ui::Log("[BVH] Failed to build BVH from '%s'\n", app.bvhPicker.currentPath);
++                ui::Log("[BVH] Failed to build BVH from '%s'\n",
++                        app.bvhPicker.currentPath);
+             }
+         }
+ 
+@@ -369,10 +485,16 @@ void Application::mainLoop() {
+             }
+         }
+ 
++        // --------------------------------------------------------------------
++        // 8. Present + accumulation reset logic
++        // --------------------------------------------------------------------
+         glfwSwapBuffers(window);
+ 
+-        const bool guiChangedMode = (app.rayMode != prevRayMode) || (app.useBVH != prevUseBVH) ||
+-                                    (app.showMotion != prevShowMotion);
++        const bool guiChangedMode =
++                (app.rayMode != prevRayMode) ||
++                (app.useBVH != prevUseBVH) ||
++                (app.showMotion != prevShowMotion);
++
+         const bool guiChangedParams = paramsChanged(app.params, prevGuiParams);
+ 
+         if (app.params.enableTAA != prevGuiParams.enableTAA) {
+@@ -382,16 +504,26 @@ void Application::mainLoop() {
+             ui::Log("[SVGF] %s\n", app.params.enableSVGF ? "ENABLED" : "DISABLED");
+         }
+ 
+-        if (guiChangedMode || guiChangedParams || cameraChangedFromZoom) {
++        const bool dynamicPointLightMoving =
++                app.rayMode &&
++                (app.params.pointLightOrbitEnabled != 0) &&
++                (std::fabs(app.params.pointLightOrbitSpeed) > 1e-5f) &&
++                (app.params.pointLightOrbitRadius > 0.0f);
++
++        if (guiChangedMode || guiChangedParams || cameraChangedFromZoom || dynamicPointLightMoving) {
+             app.accum.reset();
+-            ui::Log("[ACCUM] Reset due to %s%s%s\n",
++            ui::Log("[ACCUM] Reset due to %s%s%s%s\n",
+                     guiChangedMode ? "mode " : "",
+                     guiChangedParams ? "params " : "",
+-                    cameraChangedFromZoom ? "zoom" : "");
++                    cameraChangedFromZoom ? "zoom " : "",
++                    dynamicPointLightMoving ? "dynamicPointLight" : "");
+         }
+     }
+ }
+ 
++// ============================================================================
++// Shutdown + run
++// ============================================================================
+ void Application::shutdown() {
+     if (!initialized) {
+         if (window) {
+@@ -419,13 +551,17 @@ void Application::shutdown() {
+         glDeleteVertexArrays(1, &app.fsVao);
+         app.fsVao = 0;
+     }
++
+     app.bvh.release();
+     app.gBuffer.release();
+     app.accum.release();
+ 
+     ui::Shutdown();
+ 
+-    if (window) glfwDestroyWindow(window);
++    if (window) {
++        glfwDestroyWindow(window);
++        window = nullptr;
++    }
+     glfwTerminate();
+     initialized = false;
+ }
+diff --git a/src/render/cubemap.cpp b/src/render/cubemap.cpp
+index 21c286d..493f362 100644
+--- a/src/render/cubemap.cpp
++++ b/src/render/cubemap.cpp
+@@ -8,17 +8,11 @@ GLuint createDummyCubeMap() {
+     glGenTextures(1, &tex);
+     glBindTexture(GL_TEXTURE_CUBE_MAP, tex);
+ 
+-    const unsigned char px[4] = {128, 128, 255, 255}; // neutral-ish sky
++    constexpr unsigned char px[4] = {128, 128, 255, 255}; // neutral-ish sky
+ 
+     for (int face = 0; face < 6; ++face) {
+-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face,
+-                     0,
+-                     GL_RGBA8,
+-                     1, 1,
+-                     0,
+-                     GL_RGBA,
+-                     GL_UNSIGNED_BYTE,
+-                     px);
++        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, 0,GL_RGBA8, 1, 1,
++                     0,GL_RGBA,GL_UNSIGNED_BYTE, px);
+     }
+ 
+     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+@@ -67,7 +61,9 @@ GLuint loadCubeMapFromCross(const std::string &path) {
+             memcpy(dstRow, srcRow, faceSize * channels);
+         }
+ 
+-        glTexImage2D(faceTarget, 0, internalFormat, faceSize, faceSize, 0, format,GL_UNSIGNED_BYTE, faceBuf.data());
++        glTexImage2D(faceTarget,
++                     0, static_cast<GLint>(internalFormat), faceSize, faceSize, 0, format,GL_UNSIGNED_BYTE,
++                     faceBuf.data());
+     };
+ 
+     // Layout:
+diff --git a/src/render/render.cpp b/src/render/render.cpp
+index c069024..5d08c6f 100644
+--- a/src/render/render.cpp
++++ b/src/render/render.cpp
+@@ -4,23 +4,30 @@
+ 
+ #include "glm/gtc/type_ptr.hpp"
+ 
+-static glm::vec3 computePointLightWorldPos(const RenderParams &params, int frameIndex) {
+-    glm::vec3 center(params.pointLightPos[0],
+-                     params.pointLightPos[1],
+-                     params.pointLightPos[2]);
+-
+-    if (!params.pointLightOrbitEnabled) {
+-        return center;
++glm::vec3 computePointLightWorldPos(const RenderParams& params)
++{
++    glm::vec3 base(params.pointLightPos[0],
++                   params.pointLightPos[1],
++                   params.pointLightPos[2]);
++
++    if (!params.pointLightOrbitEnabled || params.pointLightOrbitRadius <= 0.0f) {
++        return base;
+     }
+ 
+-    float angle = params.pointLightOrbitSpeed * static_cast<float>(frameIndex);
+-    float radius = params.pointLightOrbitRadius;
++    float yawRad   = glm::radians(params.pointLightYaw);
++    float pitchRad = glm::radians(params.pointLightPitch);
++
++    float cy = cosf(yawRad);
++    float sy = sinf(yawRad);
++    float cp = cosf(pitchRad);
++    float sp = sinf(pitchRad);
++
++    glm::vec3 dir;
++    dir.x = cp * sy;
++    dir.y = sp;
++    dir.z = cp * cy;
+ 
+-    glm::vec3 pos = center;
+-    pos.x = center.x + std::cos(angle) * radius;
+-    pos.z = center.z + std::sin(angle) * radius;
+-    // keep Y the same as base center
+-    return pos;
++    return base + dir * params.pointLightOrbitRadius;
+ }
+ 
+ static glm::vec3 dirFromYawPitch(float yawDeg, float pitchDeg) {
+@@ -36,7 +43,7 @@ static glm::vec3 dirFromYawPitch(float yawDeg, float pitchDeg) {
+ 
+     // Fallback if direction degenerates
+     if (glm::dot(d, d) < 1e-6f) {
+-        return glm::vec3(0.0f, -1.0f, 0.0f);
++        return {0.0f, -1.0f, 0.0f};
+     }
+     return glm::normalize(d);
+ }
+@@ -145,7 +152,7 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
+     rt.setVec3("uSkyUpDir", skyDir);
+ 
+     // Point
+-    glm::vec3 pointPos = computePointLightWorldPos(app.params, app.accum.frameIndex);
++    glm::vec3 pointPos = computePointLightWorldPos(app.params);
+     rt.setInt("uPointLightEnabled", app.params.pointLightEnabled);
+     rt.setVec3("uPointLightPos", pointPos);
+     rt.setVec3("uPointLightColor", glm::make_vec3(app.params.pointLightColor));
+@@ -256,7 +263,7 @@ void renderRaster(const AppState &app, const int fbw, const int fbh,
+ 
+     // Point light marker (small emissive sphere)
+     if (app.params.pointLightEnabled) {
+-        glm::vec3 pointPos = computePointLightWorldPos(app.params, app.accum.frameIndex);
++        glm::vec3 pointPos = computePointLightWorldPos(app.params);
+ 
+         model = glm::translate(glm::mat4(1.0f), pointPos);
+         model = glm::scale(model, glm::vec3(0.15f)); // small sphere
+diff --git a/src/ui/gui.cpp b/src/ui/gui.cpp
+index 171063d..b0958fc 100644
+--- a/src/ui/gui.cpp
++++ b/src/ui/gui.cpp
+@@ -263,7 +263,7 @@ namespace ui {
+             // --- Glass ---
+             ImGui::SeparatorText("Glass Material");
+ 
+-            ImGui::Checkbox("Enable Glass", (bool *) &params.matGlassEnabled);
++            ImGui::Checkbox("Enable Glass", reinterpret_cast<bool *>(&params.matGlassEnabled));
+ 
+             ImGui::ColorEdit3("Glass Tint", params.matGlassColor);
+ 
+@@ -275,7 +275,7 @@ namespace ui {
+             // --- Mirror ---
+             ImGui::SeparatorText("Mirror Material");
+ 
+-            ImGui::Checkbox("Enable Mirror", (bool *) &params.matMirrorEnabled);
++            ImGui::Checkbox("Enable Mirror", reinterpret_cast<bool *>(&params.matMirrorEnabled));
+ 
+             ImGui::ColorEdit3("Mirror Tint", params.matMirrorColor);
+ 
+@@ -356,7 +356,11 @@ namespace ui {
+                 }
+ 
+                 ImGui::SliderFloat("Orbit Radius", &params.pointLightOrbitRadius, 0.0f, 10.0f);
+-                ImGui::SliderFloat("Orbit Speed (rad/frame)", &params.pointLightOrbitSpeed, 0.0f, 0.1f, "%.4f");
++                ImGui::SliderFloat("Orbit Speed (deg/s)", &params.pointLightOrbitSpeed, 0.0f, 360.0f);
++
++                // NEW: direct yaw/pitch control (works even if orbit is off)
++                ImGui::SliderFloat("Yaw (deg)", &params.pointLightYaw, -180.0f, 180.0f);
++                ImGui::SliderFloat("Pitch (deg)", &params.pointLightPitch, -89.0f, 89.0f);
+             }
+         }
+ 

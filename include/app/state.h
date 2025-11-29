@@ -23,7 +23,8 @@ inline glm::mat4 defaultBvhTransform() {
 }
 
 // Centralized state that used to live as globals in main.cpp
-struct AppState {
+class AppState {
+public:
     rt::Accum accum;
     rt::GBuffer gBuffer;
     rt::FrameState frame;

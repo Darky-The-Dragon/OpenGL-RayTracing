@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstdint>
-
 struct RenderParams {
     // core
     int sppPerFrame = 1;
@@ -62,7 +60,11 @@ struct RenderParams {
     // Orbit controls (around Y axis)
     int pointLightOrbitEnabled = 0; // 0 = static, 1 = orbit
     float pointLightOrbitRadius = 3.5f; // orbit radius in XZ plane
-    float pointLightOrbitSpeed = 0.02f; // radians per frame
+    float pointLightOrbitSpeed = 20.0f; // degrees per second
+
+    // NEW: explicit point-light orbit angles (in degrees)
+    float pointLightYaw = 0.0f; // yaw around Y axis
+    float pointLightPitch = 0.0f; // pitch up/down
 
     // AO
     int enableAO = 1;

@@ -18,6 +18,10 @@ const float kGlassRadius = 1.0;
 const vec3 kMirrorCenter = vec3(1.2, 0.7, -2.5);
 const float kMirrorRadius = 0.7;
 
+// Point light marker sphere (MAT_POINTLIGHT_SPHERE)
+// (center = uPointLightPos, radius just for analytic intersection)
+const float kPointLightRadius = 0.15;
+
 // -------- Analytic intersections --------
 bool intersectPlane(vec3 ro, vec3 rd, vec3 n, float d, out Hit h, int matId) {
     float denom = dot(n, rd);
@@ -48,7 +52,7 @@ bool intersectSphere(vec3 ro, vec3 rd, vec3 c, float r, out Hit h, int matId) {
     return true;
 }
 
-bool traceAnalyticCore(vec3 ro, vec3 rd, bool includeGlass, out Hit hit) {
+bool traceAnalyticCore(vec3 ro, vec3 rd, bool includeGlass, bool includePointLightSphere, out Hit hit) {
     hit.t = uINF;
     Hit h;
 
@@ -74,16 +78,30 @@ bool traceAnalyticCore(vec3 ro, vec3 rd, bool includeGlass, out Hit hit) {
         hit = h;
     }
 
+    // Point-light marker sphere (optional)
+    if (includePointLightSphere && uPointLightEnabled == 1) {
+        // Center is the actual point light position
+        if (intersectSphere(ro, rd, uPointLightPos, kPointLightRadius, h, MAT_POINTLIGHT_SPHERE) && h.t < hit.t) {
+            hit = h;
+        }
+    }
+
     return hit.t < uINF;
 }
 
+// Full analytic scene: floor + all spheres + point-light marker
 bool traceAnalytic(vec3 ro, vec3 rd, out Hit hit) {
-    return traceAnalyticCore(ro, rd, true, hit);
+    return traceAnalyticCore(ro, rd, true, true, hit);
 }
 
+// Analytic scene without glass (e.g., for glass rays), still sees the bulb
 bool traceAnalyticIgnoreGlass(vec3 ro, vec3 rd, out Hit hit) {
-    // Still includes the point-light sphere; only the glass sphere is excluded.
-    return traceAnalyticCore(ro, rd, false, hit);
+    return traceAnalyticCore(ro, rd, false, true, hit);
+}
+
+// NEW: analytic scene used for point-light shadow rays – ignore marker sphere
+bool traceAnalyticIgnorePointLight(vec3 ro, vec3 rd, out Hit hit) {
+    return traceAnalyticCore(ro, rd, true, false, hit);
 }
 
 // -------- Sky ----------

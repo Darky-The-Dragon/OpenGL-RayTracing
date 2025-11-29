@@ -4,27 +4,33 @@
 
 #include "glm/gtc/type_ptr.hpp"
 
-static glm::vec3 computePointLightWorldPos(const RenderParams &params, int frameIndex) {
-    glm::vec3 center(params.pointLightPos[0],
-                     params.pointLightPos[1],
-                     params.pointLightPos[2]);
+glm::vec3 computePointLightWorldPos(const RenderParams &params) {
+    glm::vec3 base(params.pointLightPos[0],
+                   params.pointLightPos[1],
+                   params.pointLightPos[2]);
 
-    if (!params.pointLightOrbitEnabled) {
-        return center;
+    if (!params.pointLightOrbitEnabled || params.pointLightOrbitRadius <= 0.0f) {
+        return base;
     }
 
-    float angle = params.pointLightOrbitSpeed * static_cast<float>(frameIndex);
-    float radius = params.pointLightOrbitRadius;
+    float yawRad = glm::radians(params.pointLightYaw);
+    float pitchRad = glm::radians(params.pointLightPitch);
 
-    glm::vec3 pos = center;
-    pos.x = center.x + std::cos(angle) * radius;
-    pos.z = center.z + std::sin(angle) * radius;
-    // keep Y the same as base center
-    return pos;
+    float cy = cosf(yawRad);
+    float sy = sinf(yawRad);
+    float cp = cosf(pitchRad);
+    float sp = sinf(pitchRad);
+
+    glm::vec3 dir;
+    dir.x = cp * sy;
+    dir.y = sp;
+    dir.z = cp * cy;
+
+    return base + dir * params.pointLightOrbitRadius;
 }
 
 static glm::vec3 dirFromYawPitch(float yawDeg, float pitchDeg) {
-    float yaw   = glm::radians(yawDeg);
+    float yaw = glm::radians(yawDeg);
     float pitch = glm::radians(pitchDeg);
 
     float cp = std::cos(pitch);
@@ -36,7 +42,7 @@ static glm::vec3 dirFromYawPitch(float yawDeg, float pitchDeg) {
 
     // Fallback if direction degenerates
     if (glm::dot(d, d) < 1e-6f) {
-        return glm::vec3(0.0f, -1.0f, 0.0f);
+        return {0.0f, -1.0f, 0.0f};
     }
     return glm::normalize(d);
 }
@@ -145,7 +151,7 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
     rt.setVec3("uSkyUpDir", skyDir);
 
     // Point
-    glm::vec3 pointPos = computePointLightWorldPos(app.params, app.accum.frameIndex);
+    glm::vec3 pointPos = computePointLightWorldPos(app.params);
     rt.setInt("uPointLightEnabled", app.params.pointLightEnabled);
     rt.setVec3("uPointLightPos", pointPos);
     rt.setVec3("uPointLightColor", glm::make_vec3(app.params.pointLightColor));
@@ -256,7 +262,7 @@ void renderRaster(const AppState &app, const int fbw, const int fbh,
 
     // Point light marker (small emissive sphere)
     if (app.params.pointLightEnabled) {
-        glm::vec3 pointPos = computePointLightWorldPos(app.params, app.accum.frameIndex);
+        glm::vec3 pointPos = computePointLightWorldPos(app.params);
 
         model = glm::translate(glm::mat4(1.0f), pointPos);
         model = glm::scale(model, glm::vec3(0.15f)); // small sphere
