@@ -1,4 +1,30 @@
 #version 410 core
+
+/*
+    rt_present.frag – TAA + SVGF Present / Post-Processing Shader
+
+    This shader:
+    - Reads the history buffer (uTex), which stores:
+        * rgb = accumulated linear color
+        * a   = M2 (second moment of luma) used to estimate variance.
+    - Uses the motion buffer (uMotionTex) to:
+        * Visualize motion (debug mode), or
+        * Drive a variance- and motion-aware SVGF-lite spatial filter.
+    - Optionally applies a GBuffer-aware spatial filter (svgfFilter):
+        * Uses world-space position (uGPos) and normal (uGNrm) to stop blurring
+          across geometry edges.
+    - Applies ACES tonemapping and gamma correction to output sRGB.
+
+    Controls:
+    - uShowMotion: switches between normal path and motion visualization.
+    - uEnableSVGF: toggles the SVGF-lite filter.
+    - uSvgfStrength: blends between raw TAA output and filtered result.
+    - uKVar/uKColor, uKVarMotion/uKColorMotion: tuning parameters for the filter.
+
+    The shader is intended as a lightweight, real-time friendly post-process
+    that builds on top of the ray-traced accumulation + TAA pass.
+*/
+
 in vec2 vUV;                    // kept for compatibility, not used for sampling
 out vec4 fragColor;
 
@@ -10,9 +36,9 @@ uniform sampler2D uGPos;       // world-space position
 uniform sampler2D uGNrm;       // world-space normal
 
 uniform float uExposure;
-uniform int uShowMotion;   // 0 = normal, 1 = visualize motion
-uniform float uMotionScale;  // e.g. 4.0
-uniform vec2 uResolution;   // framebuffer size in pixels
+uniform int uShowMotion;       // 0 = normal, 1 = visualize motion
+uniform float uMotionScale;    // e.g. 4.0
+uniform vec2 uResolution;      // framebuffer size in pixels
 
 // SVGF params / controls
 uniform float uVarMax;
@@ -28,14 +54,25 @@ uniform int uEnableSVGF;
 // Luma coefficients (approx. Rec.709)
 const vec3 YCOEFF = vec3(0.299, 0.587, 0.114);
 
-// ACES approximation (Narkowicz 2015)
+// -----------------------------------------------------------------------------
+// Tonemapping and color utilities
+// -----------------------------------------------------------------------------
+
+/**
+ * @brief ACES approximation tonemapper (Narkowicz 2015).
+ *
+ * Applies exposure, then maps HDR linear color into [0,1] with a curve
+ * that maintains highlight rolloff and overall contrast.
+ */
 vec3 acesTonemap(vec3 x) {
     x *= uExposure;
     const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
     return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
 }
 
-// HSV → RGB
+/**
+ * @brief Converts HSV to RGB, mainly used for motion visualization.
+ */
 vec3 hsv2rgb(vec3 c) {
     vec3 p = abs(fract(c.xxx + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
     return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y);
@@ -44,6 +81,16 @@ vec3 hsv2rgb(vec3 c) {
 // ------------------------------------------------------------
 // Motion visualization (debug)
 // ------------------------------------------------------------
+
+/**
+ * @brief Visualizes 2D motion vectors as colored arrows.
+ *
+ * The hue encodes direction, and the value encodes magnitude (after scaling).
+ * Very small motions fall into a deadband and are shown as black.
+ *
+ * @param motion NDC motion vector (currNDC - prevNDC).
+ * @param scale  Scalar used to amplify the vector before visualization.
+ */
 vec3 visualizeMotion(vec2 motion, float scale) {
     vec2 m = motion * scale;
 
@@ -62,6 +109,22 @@ vec3 visualizeMotion(vec2 motion, float scale) {
 // SVGF-lite spatial filter using VARIANCE derived from M2 in alpha
 // Motion-aware + GBUFFER-aware (position + normal)
 // ------------------------------------------------------------
+
+/**
+ * @brief SVGF-lite spatial filter around the current pixel.
+ *
+ * Uses:
+ *  - M2-based variance from the history buffer (uTex) to estimate noise.
+ *  - Motion magnitude to modulate filter strength (more blur on moving content).
+ *  - GBuffer-based edge-stopping (position + normal) to preserve geometry edges.
+ *
+ * It operates on a 3x3 neighborhood and computes weights based on:
+ *  - variance (wVar),
+ *  - color difference (wCol),
+ *  - position difference (wPos),
+ *  - normal difference (wNrm),
+ *  - a small spatial bias (wSpatial) that favors the center sample.
+ */
 vec3 svgfFilter(vec2 uv) {
     // Center sample: color + M2 of luma stored in A
     vec4 centerRaw = texture(uTex, uv);
@@ -163,6 +226,10 @@ vec3 svgfFilter(vec2 uv) {
 
     return accumCol / accumW;
 }
+
+// -----------------------------------------------------------------------------
+// Main
+// -----------------------------------------------------------------------------
 
 void main() {
     ivec2 sz = textureSize(uTex, 0);

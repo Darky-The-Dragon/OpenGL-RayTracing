@@ -2,6 +2,29 @@
 #ifndef RT_LIGHTING_GLSL
 #define RT_LIGHTING_GLSL
 
+/*
+    rt_lighting.glsl – Direct & Indirect Lighting for Analytic and BVH Scenes
+
+    This module defines:
+    - A simple disk area light (kLightCenter, kLightN, kLightRadius, kLightCol).
+    - Unified occlusion tests that work in both analytic and BVH modes.
+    - A shared Lambert + Phong BRDF helper.
+    - Sun, sky, and point lights (hybrid analytic lights shared across scenes).
+    - Direct lighting evaluators:
+        * directLight()      – analytic scene (plane + spheres)
+        * directLightBVH()   – BVH triangle scene
+    - One-bounce diffuse GI for analytic and BVH scenes with basic clamping.
+    - Glass shading with thin refraction and local reflections.
+    - Mirror shading using analytic scene traces.
+    - Ambient occlusion (AO) using cosine-weighted hemisphere sampling.
+
+    All routines assume the presence of:
+    - uUseBVH, uAO_* uniforms.
+    - traceAnalytic(), traceAnalyticIgnoreGlass(), traceAnalyticIgnorePointLight().
+    - traceBVH(), traceBVHShadow().
+    - MaterialProps, sky(), sampleHemisphereCosine(), etc.
+*/
+
 // ------------- Disk area light (existing) --------------
 const vec3 kLightCenter = vec3(0.0, 5.0, -3.0);
 const vec3 kLightN = normalize(vec3(0.0, -1.0, 0.2));
@@ -9,6 +32,18 @@ const float kLightRadius = 1.2;
 const vec3 kLightCol = vec3(18.0);
 
 // ---- Unified shadow test for both modes
+
+/**
+ * @brief Tests whether the segment between p and q is occluded.
+ *
+ * Builds a shadow ray from p toward q and checks:
+ *  - BVH scene via traceBVHShadow, or
+ *  - Analytic scene via traceAnalytic.
+ *
+ * @param p Start position (usually a surface point).
+ * @param q Target point (e.g., area-light point).
+ * @return True if any geometry blocks the path before reaching q.
+ */
 bool occludedToward(vec3 p, vec3 q) {
     vec3 rd = normalize(q - p);
     float maxT = length(q - p);
@@ -25,6 +60,19 @@ bool occludedToward(vec3 p, vec3 q) {
 // ---------------------------------------------------------------------------
 // Shared BRDF helper: Lambert + optional Phong spec
 // ---------------------------------------------------------------------------
+
+/**
+ * @brief Evaluates a Lambert + Phong BRDF for a single light sample.
+ *
+ * @param N           Surface normal (world space, normalized).
+ * @param V           View direction (from surface → camera).
+ * @param L           Light direction (from surface → light).
+ * @param Li          Incident radiance from the light.
+ * @param albedo      Diffuse albedo color.
+ * @param specStrength Scalar multiplier for the specular lobe.
+ * @param gloss       Phong exponent controlling highlight sharpness.
+ * @return Outgoing radiance contribution from this light sample.
+ */
 vec3 shadeLambertPhong(
     vec3 N, vec3 V, vec3 L, vec3 Li,
     vec3 albedo, float specStrength, float gloss)
@@ -50,6 +98,17 @@ vec3 shadeLambertPhong(
 // ---------------------------------------------------------------------------
 // Sun light (directional, shadowed)
 // ---------------------------------------------------------------------------
+
+/**
+ * @brief Directional sunlight contribution with hard shadows.
+ *
+ * Uses the shared BRDF helper for non-glass/non-mirror materials.
+ *
+ * @param h    Primary hit information.
+ * @param mat  Material properties at the hit.
+ * @param Vdir Direction from hit → camera.
+ * @return Radiance contribution from the sun.
+ */
 vec3 sunDirect(Hit h, MaterialProps mat, vec3 Vdir)
 {
     if (uSunEnabled == 0) return vec3(0.0);
@@ -85,6 +144,13 @@ vec3 sunDirect(Hit h, MaterialProps mat, vec3 Vdir)
 // ---------------------------------------------------------------------------
 // Sky dome (ambient-ish, no extra shadows; AO will handle occlusion feel)
 // ---------------------------------------------------------------------------
+
+/**
+ * @brief Simple hemispherical sky dome contribution.
+ *
+ * Approximates ambient light from a single sky direction uSkyUpDir with
+ * cosine-weighting. Shadows are handled separately via AO.
+ */
 vec3 skyDirect(Hit h, MaterialProps mat, vec3 Vdir)
 {
     if (uSkyEnabled == 0) return vec3(0.0);
@@ -105,6 +171,13 @@ vec3 skyDirect(Hit h, MaterialProps mat, vec3 Vdir)
 // ---------------------------------------------------------------------------
 // Point light (shadowed, inverse-square falloff)
 // ---------------------------------------------------------------------------
+
+/**
+ * @brief Point light contribution with inverse-square falloff and shadows.
+ *
+ * For the analytic scene, the emissive point-light marker sphere is excluded
+ * from shadow tests via traceAnalyticIgnorePointLight().
+ */
 vec3 pointDirect(Hit h, MaterialProps mat, vec3 Vdir)
 {
     if (uPointLightEnabled == 0) return vec3(0.0);
@@ -144,22 +217,37 @@ vec3 pointDirect(Hit h, MaterialProps mat, vec3 Vdir)
 // Basis & sampling utilities
 // ============================================================================
 
-// Build an orthonormal basis (T,B,N) from a normal
+/**
+ * @brief Builds an orthonormal basis (T, B, N) from a normal.
+ *
+ * @param N  Normalized surface normal.
+ * @param T  Output tangent vector.
+ * @param B  Output bitangent vector.
+ */
 void buildONB(in vec3 N, out vec3 T, out vec3 B) {
     vec3 up = (abs(N.y) < 0.99) ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
     T = normalize(cross(up, N));
     B = cross(N, T);
 }
 
-// Shared disk-light frame around kLightN
+/**
+ * @brief Builds a local frame (t,b) around the disk light normal kLightN.
+ *
+ * Used to map 2D disk samples into world space for the soft area light.
+ */
 void buildLightFrame(out vec3 t, out vec3 b) {
     t = normalize(abs(kLightN.y) < 0.99 ? cross(kLightN, vec3(0, 1, 0))
                   : cross(kLightN, vec3(1, 0, 0)));
     b = cross(kLightN, t);
 }
 
-// Cosine-weighted hemisphere sample around normal N using shared helpers.
-// u in [0,1]^2.
+/**
+ * @brief Cosine-weighted hemisphere sample around normal N.
+ *
+ * @param N Surface normal (world space).
+ * @param u 2D random sample in [0,1]^2.
+ * @return Sampled direction on the hemisphere around N.
+ */
 vec3 sampleHemisphereCosine(vec3 N, vec2 u) {
     // cosine-weighted sample in local space (around +Y)
     float phi = 2.0 * uPI * u.x;
@@ -182,6 +270,13 @@ vec3 sampleHemisphereCosine(vec3 N, vec2 u) {
 // ============================================================================
 
 // ---- Direct lighting (analytic & BVH) with per-pixel CP rotation + frame LD rotation
+
+/**
+ * @brief Computes a per-pixel offset for disk-light sampling.
+ *
+ * Combines hash-based noise and a low-discrepancy sequence to rotate the
+ * sample pattern over time and across pixels, reducing structured noise.
+ */
 vec2 cpOffset(vec2 pix, int frame) {
     // Per-pixel hash → [0,1)^2
     vec2 h = vec2(
@@ -193,7 +288,11 @@ vec2 cpOffset(vec2 pix, int frame) {
     return fract(h + ld);
 }
 
-// Small helper for Phong spec
+/**
+ * @brief Standalone Phong specular evaluation helper.
+ *
+ * Used by some direct-light routines when a separate specular term is needed.
+ */
 vec3 evalPhongSpec(vec3 N, vec3 V, vec3 L, float gloss, float specStrength) {
     if (specStrength <= 0.0) return vec3(0.0);
     vec3 H = normalize(L + V);
@@ -203,6 +302,19 @@ vec3 evalPhongSpec(vec3 N, vec3 V, vec3 L, float gloss, float specStrength) {
 }
 
 // ---- Direct lighting (analytic) with cheap specular + hybrid lights
+
+/**
+ * @brief Direct lighting for the analytic scene (plane + spheres).
+ *
+ * Evaluates:
+ *  - Disk area light with soft shadows.
+ *  - Sun, sky, and point lights (hybrid analytic lights).
+ *
+ * @param h     Primary hit.
+ * @param frame Current frame index.
+ * @param Vdir  Direction from hit → camera.
+ * @return Total direct lighting contribution at h.
+ */
 vec3 directLight(Hit h, int frame, vec3 Vdir) {
     vec3 N = normalize(h.n);
     vec3 sum = vec3(0.0);
@@ -214,7 +326,7 @@ vec3 directLight(Hit h, int frame, vec3 Vdir) {
                        : cross(kLightN, vec3(1, 0, 0)));
     vec3 b = cross(kLightN, t);
 
-    // Per-pixel rotated sampling like before
+    // Per-pixel rotated sampling
     vec2 rot = cpOffset(gl_FragCoord.xy, uFrameIndex);
 
     vec3 V = normalize(Vdir); // from hit → camera
@@ -255,6 +367,13 @@ vec3 directLight(Hit h, int frame, vec3 Vdir) {
 }
 
 // ---- Direct lighting for BVH triangles (simple white plastic) + hybrid lights
+
+/**
+ * @brief Direct lighting for BVH triangle geometry.
+ *
+ * Uses a hard-coded "white plastic" material for the triangle mesh and
+ * reuses the same disk, sun, sky, and point lights as the analytic scene.
+ */
 vec3 directLightBVH(Hit h, int frame, vec3 Vdir) {
     vec3 N = normalize(h.n);
     vec3 sum = vec3(0.0);
@@ -317,7 +436,13 @@ vec3 directLightBVH(Hit h, int frame, vec3 Vdir) {
 // One-bounce diffuse GI (indirect lighting)
 // ============================================================================
 
-// Analytic scene: one diffuse bounce from primary hit h0
+/**
+ * @brief One-bounce diffuse GI for the analytic scene.
+ *
+ * Shoots a single cosine-weighted bounce from the primary hit, then:
+ *  - if it hits: computes direct lighting at the secondary point
+ *  - if it misses: samples the sky
+ */
 vec3 oneBounceGIAnalytic(Hit h0, int frame, int seed) {
     MaterialProps mat0 = getMaterial(h0.mat);
     vec3 albedo0 = mat0.albedo;
@@ -354,7 +479,12 @@ vec3 oneBounceGIAnalytic(Hit h0, int frame, int seed) {
     return albedo0 * (cosTheta / uPI) * Li;
 }
 
-// BVH scene: one diffuse bounce from primary triangle hit, with clamping
+/**
+ * @brief One-bounce diffuse GI for BVH geometry with firefly clamping.
+ *
+ * Uses a cosine-weighted bounce, reuses directLightBVH at the secondary hit,
+ * and applies a luminance clamp to reduce extreme GI spikes.
+ */
 vec3 oneBounceGIBVH(Hit h0, int frame, int seed) {
     // Hard-coded BVH albedo (same spirit as directLightBVH)
     const vec3 albedo0 = vec3(0.85);
@@ -407,6 +537,15 @@ vec3 oneBounceGIBVH(Hit h0, int frame, int seed) {
 // Glass shading – soft thin refraction with local reflections
 // ============================================================================
 // wo = direction from hit -> camera (i.e. -rayDir), frame = random seed
+
+/**
+ * @brief Shading for glass materials in the analytic scene.
+ *
+ * Approximates:
+ *  - Thin refraction (straight-through + softened bent refraction).
+ *  - Local and environment reflections.
+ *  - Fresnel blending between reflection and refraction using Schlick's approx.
+ */
 vec3 shadeGlass(const Hit h, const vec3 wo, const MaterialProps mat, int frame) {
     vec3 N = normalize(h.n);
     vec3 V = normalize(wo);   // hit -> camera
@@ -499,6 +638,13 @@ vec3 shadeGlass(const Hit h, const vec3 wo, const MaterialProps mat, int frame) 
 // ============================================================================
 // Mirror shading helper – analytic scene only
 // ============================================================================
+
+/**
+ * @brief Perfect mirror shading for analytic scene materials.
+ *
+ * Casts a reflection ray into the analytic scene, optionally adds one-bounce
+ * GI at the reflected hit, and falls back to the environment if nothing is hit.
+ */
 vec3 shadeMirror(const Hit h, const vec3 wo, const MaterialProps mat, int frame) {
     vec3 N = normalize(h.n);
     vec3 I = -normalize(wo);       // direction from hit → camera
@@ -537,6 +683,14 @@ vec3 shadeMirror(const Hit h, const vec3 wo, const MaterialProps mat, int frame)
 // ---------------------------------------------------------------------------
 // Ambient Occlusion (AO)
 // ---------------------------------------------------------------------------
+
+/**
+ * @brief Computes ambient occlusion factor around a hit point.
+ *
+ * Shoots several hemisphere rays around the normal and counts the fraction
+ * of rays that quickly hit geometry within a radius. The final AO factor
+ * is clamped and remapped to avoid fully black regions.
+ */
 float computeAO(Hit h, int frame) {
     vec3 N = normalize(h.n);
     int occludedCount = 0;

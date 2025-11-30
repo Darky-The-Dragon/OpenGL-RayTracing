@@ -1,0 +1,24 @@
+<map id="renderRay" name="renderRay">
+<area shape="rect" id="Node000001" title="Executes the ray/path tracing rendering path." alt="" coords="5,231,87,256"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_accum.html#acd1da0a9a07fb240bea356e7a71e9772" title="Binds FBO with 4 MRT targets for combined RT + GBuffer output." alt="" coords="135,5,338,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="47,229,55,194,71,145,96,93,113,69,133,48,154,36,151,40,136,52,117,73,101,96,76,147,60,195,52,231"/>
+<area shape="rect" id="Node000003" href="$classrt_1_1_accum.html#ae0010e7adc6d5e6984809c5ef60d88c2" title=" " alt="" coords="386,31,521,56"/>
+<area shape="poly" id="edge11_Node000001_Node000003" title=" " alt="" coords="48,229,58,200,75,162,100,124,133,92,175,75,236,62,372,47,368,50,237,67,177,80,136,96,104,127,80,165,63,202,53,231"/>
+<area shape="rect" id="Node000004" href="$render_8cpp.html#a2e5a1f5d02c82040b7288ed847ab309f" title=" " alt="" coords="144,107,329,132"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="53,229,84,185,107,161,133,141,145,137,142,141,136,146,110,165,88,189,57,231"/>
+<area shape="rect" id="Node000005" href="$render_8cpp.html#a2b39e7f250eca85c0435dd99c32458db" title=" " alt="" coords="176,156,296,182"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="65,228,97,209,134,190,163,182,160,186,136,195,99,213,69,232"/>
+<area shape="rect" id="Node000006" href="$classrt_1_1_accum.html#a6343342b30319b4288c8f21b337e222b" title=" " alt="" coords="170,205,302,231"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="86,236,156,227,153,231,88,240"/>
+<area shape="rect" id="Node000007" href="$class_shader.html#afe7367621f74c2d26431d8ac15252bf3" title="Sets a float uniform." alt="" coords="178,255,295,280"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="86,246,164,256,160,260,88,251"/>
+<area shape="rect" id="Node000008" href="$class_shader.html#ad362e2b654cd95a3574cd505411e41fd" title="Sets an integer uniform." alt="" coords="185,304,288,330"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="67,254,100,273,136,290,172,303,167,305,134,295,97,278,68,260"/>
+<area shape="rect" id="Node000009" href="$class_shader.html#afd4d41322a1cdd1d5155bf124d19debf" title="Sets a vec2 uniform." alt="" coords="177,353,296,379"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="55,254,88,298,111,321,136,340,165,354,160,355,133,344,107,325,84,301,55,259"/>
+<area shape="rect" id="Node000010" href="$classrt_1_1_accum.html#ad2a3d0c094e219c116f79a229a3f37d4" title="Advances the accumulation frame and flips the ping&#45;pong index." alt="" coords="145,403,328,428"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="51,254,64,284,81,321,105,358,136,389,143,395,138,395,133,394,101,361,76,323,59,286,51,260"/>
+<area shape="rect" id="Node000011" href="$class_shader.html#a3c7896754f0e1fca8bde860cfef63832" title="Binds the shader program for subsequent draw calls." alt="" coords="191,452,282,478"/>
+<area shape="poly" id="edge10_Node000001_Node000011" title=" " alt="" coords="49,254,59,293,74,343,99,395,116,418,136,439,155,450,178,460,173,460,153,455,133,443,112,422,95,398,69,345,54,294,49,260"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="337,28,373,33,368,35,339,33"/>
+</map>

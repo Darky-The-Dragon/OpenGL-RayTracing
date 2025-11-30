@@ -1,0 +1,5 @@
+<map id="rt::Accum::bindWriteFBO_MRT" name="rt::Accum::bindWriteFBO_MRT">
+<area shape="rect" id="Node000001" title="Binds FBO with 4 MRT targets for combined RT + GBuffer output." alt="" coords="5,5,209,31"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_accum.html#ae0010e7adc6d5e6984809c5ef60d88c2" title=" " alt="" coords="257,5,392,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="209,16,244,18,238,18,209,21"/>
+</map>

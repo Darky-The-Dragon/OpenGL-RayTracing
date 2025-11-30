@@ -1,0 +1,21 @@
+<map id="AppState" name="AppState">
+<area shape="rect" id="Node000001" title="Centralized container for all engine runtime state." alt="" coords="285,224,360,250"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_accum.html" title="Manages the temporal accumulation buffer used by the path tracer." alt="" coords="49,11,127,37"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="142,19,173,21,205,27,235,39,262,56,280,75,293,97,312,145,321,190,323,225,318,223,315,191,307,146,289,100,276,79,259,61,233,43,203,32,172,26,144,24"/>
+<area shape="rect" id="Node000003" href="$classrt_1_1_g_buffer.html" title="Minimal geometry buffer storing world&#45;space position and normal." alt="" coords="47,64,129,90"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="143,76,205,87,235,98,262,115,286,141,303,171,321,224,316,224,298,173,282,144,259,119,233,103,203,92,145,81"/>
+<area shape="rect" id="Node000004" href="$structrt_1_1_frame_state.html" title="Stores camera matrices and temporal information needed per frame." alt="" coords="35,118,141,143"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="155,134,210,146,262,168,293,194,315,224,310,224,289,198,259,173,208,151,157,139"/>
+<area shape="rect" id="Node000005" href="$struct_render_params.html" title="Collection of all user&#45;tunable rendering parameters." alt="" coords="34,171,142,197"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="157,190,261,211,293,223,288,224,260,216,158,195"/>
+<area shape="rect" id="Node000006" href="$class_camera.html" title="Basic FPS&#45;style camera used for both raster and ray tracing views." alt="" coords="54,224,122,250"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="136,235,286,235,282,239,138,240"/>
+<area shape="rect" id="Node000007" href="$struct_b_v_h_handle.html" title="Holds GPU&#45;side buffers/textures for a BVH." alt="" coords="43,278,133,303"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="148,284,203,276,260,263,299,249,295,252,261,268,204,281,150,289"/>
+<area shape="rect" id="Node000008" href="$structui_1_1_bvh_model_picker_state.html" title="Stores UI state for selecting BVH models." alt="" coords="5,331,171,357"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="185,333,224,322,259,306,290,278,312,252,315,249,294,282,262,310,225,327,187,338"/>
+<area shape="rect" id="Node000009" href="$structui_1_1_env_map_picker_state.html" title="Stores UI state for selecting environment maps." alt="" coords="10,384,166,410"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="180,390,222,379,259,358,282,333,299,303,317,252,320,248,304,305,286,336,262,362,224,384,182,395"/>
+<area shape="rect" id="Node000010" href="$structio_1_1_input_state.html" title="Stores all per&#45;frame and edge&#45;triggered input information." alt="" coords="38,438,138,463"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="153,450,209,442,235,431,259,415,276,397,289,376,307,329,315,284,319,253,322,248,321,285,312,331,294,378,280,400,262,420,238,436,210,447,154,456"/>
+</map>

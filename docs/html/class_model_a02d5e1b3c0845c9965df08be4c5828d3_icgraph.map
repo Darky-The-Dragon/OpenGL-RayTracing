@@ -1,0 +1,12 @@
+<map id="Model::Model" name="Model::Model">
+<area shape="rect" id="Node000001" title="Copying is disabled to avoid duplicating heavy GPU resources." alt="" coords="173,80,272,106"/>
+<area shape="poly" id="edge1_Node000001_Node000001" title=" " alt="" coords="248,65,240,61,222,59,206,61,197,65,196,71,200,80,195,79,190,71,193,62,204,56,222,53,242,56,253,65"/>
+<area shape="rect" id="Node000002" href="$class_model.html#ac455fa8d2babc9ea4d344d585a505ed5" title="Constructs a model by loading it from disk." alt="" coords="15,5,115,31"/>
+<area shape="poly" id="edge2_Node000001_Node000002" title=" " alt="" coords="181,73,124,45,101,34,100,29,126,40,186,71"/>
+<area shape="rect" id="Node000003" href="$class_model.html#ad580dfe7a7d50fce58a81843ab1a76cf" title="Move constructor — safe resource transfer." alt="" coords="15,55,115,80"/>
+<area shape="poly" id="edge3_Node000001_Node000003" title=" " alt="" coords="155,83,115,78,115,73,160,81"/>
+<area shape="rect" id="Node000004" href="$class_model.html#a430d39f2cefc2b4e23456728f9361b33" title=" " alt="" coords="5,104,125,130"/>
+<area shape="poly" id="edge4_Node000001_Node000004" title=" " alt="" coords="155,104,126,110,124,105,159,102"/>
+<area shape="rect" id="Node000005" href="$class_model.html#ac3872c8f9a2c36081cdfb8f5265042f9" title="Move assignment — safe resource transfer." alt="" coords="5,153,125,179"/>
+<area shape="poly" id="edge5_Node000001_Node000005" title=" " alt="" coords="186,112,126,145,101,155,100,150,124,140,181,114"/>
+</map>

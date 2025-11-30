@@ -5,15 +5,18 @@
 #include <algorithm>
 
 namespace io {
-    // ====== keyboard helper ======
+    // Small helper to check if a key is currently pressed.
     static inline bool keyDown(GLFWwindow *w, const int key) {
         return glfwGetKey(w, key) == GLFW_PRESS;
     }
 
+    // Poll keyboard state and update InputState edge-triggered toggles.
+    // Returns true if anything changed that the engine should react to
+    // (SPP change, exposure change, mode toggles, etc.).
     bool update(InputState &s, GLFWwindow *win) {
         bool changed = false;
 
-        // reset per-frame toggles
+        // Reset per-frame toggles.
         s.toggledRayMode = false;
         s.resetAccum = false;
         s.cycledSPP = false;
@@ -23,11 +26,11 @@ namespace io {
         s.toggledPointerMode = false;
         s.cameraChangedThisFrame = false;
 
-        // ESC → request quit
+        // ESC → request quit.
         if (keyDown(win, GLFW_KEY_ESCAPE))
             s.quitRequested = true;
 
-        // F2 toggle ray/raster
+        // F2: toggle ray / raster path.
         const bool nowF2 = keyDown(win, GLFW_KEY_F2);
         if (nowF2 && !s.prevF2) {
             s.toggledRayMode = true;
@@ -35,7 +38,7 @@ namespace io {
         }
         s.prevF2 = nowF2;
 
-        // R reset accumulation
+        // R: reset accumulation.
         const bool nowR = keyDown(win, GLFW_KEY_R);
         if (nowR && !s.prevR) {
             s.resetAccum = true;
@@ -43,7 +46,7 @@ namespace io {
         }
         s.prevR = nowR;
 
-        // F5 toggle BVH
+        // F5: toggle BVH / analytic scene.
         const bool nowF5 = keyDown(win, GLFW_KEY_F5);
         if (nowF5 && !s.prevF5) {
             s.toggledBVH = true;
@@ -51,7 +54,7 @@ namespace io {
         }
         s.prevF5 = nowF5;
 
-        // F6: motion-debug toggle (TAA / motion visualization)
+        // F6: toggle motion-debug / TAA visualization.
         const bool nowF6 = keyDown(win, GLFW_KEY_F6);
         if (nowF6 && !s.prevF6) {
             s.toggledMotionDebug = true;
@@ -59,7 +62,7 @@ namespace io {
         }
         s.prevF6 = nowF6;
 
-        // P: toggle pointer / UI mode (sceneInputEnabled)
+        // P: toggle pointer / UI mode (sceneInputEnabled).
         const bool nowP = keyDown(win, GLFW_KEY_P);
         if (nowP && !s.prevP) {
             s.toggledPointerMode = true;
@@ -67,7 +70,7 @@ namespace io {
         }
         s.prevP = nowP;
 
-        // F3 cycle SPP 1→2→4→8→16→1
+        // F3: cycle SPP 1 → 2 → 4 → 8 → 16 → 1.
         const bool nowF3 = keyDown(win, GLFW_KEY_F3);
         if (nowF3 && !s.prevF3) {
             s.sppPerFrame = (s.sppPerFrame == 1)
@@ -84,7 +87,7 @@ namespace io {
         }
         s.prevF3 = nowF3;
 
-        // Direct SPP hotkeys: ↑ (increase) / ↓ (decrease)
+        // Direct SPP hotkeys: ↑ (increase) / ↓ (decrease) to nearest preset.
         if (keyDown(win, GLFW_KEY_UP)) {
             const int old = s.sppPerFrame;
             int next = old;
@@ -93,7 +96,7 @@ namespace io {
             else if (old < 4) next = 4;
             else if (old < 8) next = 8;
             else if (old < 16) next = 16;
-            // else: already at max, keep value
+            // else: already at max, keep value.
 
             if (next != old) {
                 s.sppPerFrame = next;
@@ -117,6 +120,7 @@ namespace io {
             }
         }
 
+        // Number keys 1..4: direct jump to SPP presets.
         if (keyDown(win, GLFW_KEY_1)) {
             s.sppPerFrame = 2;
             s.changedSPP = true;
@@ -138,7 +142,7 @@ namespace io {
             changed = true;
         }
 
-        // Exposure: [ / ]
+        // Exposure: [ / ] (multiplicative tweaks).
         if (keyDown(win, GLFW_KEY_LEFT_BRACKET)) {
             s.exposure = std::max(0.05f, s.exposure * 0.97f);
             changed = true;
@@ -152,14 +156,16 @@ namespace io {
     }
 
     // ====== mouse & scroll callbacks ======
+
+    // Mouse look callback: updates camera orientation when scene input is enabled.
     static void mouse_cb(GLFWwindow *w, const double xPos, const double yPos) {
         auto *app = static_cast<AppState *>(glfwGetWindowUserPointer(w));
         if (!app) return;
         auto &s = app->input;
 
         // If UI / pointer mode is active, ignore camera look
+        // but keep lastX/lastY in sync to avoid a jump when re-enabling.
         if (!s.sceneInputEnabled) {
-            // Still track lastX/lastY to avoid a big jump when re-enabling
             s.lastX = static_cast<float>(xPos);
             s.lastY = static_cast<float>(yPos);
             return;
@@ -180,6 +186,7 @@ namespace io {
         app->camera.ProcessMouseMovement(dx, dy);
     }
 
+    // Scroll wheel callback: zoom by modifying camera FOV.
     static void scroll_cb(GLFWwindow *w, double /*xoff*/, const double yOff) {
         auto *app = static_cast<AppState *>(glfwGetWindowUserPointer(w));
         if (!app) return;
@@ -187,10 +194,12 @@ namespace io {
         app->camera.Fov -= static_cast<float>(yOff) * 2.0f;
         if (app->camera.Fov < 20.0f) app->camera.Fov = 20.0f;
         if (app->camera.Fov > 90.0f) app->camera.Fov = 90.0f;
+
+        // Signal to the app that FOV changed this frame, so accumulation can reset.
         app->input.cameraChangedThisFrame = true;
-        // This flag is used in Application::mainLoop() to reset accumulation when FOV changes.
     }
 
+    // Register mouse and scroll callbacks on the GLFW window.
     void attach_callbacks(GLFWwindow *window) {
         glfwSetCursorPosCallback(window, mouse_cb);
         glfwSetScrollCallback(window, scroll_cb);

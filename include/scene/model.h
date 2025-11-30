@@ -34,33 +34,74 @@
 
 #include <scene/mesh.h>
 
+/**
+ * @class Model
+ * @brief Loads and stores a 3D model composed of one or more Mesh objects.
+ *
+ * This class wraps the model import pipeline using **Assimp**, converting
+ * imported meshes into the local Mesh representation. Each Assimp mesh becomes
+ * a separate Mesh instance with its own VBO/EBO/VAO stored on the GPU.
+ *
+ * The class is **move-only** to ensure safe ownership of GPU resources.
+ * It follows standard RAII: destruction automatically frees all GPU buffers
+ * contained in its Mesh sub-objects.
+ */
 class Model {
 public:
+    /// List of sub-meshes forming this model.
     std::vector<Mesh> meshes;
 
-    // Disable copying (move-only class)
+    // -------------------------------------------------------------------------
+    // Copy / Move semantics
+    // -------------------------------------------------------------------------
+
+    /// Copying is disabled to avoid duplicating heavy GPU resources.
     Model(const Model &) = delete;
 
     Model &operator=(const Model &) = delete;
 
-    // Enable move operations
+    /// Move constructor — safe resource transfer.
     Model(Model &&) = default;
 
+    /// Move assignment — safe resource transfer.
     Model &operator=(Model &&) noexcept = default;
 
-    // Constructor loads the model
+    /**
+     * @brief Constructs a model by loading it from disk.
+     *
+     * @param path Path to the model file (OBJ, FBX, etc. supported by Assimp).
+     *
+     * The constructor immediately calls loadModel() and populates the `meshes` vector.
+     */
     explicit Model(const std::string &path) {
         loadModel(path);
     }
 
-    // Renders all meshes in the model
+    /**
+     * @brief Draws all meshes contained in this model.
+     *
+     * The actual rendering is delegated to each Mesh::Draw() call.
+     */
     void Draw() const {
         for (const auto &mesh: meshes)
             mesh.Draw();
     }
 
 private:
-    // Loads a model file using Assimp
+    // -------------------------------------------------------------------------
+    // Import pipeline
+    // -------------------------------------------------------------------------
+
+    /**
+     * @brief Loads a model file using Assimp and processes its entire node hierarchy.
+     *
+     * @param path Filesystem path to the model being loaded.
+     *
+     * The function:
+     *  - reads the file via Assimp::Importer
+     *  - validates the scene
+     *  - recursively processes all nodes and meshes
+     */
     void loadModel(const std::string &path) {
         Assimp::Importer importer;
 
@@ -81,7 +122,15 @@ private:
         processNode(scene->mRootNode, scene);
     }
 
-    // Recursively processes nodes in the Assimp scene graph
+    /**
+     * @brief Recursively walks the Assimp scene graph and processes each mesh.
+     *
+     * @param node  Current node in the scene hierarchy.
+     * @param scene Full Assimp scene containing mesh references.
+     *
+     * Each referenced aiMesh is converted into a Mesh instance and stored
+     * in the `meshes` vector.
+     */
     void processNode(const aiNode *node, const aiScene *scene) {
         for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
             aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
@@ -92,7 +141,18 @@ private:
             processNode(node->mChildren[i], scene);
     }
 
-    // Converts an aiMesh to a Mesh object
+    /**
+     * @brief Converts an Assimp aiMesh into a Mesh object.
+     *
+     * This function:
+     *  - reads vertex attributes (pos, normal, UV, tangent, bitangent)
+     *  - extracts triangle indices
+     *  - fills std::vector<Vertex> and std::vector<GLuint>
+     *  - constructs a Mesh object (which uploads the data to the GPU)
+     *
+     * @param mesh Assimp mesh structure containing raw mesh data.
+     * @return Mesh converted to the internal format.
+     */
     static Mesh processMesh(aiMesh *mesh) {
         std::vector<Vertex> vertices;
         std::vector<GLuint> indices;
@@ -121,7 +181,7 @@ private:
                 vertex.Normal = glm::vec3(0.0f, 1.0f, 0.0f);
             }
 
-            // Texture Coordinates, Tangent, Bitangent (if available)
+            // Texture coordinates, tangent, bitangent
             if (mesh->mTextureCoords[0]) {
                 vertex.TexCoords = {
                     mesh->mTextureCoords[0][i].x,
@@ -147,7 +207,7 @@ private:
                 vertex.Tangent = glm::vec3(0.0f);
                 vertex.Bitangent = glm::vec3(0.0f);
                 if (!warnedNoUV) {
-                    std::cout << "WARNING: Model lacks UVs — Tangent/Bitangent set to 0." << std::endl;
+                    std::cout << "WARNING: Model lacks UVs — Tangent/Bitangent set to 0.\n";
                     warnedNoUV = true;
                 }
             }
@@ -155,7 +215,7 @@ private:
             vertices.emplace_back(vertex);
         }
 
-        // Extract vertex indices for each face
+        // Read all face indices
         indices.reserve(mesh->mNumFaces * 3);
         for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
             aiFace &face = mesh->mFaces[i];
@@ -163,7 +223,7 @@ private:
                 indices.emplace_back(face.mIndices[j]);
         }
 
-        // Ownership transfer is explicit via move into Mesh
+        // Ownership and GPU upload occur inside Mesh
         return Mesh{std::move(vertices), std::move(indices)};
     }
 };

@@ -5,8 +5,10 @@
 #include "glad/gl.h"
 #include <glm/gtc/type_ptr.hpp>
 
-namespace {
-    // Helper: get directory from path, including trailing slash (if any), else empty string
+/// Internal shader utilities: GLSL preprocessing, include expansion, and file helpers.
+namespace shader_detail {
+    // Extract directory part from a path, keeping the trailing slash.
+    // Returns empty string if there's no directory.
     std::string getDirectory(const std::string &path) {
         const size_t pos = path.find_last_of('/');
         if (pos != std::string::npos) {
@@ -15,20 +17,29 @@ namespace {
         return "";
     }
 
-    // Helper: preprocess GLSL #include "..." recursively
-    std::string preprocessShaderSource(const std::string &source, const std::string &baseDir, int depth = 0) {
+    // Preprocess GLSL #include "file.glsl" recursively.
+    // Includes are resolved relative to baseDir.
+    std::string preprocessShaderSource(const std::string &source,
+                                       const std::string &baseDir,
+                                       int depth = 0) {
         if (depth > 16) {
             std::cerr << "[WARNING] Shader include depth > 16, possible include cycle. "
                     << "Aborting further includes.\n";
             return source;
         }
+
         std::istringstream input(source);
         std::ostringstream output;
         std::string line;
+
         while (std::getline(input, line)) {
-            // Trim leading whitespace
+            // Trim leading whitespace to detect "#include" even if indented
             size_t first_non_ws = line.find_first_not_of(" \t");
-            std::string trimmed = (first_non_ws == std::string::npos) ? "" : line.substr(first_non_ws);
+            std::string trimmed = (first_non_ws == std::string::npos)
+                                      ? ""
+                                      : line.substr(first_non_ws);
+
+            // Handle #include "..."
             if (trimmed.rfind("#include", 0) == 0) {
                 size_t q1 = trimmed.find('"');
                 size_t q2 = (q1 != std::string::npos)
@@ -40,16 +51,23 @@ namespace {
                     std::string fullPath = baseDir + incPath;
                     std::ifstream incFile(fullPath);
                     if (!incFile) {
-                        std::cerr << "ERROR: Could not open included shader file: \"" << incPath << "\" (full path: " <<
-                                fullPath << ")" << std::endl;
+                        std::cerr << "ERROR: Could not open included shader file: \""
+                                << incPath << "\" (full path: " << fullPath << ")\n";
+                        // Keep original line so the shader is still somewhat debuggable.
                         output << line << '\n';
                         continue;
                     }
+
                     std::stringstream incStream;
                     incStream << incFile.rdbuf();
                     std::string incSrc = incStream.str();
+
                     output << "// --- begin include: " << incPath << " ---\n";
-                    output << preprocessShaderSource(incSrc, getDirectory(fullPath), depth + 1);
+                    output << preprocessShaderSource(
+                        incSrc,
+                        getDirectory(fullPath),
+                        depth + 1
+                    );
                     output << "// --- end include: " << incPath << " ---\n";
                 } else {
                     // Malformed include, just emit as-is
@@ -61,23 +79,30 @@ namespace {
         }
         return output.str();
     }
-} // namespace
+} // namespace shader_detail
 
+// Move constructor: steal GL program handle from other.
 Shader::Shader(Shader &&o) noexcept {
     *this = std::move(o);
 }
 
+// Move assignment: delete current program (if any), then steal other's.
 Shader &Shader::operator=(Shader &&o) noexcept {
     if (this == &o) return *this;
+
     if (ID) {
         glDeleteProgram(ID);
     }
+
     ID = o.ID;
     o.ID = 0;
+
+    // Uniform locations are program-specific, so clear cache here.
     uniformCache.clear();
     return *this;
 }
 
+// Construct shader from vertex + fragment paths and build the GL program.
 Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     std::ifstream vFile(vertexPath);
     std::ifstream fFile(fragmentPath);
@@ -85,8 +110,8 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     if (!vFile || !fFile) {
         std::cerr << "ERROR: Could not open shader files:\n"
                 << "Vertex: " << vertexPath << "\n"
-                << "Fragment: " << fragmentPath << std::endl;
-        ID = 0; // invalid program; use() will bind 0
+                << "Fragment: " << fragmentPath << "\n";
+        ID = 0;
         valid = false;
         return;
     }
@@ -98,9 +123,9 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     std::string vRaw = vStream.str();
     std::string fRaw = fStream.str();
 
-    // Preprocess GLSL-style #include "..." directives using the directory of each shader
-    std::string vCode = preprocessShaderSource(vRaw, getDirectory(vertexPath));
-    std::string fCode = preprocessShaderSource(fRaw, getDirectory(fragmentPath));
+    // Expand #include "..." directives relative to each shader's directory.
+    std::string vCode = shader_detail::preprocessShaderSource(vRaw, shader_detail::getDirectory(vertexPath));
+    std::string fCode = shader_detail::preprocessShaderSource(fRaw, shader_detail::getDirectory(fragmentPath));
 
     const char *vShaderCode = vCode.c_str();
     const char *fShaderCode = fCode.c_str();
@@ -117,7 +142,7 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     glCompileShader(fragment);
     checkCompileErrors(fragment, "FRAGMENT");
 
-    // Link shaders into program
+    // Link shaders into a single program
     ID = glCreateProgram();
     glAttachShader(ID, vertex);
     glAttachShader(ID, fragment);
@@ -132,6 +157,7 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     valid = (linkStatus == GL_TRUE);
 }
 
+// Destroy GL program on shutdown.
 Shader::~Shader() {
     if (ID) {
         glDeleteProgram(ID);
@@ -139,12 +165,16 @@ Shader::~Shader() {
     }
 }
 
+// Bind this shader program if it was successfully created.
 void Shader::use() const {
     if (valid) {
         glUseProgram(ID);
     }
 }
 
+// Uniform helpers ------------------------------------------------------------
+
+// Bool → GLint uniform.
 void Shader::setBool(const std::string &name, const bool value) const {
     glUniform1i(uniformLocation(name), static_cast<int>(value));
 }
@@ -169,15 +199,21 @@ void Shader::setVec2(const std::string &name, const glm::vec2 &value) const {
     glUniform2fv(uniformLocation(name), 1, glm::value_ptr(value));
 }
 
+// Cached uniform location lookup. Returns -1 if program is invalid.
 int Shader::uniformLocation(const std::string &name) const {
     if (ID == 0) return -1;
+
     auto it = uniformCache.find(name);
-    if (it != uniformCache.end()) return it->second;
+    if (it != uniformCache.end()) {
+        return it->second;
+    }
+
     const int loc = glGetUniformLocation(ID, name.c_str());
     uniformCache.emplace(name, loc);
     return loc;
 }
 
+// Print compile / link errors to stderr if something goes wrong.
 void Shader::checkCompileErrors(const unsigned int shader, const std::string &type) {
     int success = 0;
     char infoLog[1024];
@@ -186,13 +222,15 @@ void Shader::checkCompileErrors(const unsigned int shader, const std::string &ty
         glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
         if (!success) {
             glGetShaderInfoLog(shader, 1024, nullptr, infoLog);
-            std::cerr << type << " SHADER COMPILATION ERROR:\n" << infoLog << std::endl;
+            std::cerr << type << " SHADER COMPILATION ERROR:\n"
+                    << infoLog << "\n";
         }
     } else {
         glGetProgramiv(shader, GL_LINK_STATUS, &success);
         if (!success) {
             glGetProgramInfoLog(shader, 1024, nullptr, infoLog);
-            std::cerr << "SHADER LINKING ERROR:\n" << infoLog << std::endl;
+            std::cerr << "SHADER LINKING ERROR:\n"
+                    << infoLog << "\n";
         }
     }
 }

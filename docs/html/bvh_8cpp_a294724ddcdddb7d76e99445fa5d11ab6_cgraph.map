@@ -1,0 +1,20 @@
+<map id="rebuild_bvh_from_model_path" name="rebuild_bvh_from_model_path">
+<area shape="rect" id="Node000001" title="High&#45;level helper for loading a model and building its BVH." alt="" coords="5,128,200,154"/>
+<area shape="rect" id="Node000002" href="$bvh_8cpp.html#ad27f3a0dcf42da03a122b4fc87c6584a" title="Builds a simple median&#45;split BVH from CPU triangles." alt="" coords="287,53,364,79"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="140,125,247,88,275,81,270,83,249,93,142,130"/>
+<area shape="rect" id="Node000007" href="$bvh_8cpp.html#a0b02cc74e603b19dcc77ad6d64f82ad4" title="Extracts triangles from a Model into CPU triangle format." alt="" coords="248,103,403,128"/>
+<area shape="poly" id="edge7_Node000001_Node000007" title=" " alt="" coords="199,127,235,125,230,127,200,132"/>
+<area shape="rect" id="Node000008" href="$struct_b_v_h_handle.html#aedc7041ca9d1a34ad31dc3cf4e7c0e37" title="Releases all GPU resources related to the BVH." alt="" coords="255,152,396,178"/>
+<area shape="poly" id="edge8_Node000001_Node000008" title=" " alt="" coords="200,149,242,155,237,156,200,154"/>
+<area shape="rect" id="Node000009" href="$bvh_8cpp.html#ac01e8882dace3d943caddc62d185f86d" title="Uploads BVH nodes and triangles to GPU texture buffers (TBOs)." alt="" coords="269,201,382,227"/>
+<area shape="poly" id="edge9_Node000001_Node000009" title=" " alt="" coords="143,152,249,188,269,196,264,196,247,193,142,157"/>
+<area shape="rect" id="Node000003" href="$bvh_8cpp.html#a066b73f6124cda7e786b36aec34119ef" title=" " alt="" coords="451,29,559,55"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="363,59,438,51,433,52,364,64"/>
+<area shape="rect" id="Node000006" href="$bvh_8cpp.html#a09e3d52855369631faa01dd2585f068b" title=" " alt="" coords="462,79,548,104"/>
+<area shape="poly" id="edge6_Node000002_Node000006" title=" " alt="" coords="364,69,450,83,445,84,364,74"/>
+<area shape="poly" id="edge3_Node000003_Node000003" title=" " alt="" coords="482,28,477,21,480,11,490,5,505,3,522,5,532,14,526,14,520,10,505,8,492,10,484,14,483,20,487,30"/>
+<area shape="rect" id="Node000004" href="$bvh_8cpp.html#a7846b9698013a32645fcad6e3e6e417b" title=" " alt="" coords="607,5,672,31"/>
+<area shape="poly" id="edge4_Node000003_Node000004" title=" " alt="" coords="559,30,594,26,589,27,560,35"/>
+<area shape="rect" id="Node000005" href="$bvh_8cpp.html#a8fdb6a6ca90f9b1f218180cbbeeb9586" title=" " alt="" coords="609,55,670,80"/>
+<area shape="poly" id="edge5_Node000003_Node000005" title=" " alt="" coords="560,50,597,59,591,59,560,55"/>
+</map>

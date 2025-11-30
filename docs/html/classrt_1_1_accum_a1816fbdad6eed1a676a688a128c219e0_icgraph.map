@@ -1,0 +1,5 @@
+<map id="rt::Accum::release" name="rt::Accum::release">
+<area shape="rect" id="Node000001" title="Releases all GPU&#45;side resources owned by the accumulator." alt="" coords="195,5,323,31"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_accum.html#aaa183d157c0efeacb89e121e6ece581a" title="Move assignment — transfers ownership and invalidates the source." alt="" coords="5,5,147,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="177,18,147,21,147,16,182,18"/>
+</map>

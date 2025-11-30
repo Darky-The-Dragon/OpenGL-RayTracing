@@ -1,4 +1,28 @@
 #version 410 core
+
+/*
+    rt.frag – Ray/Path Tracing Entry Shader
+
+    This fragment shader is the main entry point for the ray/path tracing pass.
+    It is responsible for:
+
+    - Generating primary rays from the camera (with optional per-frame jitter).
+    - Tracing against either:
+        * an analytic scene (plane + spheres), or
+        * a BVH-accelerated triangle scene.
+    - Evaluating direct lighting, one-bounce GI, AO, and environment lighting.
+    - Writing multiple render targets (MRT):
+        * COLOR0: accumulated linear color + M2 (for TAA/SVGF)
+        * COLOR1: NDC motion (currentNDC - prevNDC) for TAA
+        * COLOR2: world-space position (xyz)
+        * COLOR3: world-space normal (xyz)
+    - Handling TAA resolve by blending the current frame with history from
+      the previous accumulation texture.
+
+    This shader is intentionally modular and relies on several included files
+    for scene description, BVH traversal, materials, lighting, and TAA logic.
+*/
+
 in vec2 vUV;
 
 // COLOR0: accumulated linear color + M2
@@ -43,7 +67,7 @@ void main()
         + ndc.y * uCamUp * uTanHalfFov
     );
 
-    // Initialize outputs
+    // Initialize outputs (will be refined by first hit or sky)
     vec3 frameSum = vec3(0.0);
     vec2 motionOut = vec2(0.0);
     outGPos = vec4(0.0);

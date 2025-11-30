@@ -1,0 +1,9 @@
+<map id="include/io/Camera.h" name="include/io/Camera.h">
+<area shape="rect" id="Node000001" title=" " alt="" coords="148,5,286,31"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,98,105"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="190,34,95,75,92,70,187,29"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="121,79,312,105"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="219,29,219,65,215,62,215,33"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="336,79,442,105"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="247,29,348,72,343,73,245,34"/>
+</map>

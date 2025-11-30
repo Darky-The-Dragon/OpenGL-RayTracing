@@ -1,0 +1,6 @@
+<map id="Shader::operator=" name="Shader::operator=">
+<area shape="rect" id="Node000001" title="Move assignment — releases current program and adopts another." alt="" coords="5,29,131,55"/>
+<area shape="rect" id="Node000002" href="$class_shader.html#ad3151af6dc9d4d892a3a700488f682af" title="Deleted copy constructor to prevent accidental copying." alt="" coords="179,29,290,55"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="131,40,166,42,160,42,131,45"/>
+<area shape="poly" id="edge2_Node000002_Node000002" title=" " alt="" coords="206,28,201,21,204,11,215,5,234,3,255,5,266,15,261,14,253,10,234,8,217,10,208,15,206,20,211,30"/>
+</map>

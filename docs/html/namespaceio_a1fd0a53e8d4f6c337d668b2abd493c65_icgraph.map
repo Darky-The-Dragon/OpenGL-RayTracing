@@ -1,0 +1,5 @@
+<map id="io::keyDown" name="io::keyDown">
+<area shape="rect" id="Node000001" title=" " alt="" coords="132,5,226,31"/>
+<area shape="rect" id="Node000002" href="$namespaceio.html#a311f3990ab999604798146905ec98fba" title="Processes GLFW input and updates the InputState for this frame." alt="" coords="5,5,84,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="113,19,84,21,84,16,119,18"/>
+</map>

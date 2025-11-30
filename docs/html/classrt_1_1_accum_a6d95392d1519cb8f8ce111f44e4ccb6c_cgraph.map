@@ -1,0 +1,14 @@
+<map id="rt::Accum::recreate" name="rt::Accum::recreate">
+<area shape="rect" id="Node000001" title="Creates or recreates all accumulation textures." alt="" coords="5,68,139,93"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_accum.html#aec83d900504bfa77ff9c3d4c6f9586dd" title="Binds the FBO to write both accumulation color and motion vectors." alt="" coords="417,5,584,46"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="126,64,186,52,297,38,404,31,399,32,298,43,187,58,127,70"/>
+<area shape="rect" id="Node000004" href="$classrt_1_1_accum.html#ae4b1628dda4a83c604dc6925c483c34c" title="Resets the accumulated frame count." alt="" coords="220,68,336,93"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="139,78,207,79,202,81,140,83"/>
+<area shape="rect" id="Node000006" href="$classrt_1_1_accum.html#ad2a3d0c094e219c116f79a229a3f37d4" title="Advances the accumulation frame and flips the ping&#45;pong index." alt="" coords="187,117,369,142"/>
+<area shape="poly" id="edge6_Node000001_Node000006" title=" " alt="" coords="129,91,209,112,204,114,129,96"/>
+<area shape="rect" id="Node000003" href="$classrt_1_1_accum.html#ae0010e7adc6d5e6984809c5ef60d88c2" title=" " alt="" coords="632,42,768,68"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="585,35,620,43,615,43,585,41"/>
+<area shape="rect" id="Node000005" href="$classrt_1_1_accum.html#a842a0818605c1f17504d2e135d368f62" title="Clears the active write buffers to zero." alt="" coords="444,70,558,96"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="336,78,431,82,425,82,336,84"/>
+<area shape="poly" id="edge5_Node000005_Node000003" title=" " alt="" coords="558,72,614,67,620,66,559,78"/>
+</map>

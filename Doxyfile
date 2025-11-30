@@ -1,0 +1,124 @@
+#---------------------------------------------------------------------------
+# Project related configuration options
+#---------------------------------------------------------------------------
+
+PROJECT_NAME           = "OpenGL Ray/Path Tracing"
+PROJECT_BRIEF          = "Realtime OpenGL-based path tracer with BVH, TAA, SVGF"
+OUTPUT_DIRECTORY       = docs
+CREATE_SUBDIRS         = NO
+
+# If you keep a README.md in the repo root, this makes it the main page.
+USE_MDFILE_AS_MAINPAGE = README.md
+
+#---------------------------------------------------------------------------
+# Build related configuration options
+#---------------------------------------------------------------------------
+
+OPTIMIZE_OUTPUT_FOR_C  = NO
+OPTIMIZE_OUTPUT_FOR_CPLUSPLUS = YES
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+EXTRACT_ANON_NSPACES   = YES
+
+
+# Do NOT spam warnings for undocumented stuff.
+WARN_IF_UNDOCUMENTED   = NO
+
+#---------------------------------------------------------------------------
+# Configuration options related to the input files
+#---------------------------------------------------------------------------
+
+# Adjust these paths if your layout is slightly different.
+INPUT                  = \
+    ./include \
+    ./src \
+    ./shaders \
+    ./README.md
+
+RECURSIVE              = YES
+
+# Skip third-party / external libs if they live under these folders.
+EXCLUDE                = \
+    ./libs \
+    ./external \
+    ./third_party
+
+# File types we care about.
+FILE_PATTERNS          = \
+    *.h \
+    *.hpp \
+    *.c \
+    *.cpp \
+    *.cuh \
+    *.cu \
+    *.glsl \
+    *.vert \
+    *.frag
+
+# Ignore build artifacts.
+EXCLUDE_PATTERNS       = \
+    */build/* \
+    */cmake-build-*/* \
+    */CMakeFiles/*
+
+#---------------------------------------------------------------------------
+# Preprocessor configuration
+#---------------------------------------------------------------------------
+
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = NO
+SEARCH_INCLUDES        = YES
+INCLUDE_PATH           = \
+    ./include \
+    ./src
+
+# You can list important macros here if needed, e.g.:
+# PREDEFINED             = GL_SILENCE_DEPRECATION
+
+#---------------------------------------------------------------------------
+# Source browser configuration
+#---------------------------------------------------------------------------
+
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+#---------------------------------------------------------------------------
+# HTML output
+#---------------------------------------------------------------------------
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_COLORSTYLE_HUE    = 210
+HTML_COLORSTYLE_SAT    = 160
+HTML_COLORSTYLE_GAMMA  = 120
+
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = YES
+
+#---------------------------------------------------------------------------
+# LaTeX / man / RTF / XML (disabled for now)
+#---------------------------------------------------------------------------
+
+GENERATE_LATEX         = NO
+GENERATE_RTF           = NO
+GENERATE_MAN           = NO
+GENERATE_XML           = NO
+
+#---------------------------------------------------------------------------
+# Dot / GraphViz configuration (for call graphs etc)
+#---------------------------------------------------------------------------
+
+HAVE_DOT               = YES
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = YES
+DOT_NUM_THREADS        = 2
+
+# If Doxygen complains about dot / GraphViz not installed,
+# either install graphviz or set HAVE_DOT = NO.

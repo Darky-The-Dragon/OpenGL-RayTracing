@@ -1,0 +1,5 @@
+<map id="rt::Accum::reset" name="rt::Accum::reset">
+<area shape="rect" id="Node000001" title="Resets the accumulated frame count." alt="" coords="187,5,302,31"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_accum.html#a6d95392d1519cb8f8ce111f44e4ccb6c" title="Creates or recreates all accumulation textures." alt="" coords="5,5,139,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="168,18,139,21,139,16,174,18"/>
+</map>

@@ -1,0 +1,5 @@
+<map id="rt::GBuffer::release" name="rt::GBuffer::release">
+<area shape="rect" id="Node000001" title="Deletes all GL resources owned by this GBuffer." alt="" coords="191,5,323,31"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_g_buffer.html#af564d5474e0aefeee5e6cae7d8d57069" title="Creates or recreates the GBuffer textures." alt="" coords="5,5,143,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="172,18,143,21,143,16,178,18"/>
+</map>

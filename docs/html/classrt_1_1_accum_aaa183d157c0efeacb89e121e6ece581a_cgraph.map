@@ -1,0 +1,7 @@
+<map id="rt::Accum::operator=" name="rt::Accum::operator=">
+<area shape="rect" id="Node000001" title="Move assignment — transfers ownership and invalidates the source." alt="" coords="5,31,147,56"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_accum.html#a6e5ff224ab1286fc3997d3e3318af20a" title="Default constructor (creates an empty, uninitialized accumulator)." alt="" coords="195,5,322,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="146,31,182,28,177,30,148,36"/>
+<area shape="rect" id="Node000003" href="$classrt_1_1_accum.html#a1816fbdad6eed1a676a688a128c219e0" title="Releases all GPU&#45;side resources owned by the accumulator." alt="" coords="195,55,323,80"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="147,50,182,57,177,57,147,55"/>
+</map>

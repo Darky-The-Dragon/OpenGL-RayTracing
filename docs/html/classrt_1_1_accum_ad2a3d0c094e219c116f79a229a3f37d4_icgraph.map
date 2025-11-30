@@ -1,0 +1,7 @@
+<map id="rt::Accum::swapAfterFrame" name="rt::Accum::swapAfterFrame">
+<area shape="rect" id="Node000001" title="Advances the accumulation frame and flips the ping&#45;pong index." alt="" coords="187,31,369,56"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_accum.html#a6d95392d1519cb8f8ce111f44e4ccb6c" title="Creates or recreates all accumulation textures." alt="" coords="5,5,139,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="169,31,139,29,139,24,174,30"/>
+<area shape="rect" id="Node000003" href="$render_8cpp.html#a9c888c2dcc7497bdcf51d8b9477f452d" title="Executes the ray/path tracing rendering path." alt="" coords="31,55,113,80"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="168,56,113,65,113,60,174,56"/>
+</map>

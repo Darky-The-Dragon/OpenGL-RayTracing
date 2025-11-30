@@ -1,0 +1,5 @@
+<map id="rt::Accum::clear" name="rt::Accum::clear">
+<area shape="rect" id="Node000001" title="Clears the active write buffers to zero." alt="" coords="5,5,120,31"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_accum.html#ae0010e7adc6d5e6984809c5ef60d88c2" title=" " alt="" coords="168,5,303,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="120,16,155,18,149,18,120,21"/>
+</map>

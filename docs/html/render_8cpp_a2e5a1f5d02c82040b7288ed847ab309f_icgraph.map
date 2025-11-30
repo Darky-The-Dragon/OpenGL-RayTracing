@@ -1,0 +1,7 @@
+<map id="computePointLightWorldPos" name="computePointLightWorldPos">
+<area shape="rect" id="Node000001" title=" " alt="" coords="150,31,335,56"/>
+<area shape="rect" id="Node000002" href="$render_8cpp.html#a0ee1d1d76f6e08198b83fed024493f51" title="Executes the rasterization rendering path for debugging or comparison." alt="" coords="5,5,102,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="132,30,102,27,102,22,137,28"/>
+<area shape="rect" id="Node000003" href="$render_8cpp.html#a9c888c2dcc7497bdcf51d8b9477f452d" title="Executes the ray/path tracing rendering path." alt="" coords="13,55,94,80"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="132,58,95,65,94,60,137,57"/>
+</map>

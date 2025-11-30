@@ -6,6 +6,7 @@
 #include <memory>
 
 // -------- AABB helpers -----------
+// Compute axis-aligned bounds and centroid for a CPU triangle in world space.
 static glm::vec3 tri_min(const CPU_Triangle &t) {
     const glm::vec3 v1 = t.v0 + t.e1;
     const glm::vec3 v2 = t.v0 + t.e2;
@@ -25,13 +26,25 @@ static glm::vec3 tri_centroid(const CPU_Triangle &t) {
 }
 
 // -------- BVH builder (median split) -----------
+// BuildRef keeps track of which triangle and its centroid for sorting/splitting.
 struct BuildRef {
     int triIndex;
     glm::vec3 c; // centroid
 };
 
-static int build_recursive(std::vector<BVHNode> &nodes, const std::vector<CPU_Triangle> &tris,
-                           std::vector<BuildRef> &refs, const int begin, const int end, const int leafMax = 8) {
+// Recursive median-split BVH builder.
+// - nodes: output BVH nodes
+// - tris:  CPU triangle array
+// - refs:  references into tris, sorted by centroid along split axis
+// - [begin, end): range of refs this node owns
+// - leafMax: max triangles per leaf
+static int build_recursive(std::vector<BVHNode> &nodes,
+                           const std::vector<CPU_Triangle> &tris,
+                           std::vector<BuildRef> &refs,
+                           const int begin,
+                           const int end,
+                           const int leafMax = 8) {
+    // Compute bounding box over this node's triangle range.
     glm::vec3 bMin(1e30f), bMax(-1e30f);
     for (int i = begin; i < end; ++i) {
         const auto &T = tris[refs[i].triIndex];
@@ -45,6 +58,7 @@ static int build_recursive(std::vector<BVHNode> &nodes, const std::vector<CPU_Tr
     nodes[myIndex].bMin = bMin;
     nodes[myIndex].bMax = bMax;
 
+    // Leaf: store range and triangle count, no children.
     if (count <= leafMax) {
         nodes[myIndex].left = -1;
         nodes[myIndex].right = -1;
@@ -53,13 +67,18 @@ static int build_recursive(std::vector<BVHNode> &nodes, const std::vector<CPU_Tr
         return myIndex;
     }
 
-    // choose split axis by box extent
+    // Choose split axis by largest extent.
     const glm::vec3 e = bMax - bMin;
     int axis = (e.x > e.y) ? ((e.x > e.z) ? 0 : 2) : ((e.y > e.z) ? 1 : 2);
 
+    // Median split along chosen axis (by centroid).
     const int mid = (begin + end) / 2;
-    std::nth_element(refs.begin() + begin, refs.begin() + mid, refs.begin() + end,
-                     [axis](const BuildRef &a, const BuildRef &b) { return a.c[axis] < b.c[axis]; });
+    std::nth_element(refs.begin() + begin,
+                     refs.begin() + mid,
+                     refs.begin() + end,
+                     [axis](const BuildRef &a, const BuildRef &b) {
+                         return a.c[axis] < b.c[axis];
+                     });
 
     const int leftIdx = build_recursive(nodes, tris, refs, begin, mid, leafMax);
     const int rightIdx = build_recursive(nodes, tris, refs, mid, end, leafMax);
@@ -71,10 +90,12 @@ static int build_recursive(std::vector<BVHNode> &nodes, const std::vector<CPU_Tr
     return myIndex;
 }
 
+// Entry point: build BVH over tris, then remap them for cache-friendly leaves.
 std::vector<BVHNode> build_bvh(std::vector<CPU_Triangle> &tris) {
     std::vector<BVHNode> nodes;
     if (tris.empty()) return nodes;
 
+    // Build initial refs with centroids for splitting.
     std::vector<BuildRef> refs(tris.size());
     for (size_t i = 0; i < tris.size(); ++i) {
         refs[i].triIndex = static_cast<int>(i);
@@ -88,7 +109,7 @@ std::vector<BVHNode> build_bvh(std::vector<CPU_Triangle> &tris) {
     std::vector<CPU_Triangle> remapped;
     remapped.reserve(tris.size());
 
-    // Simple DFS stack:
+    // Simple DFS stack to iterate nodes without recursion.
     std::vector<int> stack;
     stack.push_back(0);
 
@@ -98,11 +119,12 @@ std::vector<BVHNode> build_bvh(std::vector<CPU_Triangle> &tris) {
         const auto &node = nodes[n];
 
         if (node.isLeaf()) {
+            // Pack this leaf's triangles contiguously.
             for (int i = 0; i < node.count; ++i) {
                 remapped.push_back(tris[refs[node.first + i].triIndex]);
             }
             const int base = static_cast<int>(remapped.size()) - node.count;
-            // store back remapped base
+            // Store the base index into the remapped array.
             nodes[n].first = base;
         } else {
             stack.push_back(node.left);
@@ -115,8 +137,13 @@ std::vector<BVHNode> build_bvh(std::vector<CPU_Triangle> &tris) {
 }
 
 // -------- Upload to TBOs (GL_TEXTURE_BUFFER) -----------
-void upload_bvh_tbo(const std::vector<BVHNode> &nodes, const std::vector<CPU_Triangle> &tris, GLuint &outNodeTex,
-                    GLuint &outNodeBuf, GLuint &outTriTex, GLuint &outTriBuf) {
+// Upload BVH nodes + triangles into texture buffers for use in GLSL.
+void upload_bvh_tbo(const std::vector<BVHNode> &nodes,
+                    const std::vector<CPU_Triangle> &tris,
+                    GLuint &outNodeTex,
+                    GLuint &outNodeBuf,
+                    GLuint &outTriTex,
+                    GLuint &outTriBuf) {
     // Pack nodes: 3 texels per node (RGBA32F each)
     //  tex0 = [bMin.x, bMin.y, bMin.z, left]
     //  tex1 = [bMax.x, bMax.y, bMax.z, right]
@@ -128,10 +155,12 @@ void upload_bvh_tbo(const std::vector<BVHNode> &nodes, const std::vector<CPU_Tri
         nodeData.push_back(n.bMin.y);
         nodeData.push_back(n.bMin.z);
         nodeData.push_back(static_cast<float>(n.left));
+
         nodeData.push_back(n.bMax.x);
         nodeData.push_back(n.bMax.y);
         nodeData.push_back(n.bMax.z);
         nodeData.push_back(static_cast<float>(n.right));
+
         nodeData.push_back(static_cast<float>(n.first));
         nodeData.push_back(static_cast<float>(n.count));
         nodeData.push_back(0.0f);
@@ -141,8 +170,11 @@ void upload_bvh_tbo(const std::vector<BVHNode> &nodes, const std::vector<CPU_Tri
     if (!outNodeBuf)
         glGenBuffers(1, &outNodeBuf);
     glBindBuffer(GL_TEXTURE_BUFFER, outNodeBuf);
-    glBufferData(GL_TEXTURE_BUFFER, static_cast<GLsizeiptr>(nodeData.size() * sizeof(float)), nodeData.data(),
+    glBufferData(GL_TEXTURE_BUFFER,
+                 static_cast<GLsizeiptr>(nodeData.size() * sizeof(float)),
+                 nodeData.data(),
                  GL_STATIC_DRAW);
+
     if (!outNodeTex)
         glGenTextures(1, &outNodeTex);
     glBindTexture(GL_TEXTURE_BUFFER, outNodeTex);
@@ -159,10 +191,12 @@ void upload_bvh_tbo(const std::vector<BVHNode> &nodes, const std::vector<CPU_Tri
         triData.push_back(t.v0.y);
         triData.push_back(t.v0.z);
         triData.push_back(0.0f);
+
         triData.push_back(t.e1.x);
         triData.push_back(t.e1.y);
         triData.push_back(t.e1.z);
         triData.push_back(0.0f);
+
         triData.push_back(t.e2.x);
         triData.push_back(t.e2.y);
         triData.push_back(t.e2.z);
@@ -172,8 +206,11 @@ void upload_bvh_tbo(const std::vector<BVHNode> &nodes, const std::vector<CPU_Tri
     if (!outTriBuf)
         glGenBuffers(1, &outTriBuf);
     glBindBuffer(GL_TEXTURE_BUFFER, outTriBuf);
-    glBufferData(
-        GL_TEXTURE_BUFFER, static_cast<GLsizeiptr>(triData.size() * sizeof(float)), triData.data(), GL_STATIC_DRAW);
+    glBufferData(GL_TEXTURE_BUFFER,
+                 static_cast<GLsizeiptr>(triData.size() * sizeof(float)),
+                 triData.data(),
+                 GL_STATIC_DRAW);
+
     if (!outTriTex)
         glGenTextures(1, &outTriTex);
     glBindTexture(GL_TEXTURE_BUFFER, outTriTex);
@@ -184,10 +221,13 @@ void upload_bvh_tbo(const std::vector<BVHNode> &nodes, const std::vector<CPU_Tri
 }
 
 // -------- Extract triangles from Model -----------
-void gather_model_triangles(const Model &model, const glm::mat4 &M, std::vector<CPU_Triangle> &outTris) {
-    // Assumes LearnOpenGL-like:
-    // mesh.vertices[i].Position (glm::vec3)
-    // mesh.indices (uint32_t triplets)
+// Flattens a LearnOpenGL-style Model into CPU_Triangle list, applying M.
+void gather_model_triangles(const Model &model,
+                            const glm::mat4 &M,
+                            std::vector<CPU_Triangle> &outTris) {
+    // Assumes:
+    //  mesh.vertices[i].Position (glm::vec3)
+    //  mesh.indices (uint32_t triplets)
     for (const auto &mesh: model.meshes) {
         const auto &V = mesh.vertices;
         const auto &I = mesh.indices;
@@ -195,6 +235,7 @@ void gather_model_triangles(const Model &model, const glm::mat4 &M, std::vector<
             auto p0 = glm::vec3(M * glm::vec4(V[I[k]].Position, 1.0f));
             auto p1 = glm::vec3(M * glm::vec4(V[I[k + 1]].Position, 1.0f));
             auto p2 = glm::vec3(M * glm::vec4(V[I[k + 2]].Position, 1.0f));
+
             CPU_Triangle T{};
             T.v0 = p0;
             T.e1 = p1 - p0;
@@ -204,11 +245,13 @@ void gather_model_triangles(const Model &model, const glm::mat4 &M, std::vector<
     }
 }
 
+// High-level helper: load a model, build its BVH, and upload to GPU.
 bool rebuild_bvh_from_model_path(const char *path, const glm::mat4 &modelTransform, std::unique_ptr<Model> &bvhModel,
                                  int &outNodeCount, int &outTriCount, BVHHandle &handle) {
+    // Drop previous GPU resources (if any).
     handle.release();
 
-    // --- Reload model ---
+    // Reload model from disk.
     bvhModel = std::make_unique<Model>(path);
     if (!bvhModel || bvhModel->meshes.empty()) {
         bvhModel.reset();
@@ -217,16 +260,16 @@ bool rebuild_bvh_from_model_path(const char *path, const glm::mat4 &modelTransfo
         return false;
     }
 
-    // --- Extract triangles with the provided model transform ---
+    // Extract triangles in world/model space.
     std::vector<CPU_Triangle> triCPU;
     gather_model_triangles(*bvhModel, modelTransform, triCPU);
 
-    // --- Build BVH on CPU ---
+    // Build BVH on CPU.
     const std::vector<BVHNode> nodesCPU = build_bvh(triCPU);
     outNodeCount = static_cast<int>(nodesCPU.size());
     outTriCount = static_cast<int>(triCPU.size());
 
-    // --- Upload to GPU as TBOs ---
+    // Upload to GPU as texture buffers.
     upload_bvh_tbo(nodesCPU, triCPU, handle.nodeTex, handle.nodeBuf, handle.triTex, handle.triBuf);
 
     return true;

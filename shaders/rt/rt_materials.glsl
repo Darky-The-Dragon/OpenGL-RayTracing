@@ -2,6 +2,20 @@
 #ifndef RT_MATERIALS_GLSL
 #define RT_MATERIALS_GLSL
 
+/*
+    rt_materials.glsl – Material IDs and Parameter Fetch
+
+    This module defines:
+    - Symbolic material IDs for the analytic scene (floor + spheres).
+    - A compact MaterialProps struct used during shading.
+    - A getMaterial(id) function that maps a material ID to concrete
+      parameters, many of which are driven by GUI-controlled uniforms.
+    - A convenience helper materialAlbedo(id) for quick albedo queries.
+
+    The IDs here must stay in sync with the analytic scene geometry setup
+    on the CPU side (rt_scene_analytic.glsl + C++ scene layout).
+*/
+
 // Material IDs (must match analytic scene)
 const int MAT_FLOOR = 0;
 const int MAT_ALBEDO_SPHERE = 1;
@@ -9,14 +23,37 @@ const int MAT_GLASS_SPHERE = 2;
 const int MAT_MIRROR_SPHERE = 3;
 const int MAT_POINTLIGHT_SPHERE = 4;
 
+/**
+ * @brief Material parameter block used by shading code.
+ *
+ * Fields:
+ *  - albedo        : base color (diffuse / tint)
+ *  - specStrength  : specular term weight (Phong/other)
+ *  - gloss         : specular exponent or glossiness factor
+ *  - type          : 0 = lambert/Phong, 1 = mirror, 2 = glass
+ *  - ior           : index of refraction for glass materials
+ */
 struct MaterialProps {
     vec3 albedo;
     float specStrength;
     float gloss;
     int type;   // 0 = lambert, 1 = mirror, 2 = glass
-    float ior;    // index of refraction for glass
+    float ior;  // index of refraction for glass
 };
 
+/**
+ * @brief Returns material properties for a given material ID.
+ *
+ * The mapping is:
+ *  - MAT_FLOOR           : static neutral grey floor
+ *  - MAT_ALBEDO_SPHERE   : GUI-driven base sphere (albedo/spec/gloss)
+ *  - MAT_GLASS_SPHERE    : glass sphere (tint + IOR), can be disabled → diffuse
+ *  - MAT_MIRROR_SPHERE   : mirror sphere, can be disabled → diffuse fallback
+ *  - MAT_POINTLIGHT_SPHERE: emissive sphere – typically handled specially
+ *
+ * Many parameters are controlled via uniforms so that the GUI can tweak
+ * them in real time.
+ */
 MaterialProps getMaterial(int id) {
     MaterialProps m;
 
@@ -78,7 +115,7 @@ MaterialProps getMaterial(int id) {
         return m;
     }
 
-    // Fallback
+    // Fallback (e.g. pointlight sphere or unknown ID)
     m.albedo = vec3(0.8);
     m.specStrength = 0.2;
     m.gloss = 16.0;
@@ -87,6 +124,9 @@ MaterialProps getMaterial(int id) {
     return m;
 }
 
+/**
+ * @brief Convenience helper returning only the albedo of a material.
+ */
 vec3 materialAlbedo(int id) {
     return getMaterial(id).albedo;
 }

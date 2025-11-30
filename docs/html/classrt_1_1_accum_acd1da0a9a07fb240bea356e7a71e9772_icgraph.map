@@ -1,0 +1,5 @@
+<map id="rt::Accum::bindWriteFBO_MRT" name="rt::Accum::bindWriteFBO_MRT">
+<area shape="rect" id="Node000001" title="Binds FBO with 4 MRT targets for combined RT + GBuffer output." alt="" coords="135,5,338,31"/>
+<area shape="rect" id="Node000002" href="$render_8cpp.html#a9c888c2dcc7497bdcf51d8b9477f452d" title="Executes the ray/path tracing rendering path." alt="" coords="5,5,87,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="116,19,87,21,87,16,122,18"/>
+</map>

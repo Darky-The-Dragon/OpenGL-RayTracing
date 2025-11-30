@@ -1,0 +1,5 @@
+<map id="rt::Accum::bindWriteFBO" name="rt::Accum::bindWriteFBO">
+<area shape="rect" id="Node000001" title="Binds the accumulation FBO with only COLOR0 active." alt="" coords="5,5,173,31"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_accum.html#ae0010e7adc6d5e6984809c5ef60d88c2" title=" " alt="" coords="221,5,356,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="173,16,208,18,202,18,173,21"/>
+</map>

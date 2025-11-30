@@ -23,12 +23,14 @@ namespace ui {
             Clear();
         }
 
+        // Reset console contents and line offsets.
         void Clear() {
             Buf.clear();
             LineOffsets.clear();
             LineOffsets.push_back(0);
         }
 
+        // Append a formatted line to the console buffer.
         void AddLog(const char *fmt, ...) IM_FMTARGS(2) {
             const int old_size = Buf.size();
 
@@ -37,12 +39,14 @@ namespace ui {
             Buf.appendfv(fmt, args);
             va_end(args);
 
+            // Track line starts for fast filtering / scrolling.
             for (int i = old_size; i < Buf.size(); ++i) {
                 if (Buf[i] == '\n')
                     LineOffsets.push_back(i + 1);
             }
         }
 
+        // Draw the console window (with filter + scrolling region).
         void Draw(const char *title, bool *pOpen) {
             constexpr ImGuiWindowFlags flags =
                     ImGuiWindowFlags_NoCollapse |
@@ -90,6 +94,7 @@ namespace ui {
 
             ImGui::PopStyleVar();
 
+            // Auto-scroll to bottom if already at bottom.
             if (AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
                 ImGui::SetScrollHereY(1.0f);
 
@@ -114,12 +119,15 @@ namespace ui {
     static bool gEnvScanDone = false;
     static std::string gEnvDir = "../cubemaps";
 
-
-    // Forward declarations
+    // Forward declarations of local UI helpers.
     static void DrawKeybindLegend();
 
-    static void DrawMainControls(RenderParams &params, const rt::FrameState &frame, const io::InputState &input,
-                                 bool &rayMode, bool &useBVH, bool &showMotion);
+    static void DrawMainControls(RenderParams &params,
+                                 const rt::FrameState &frame,
+                                 const io::InputState &input,
+                                 bool &rayMode,
+                                 bool &useBVH,
+                                 bool &showMotion);
 
     // ============================================================================
     // Log: mirror to terminal + GUI console
@@ -150,6 +158,7 @@ namespace ui {
         ImGuiIO &io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
+        // Simple dark theme + a bit of rounding.
         ImGui::StyleColorsDark();
         ImGuiStyle &style = ImGui::GetStyle();
         style.WindowRounding = 5.0f;
@@ -175,11 +184,16 @@ namespace ui {
     // ============================================================================
     // Main control panel (top-left, pinned)
     // ============================================================================
-    static void DrawMainControls(RenderParams &params, const rt::FrameState &frame, const io::InputState &input,
-                                 bool &rayMode, bool &useBVH, bool &showMotion) {
+    static void DrawMainControls(RenderParams &params,
+                                 const rt::FrameState &frame,
+                                 const io::InputState &input,
+                                 bool &rayMode,
+                                 bool &useBVH,
+                                 bool &showMotion) {
         (void) frame;
         (void) input;
 
+        // Pin window to top-left of the main viewport.
         const ImGuiViewport *vp = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(vp->WorkPos, ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(420, 0), ImGuiCond_Always);
@@ -264,7 +278,6 @@ namespace ui {
             ImGui::SeparatorText("Glass Material");
 
             ImGui::Checkbox("Enable Glass", reinterpret_cast<bool *>(&params.matGlassEnabled));
-
             ImGui::ColorEdit3("Glass Tint", params.matGlassColor);
 
             if (params.matGlassEnabled) {
@@ -276,7 +289,6 @@ namespace ui {
             ImGui::SeparatorText("Mirror Material");
 
             ImGui::Checkbox("Enable Mirror", reinterpret_cast<bool *>(&params.matMirrorEnabled));
-
             ImGui::ColorEdit3("Mirror Tint", params.matMirrorColor);
 
             if (params.matMirrorEnabled) {
@@ -288,7 +300,7 @@ namespace ui {
         // Environment + Lighting
         // ------------------------------------------------------------------------
         if (ImGui::CollapsingHeader("Environment")) {
-            // --- Env map ---
+            // --- Env map toggle + intensity ---
             bool envEnabled = (params.enableEnvMap != 0);
             if (ImGui::Checkbox("Use Env Map (sky)", &envEnabled)) {
                 params.enableEnvMap = envEnabled ? 1 : 0;
@@ -347,6 +359,7 @@ namespace ui {
                 ImGui::ColorEdit3("Point Color", params.pointLightColor);
                 ImGui::SliderFloat("Point Intensity", &params.pointLightIntensity, 0.0f, 100.0f);
 
+                // Base world-space position used by orbit logic as center.
                 ImGui::DragFloat3("Point Base Pos", params.pointLightPos, 0.05f);
 
                 bool orbitOn = (params.pointLightOrbitEnabled != 0);
@@ -358,7 +371,7 @@ namespace ui {
                 ImGui::SliderFloat("Orbit Radius", &params.pointLightOrbitRadius, 0.0f, 10.0f);
                 ImGui::SliderFloat("Orbit Speed (deg/s)", &params.pointLightOrbitSpeed, 0.0f, 360.0f);
 
-                // NEW: direct yaw/pitch control (works even if orbit is off)
+                // Direct yaw/pitch control (works even if orbit is off).
                 ImGui::SliderFloat("Yaw (deg)", &params.pointLightYaw, -180.0f, 180.0f);
                 ImGui::SliderFloat("Pitch (deg)", &params.pointLightPitch, -89.0f, 89.0f);
             }
@@ -674,8 +687,14 @@ namespace ui {
     // ============================================================================
     // Public draw entry
     // ============================================================================
-    void Draw(RenderParams &params, const rt::FrameState &frame, const io::InputState &input, bool &rayMode,
-              bool &useBVH, bool &showMotion, BvhModelPickerState &bvhPicker, EnvMapPickerState &envPicker) {
+    void Draw(RenderParams &params,
+              const rt::FrameState &frame,
+              const io::InputState &input,
+              bool &rayMode,
+              bool &useBVH,
+              bool &showMotion,
+              BvhModelPickerState &bvhPicker,
+              EnvMapPickerState &envPicker) {
         // --------------------------------------------------------------
         // Disable ALL ImGui mouse input when scene input (captured mouse) is active.
         // This prevents hovering, clicking, tooltips, highlights, etc.
@@ -690,7 +709,7 @@ namespace ui {
             for (bool &i: io.MouseDown)
                 i = false;
 
-            // Optional: ensure wheel scrolling doesn't affect UI
+            // Ensure wheel scrolling doesn't affect UI
             io.MouseWheel = 0.0f;
             io.MouseWheelH = 0.0f;
         }
@@ -702,7 +721,7 @@ namespace ui {
         // BVH model picker (top-right) – only visible when BVH is enabled
         // --------------------------------------------------------------------
         if (useBVH) {
-            // Scan ../models (or fallback to models) for .obj files once (or when forced)
+            // Scan models directory for .obj files once (or when forced).
             if (!gModelScanDone) {
                 namespace fs = std::filesystem;
                 gModelDir = util::resolve_dir("models");
@@ -785,7 +804,7 @@ namespace ui {
         // Env Map picker (top-right, under BVH picker)
         // --------------------------------------------------------------------
         {
-            // Scan ./cubemaps (or ../cubemaps) for image files once (or when forced)
+            // Scan cubemap directory for supported image formats once (or when forced).
             if (!gEnvScanDone) {
                 namespace fs = std::filesystem;
                 gEnvDir = util::resolve_dir("cubemaps");

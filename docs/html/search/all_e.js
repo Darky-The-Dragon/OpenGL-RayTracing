@@ -1,0 +1,6 @@
+var searchData=
+[
+  ['opengl_20ray_20path_20tracing_0',['OpenGL Ray / Path Tracing',['../index.html',1,'']]],
+  ['operator_3d_1',['operator=',['../classrt_1_1_accum.html#abf57c3de1213cf54f032950b6ad545ca',1,'rt::Accum::operator=(const Accum &amp;)=delete'],['../classrt_1_1_accum.html#aaa183d157c0efeacb89e121e6ece581a',1,'rt::Accum::operator=(Accum &amp;&amp;other) noexcept'],['../class_shader.html#a05b53bc160d089df65f67688990d763d',1,'Shader::operator=(const Shader &amp;)=delete'],['../class_shader.html#a5a2dbeb64ff6b328a4502ae0332d4966',1,'Shader::operator=(Shader &amp;&amp;) noexcept'],['../class_mesh.html#a7ab09a9d3a98f98fba1c9c545b56a238',1,'Mesh::operator=(const Mesh &amp;)=delete'],['../class_mesh.html#a590fe03bb514d696225618b8938d5d5c',1,'Mesh::operator=(Mesh &amp;&amp;move) noexcept'],['../class_model.html#a430d39f2cefc2b4e23456728f9361b33',1,'Model::operator=(const Model &amp;)=delete'],['../class_model.html#ac3872c8f9a2c36081cdfb8f5265042f9',1,'Model::operator=(Model &amp;&amp;) noexcept=default']]],
+  ['overview_2',['🚀 Overview',['../index.html#autotoc_md2',1,'']]]
+];

@@ -1,0 +1,5 @@
+<map id="BVHHandle::release" name="BVHHandle::release">
+<area shape="rect" id="Node000001" title="Releases all GPU resources related to the BVH." alt="" coords="248,5,388,31"/>
+<area shape="rect" id="Node000002" href="$bvh_8cpp.html#a294724ddcdddb7d76e99445fa5d11ab6" title="High&#45;level helper for loading a model and building its BVH." alt="" coords="5,5,200,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="230,18,200,21,200,16,235,18"/>
+</map>

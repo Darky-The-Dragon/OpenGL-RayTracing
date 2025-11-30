@@ -1,0 +1,6 @@
+<map id="Model::Model" name="Model::Model">
+<area shape="rect" id="Node000001" title="Move constructor — safe resource transfer." alt="" coords="5,29,105,55"/>
+<area shape="rect" id="Node000002" href="$class_model.html#a02d5e1b3c0845c9965df08be4c5828d3" title="Copying is disabled to avoid duplicating heavy GPU resources." alt="" coords="153,29,252,55"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="105,40,140,42,134,42,105,45"/>
+<area shape="poly" id="edge2_Node000002_Node000002" title=" " alt="" coords="177,28,172,21,175,11,185,5,202,3,220,5,231,15,226,14,219,10,202,8,187,10,179,14,177,20,182,30"/>
+</map>

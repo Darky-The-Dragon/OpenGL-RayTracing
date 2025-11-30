@@ -1,0 +1,7 @@
+<map id="Camera::UpdateCameraVectors" name="Camera::UpdateCameraVectors">
+<area shape="rect" id="Node000001" title="Recomputes Front, Right, and Up vectors from yaw/pitch." alt="" coords="277,31,485,56"/>
+<area shape="rect" id="Node000002" href="$class_camera.html#a99398fd1b9807e8b70eb9048a68199ad" title="Constructs a camera with explicit position and orientation." alt="" coords="56,5,178,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="259,33,178,27,178,21,264,31"/>
+<area shape="rect" id="Node000003" href="$class_camera.html#ac0621334e5347eb2aece09ba0b945ceb" title="Updates yaw and pitch based on mouse movement." alt="" coords="5,55,229,80"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="259,55,229,60,229,55,264,54"/>
+</map>

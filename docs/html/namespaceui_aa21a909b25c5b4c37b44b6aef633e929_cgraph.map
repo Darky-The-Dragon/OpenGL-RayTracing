@@ -1,0 +1,12 @@
+<map id="ui::Draw" name="ui::Draw">
+<area shape="rect" id="Node000001" title="Draws the application&#39;s control panel." alt="" coords="5,80,76,106"/>
+<area shape="rect" id="Node000002" href="$namespaceui.html#a3d082a2c04bf5fc54b54f300dd345a46" title=" " alt="" coords="124,5,283,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="58,78,88,58,123,40,139,35,135,38,125,45,91,63,62,82"/>
+<area shape="rect" id="Node000003" href="$namespaceui.html#adac666471710dbd2f79f79d5ac94cf72" title=" " alt="" coords="130,55,277,80"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="75,85,117,80,113,83,77,90"/>
+<area shape="rect" id="Node000004" href="$namespaceui.html#ab9e06cf844da443c10f8da42a2fe150a" title="Appends a message to the UI log window." alt="" coords="331,80,391,106"/>
+<area shape="poly" id="edge4_Node000001_Node000004" title=" " alt="" coords="76,90,316,90,315,95,76,95"/>
+<area shape="rect" id="Node000005" href="$namespaceutil.html#a175c416ec17c3ed04979e8e87c7422ca" title="Resolves a directory path relative to the project root or build directory." alt="" coords="149,156,258,182"/>
+<area shape="poly" id="edge5_Node000001_Node000005" title=" " alt="" coords="66,104,125,134,156,150,150,150,123,139,65,109"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="277,77,318,85,313,86,277,82"/>
+</map>

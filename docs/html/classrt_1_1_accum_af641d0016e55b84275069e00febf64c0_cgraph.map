@@ -1,0 +1,5 @@
+<map id="rt::Accum::Accum" name="rt::Accum::Accum">
+<area shape="rect" id="Node000001" title="Non&#45;copyable to avoid double&#45;free of GL objects." alt="" coords="5,5,133,31"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_accum.html#a6e5ff224ab1286fc3997d3e3318af20a" title="Default constructor (creates an empty, uninitialized accumulator)." alt="" coords="181,5,308,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="133,16,168,18,163,18,133,21"/>
+</map>

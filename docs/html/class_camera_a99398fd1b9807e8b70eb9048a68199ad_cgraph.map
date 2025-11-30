@@ -1,0 +1,5 @@
+<map id="Camera::Camera" name="Camera::Camera">
+<area shape="rect" id="Node000001" title="Constructs a camera with explicit position and orientation." alt="" coords="5,5,127,31"/>
+<area shape="rect" id="Node000002" href="$class_camera.html#ad6643d02630896cfb54227f3e61f61c7" title="Recomputes Front, Right, and Up vectors from yaw/pitch." alt="" coords="175,5,383,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="127,16,162,18,156,18,127,21"/>
+</map>

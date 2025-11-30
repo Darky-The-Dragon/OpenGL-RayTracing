@@ -1,0 +1,9 @@
+<map id="loadCubeMapFromCross" name="loadCubeMapFromCross">
+<area shape="rect" id="Node000001" title="Loads a cube map from a cross&#45;layout image file." alt="" coords="5,55,172,80"/>
+<area shape="rect" id="Node000002" href="$stb__image_8h.html#ad47e820c6695b0cf5cfb63a29f4452d0" title=" " alt="" coords="238,5,352,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="145,51,226,34,221,37,146,57"/>
+<area shape="rect" id="Node000003" href="$stb__image_8h.html#a149aa1fd631726f15d66ac4c9b38e4f3" title=" " alt="" coords="258,55,332,80"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="172,65,245,67,240,68,172,70"/>
+<area shape="rect" id="Node000004" href="$stb__image_8h.html#a2578a821fc6c223ac6dd94ec9d73d5ef" title=" " alt="" coords="220,104,370,145"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="138,78,208,99,203,101,137,84"/>
+</map>

@@ -1,6 +1,7 @@
 #include "io/Camera.h"
 #include <GLFW/glfw3.h>
 
+// Constructor sets initial camera parameters and computes basis vectors.
 Camera::Camera(glm::vec3 position, float yaw, float pitch, float fov, float aspectRatio)
     : Position(position),
       Yaw(yaw),
@@ -12,6 +13,8 @@ Camera::Camera(glm::vec3 position, float yaw, float pitch, float fov, float aspe
     UpdateCameraVectors();
 }
 
+// Keyboard movement: basic WASD + Q/E vertical motion.
+// MovementSpeed is scaled by deltaTime for frame-rate independence.
 void Camera::ProcessKeyboardInput(GLFWwindow *window, const float deltaTime) {
     const float velocity = MovementSpeed * deltaTime;
 
@@ -29,6 +32,7 @@ void Camera::ProcessKeyboardInput(GLFWwindow *window, const float deltaTime) {
         Position -= Up * velocity;
 }
 
+// Mouse movement adjusts yaw/pitch and clamps pitch to avoid flipping.
 void Camera::ProcessMouseMovement(float xOffset, float yOffset) {
     constexpr float sensitivity = 0.1f;
     xOffset *= sensitivity;
@@ -37,7 +41,7 @@ void Camera::ProcessMouseMovement(float xOffset, float yOffset) {
     Yaw += xOffset;
     Pitch += yOffset;
 
-    // Constrain the pitch
+    // Prevent gimbal lock
     if (Pitch > 89.0f)
         Pitch = 89.0f;
     if (Pitch < -89.0f)
@@ -46,6 +50,7 @@ void Camera::ProcessMouseMovement(float xOffset, float yOffset) {
     UpdateCameraVectors();
 }
 
+// Recompute Front/Right/Up based on updated yaw/pitch angles.
 void Camera::UpdateCameraVectors() {
     glm::vec3 front;
     front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
@@ -57,10 +62,12 @@ void Camera::UpdateCameraVectors() {
     Up = glm::normalize(glm::cross(Right, Front));
 }
 
+// Standard LookAt view matrix based on updated basis.
 glm::mat4 Camera::GetViewMatrix() const {
     return glm::lookAt(Position, Position + Front, Up);
 }
 
+// Perspective projection with current FOV and aspect ratio.
 glm::mat4 Camera::GetProjectionMatrix() const {
     return glm::perspective(glm::radians(Fov), AspectRatio, 0.1f, 100.0f);
 }

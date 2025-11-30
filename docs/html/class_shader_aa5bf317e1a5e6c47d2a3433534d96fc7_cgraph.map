@@ -1,0 +1,6 @@
+<map id="Shader::Shader" name="Shader::Shader">
+<area shape="rect" id="Node000001" title="Move constructor — transfers program ownership." alt="" coords="5,29,117,55"/>
+<area shape="rect" id="Node000002" href="$class_shader.html#ad3151af6dc9d4d892a3a700488f682af" title="Deleted copy constructor to prevent accidental copying." alt="" coords="165,29,276,55"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="117,40,152,42,147,42,117,45"/>
+<area shape="poly" id="edge2_Node000002_Node000002" title=" " alt="" coords="193,28,188,21,191,11,202,5,220,3,240,5,251,15,246,14,238,10,220,8,204,10,195,15,193,20,198,30"/>
+</map>

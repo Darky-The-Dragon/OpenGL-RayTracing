@@ -1,0 +1,7 @@
+<map id="rt::Accum::reset" name="rt::Accum::reset">
+<area shape="rect" id="Node000001" title="Resets the accumulated frame count." alt="" coords="5,5,121,31"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_accum.html#a842a0818605c1f17504d2e135d368f62" title="Clears the active write buffers to zero." alt="" coords="169,5,283,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="121,16,156,18,150,18,121,21"/>
+<area shape="rect" id="Node000003" href="$classrt_1_1_accum.html#ae0010e7adc6d5e6984809c5ef60d88c2" title=" " alt="" coords="331,5,466,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="283,16,318,18,313,18,283,21"/>
+</map>

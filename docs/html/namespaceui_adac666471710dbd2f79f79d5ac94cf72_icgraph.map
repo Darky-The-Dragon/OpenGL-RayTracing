@@ -1,0 +1,5 @@
+<map id="ui::DrawMainControls" name="ui::DrawMainControls">
+<area shape="rect" id="Node000001" title=" " alt="" coords="124,5,271,31"/>
+<area shape="rect" id="Node000002" href="$namespaceui.html#aa21a909b25c5b4c37b44b6aef633e929" title="Draws the application&#39;s control panel." alt="" coords="5,5,76,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="106,19,76,21,76,16,111,18"/>
+</map>

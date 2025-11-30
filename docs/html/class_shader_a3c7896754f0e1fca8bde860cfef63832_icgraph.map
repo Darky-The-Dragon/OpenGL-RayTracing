@@ -1,0 +1,9 @@
+<map id="Shader::use" name="Shader::use">
+<area shape="rect" id="Node000001" title="Binds the shader program for subsequent draw calls." alt="" coords="179,55,270,80"/>
+<area shape="rect" id="Node000002" href="$class_shader.html#a05b53bc160d089df65f67688990d763d" title="Deleted copy assignment." alt="" coords="5,5,131,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="164,51,111,34,111,29,169,48"/>
+<area shape="rect" id="Node000003" href="$render_8cpp.html#a0ee1d1d76f6e08198b83fed024493f51" title="Executes the rasterization rendering path for debugging or comparison." alt="" coords="20,55,116,80"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="161,68,117,70,116,65,166,67"/>
+<area shape="rect" id="Node000004" href="$render_8cpp.html#a9c888c2dcc7497bdcf51d8b9477f452d" title="Executes the ray/path tracing rendering path." alt="" coords="27,104,109,130"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="169,85,110,107,108,101,164,86"/>
+</map>

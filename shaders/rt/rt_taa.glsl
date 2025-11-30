@@ -1,11 +1,49 @@
 #ifndef RT_TAA_GLSL
 #define RT_TAA_GLSL
 
-// Curr: current frame color (already averaged over SPP)
-// uvCurr: current pixel UV
-// motionOut: NDC motion (currNDC - prevNDC)
-// prevAccum: history texture (RGB = color, A = second moment of luma M2)
-// frameIndex: 0,1,2,... (from Accum)
+/*
+    rt_taa.glsl – Temporal Anti-Aliasing (TAA) with History Variance Tracking
+
+    This module implements a simple but robust TAA resolve used by the ray
+    tracing pipeline. It operates on:
+
+      - curr      : current frame color (already averaged over SPP)
+      - motionOut : NDC motion vector (currNDC - prevNDC)
+      - prevAccum : history texture (RGB = accumulated color, A = second moment of luma M2)
+      - frameIndex: accumulation frame counter from rt::Accum
+
+    Features:
+      - Switchable TAA (uEnableTAA): when disabled, the pass simply forwards
+        the current color but still updates M2 so the SVGF filter can work.
+      - Separate handling for:
+          * Static pixels    → history accumulation with configurable weights.
+          * Moving pixels    → reprojection using motion vectors.
+      - Basic color-based confidence:
+          * Large luminance differences reduce or kill history to avoid smearing.
+      - History clamping:
+          * History color is clamped to a small box around the current color to
+            suppress outliers and fireflies before blending.
+
+    Tuning:
+      - uTaaStillThresh, uTaaHardMovingThresh: control when a pixel is considered
+        static vs moving, and when history is fully discarded.
+      - uTaaHistoryMinWeight / Avg / Max: control how quickly history converges.
+      - uTaaHistoryBoxSize: controls the clamp region size around the current color.
+*/
+
+/**
+ * @brief TAA resolve, combining current frame with reprojected history.
+ *
+ * @param curr       Current frame linear color (already averaged over SPP for this frame).
+ * @param uvCurr     UV coordinates of the current pixel.
+ * @param motionOut  NDC motion vector (currNDC - prevNDC) from the ray pass.
+ * @param prevAccum  History texture: RGB = color, A = second moment of luma (M2).
+ * @param frameIndex Accumulation frame index (0,1,2,...) from rt::Accum.
+ *
+ * @return vec4:
+ *         - rgb = TAA-resolved linear color
+ *         - a   = updated second moment of luma (M2) for variance estimation
+ */
 vec4 resolveTAA(vec3 curr, vec2 uvCurr, vec2 motionOut, sampler2D prevAccum, int frameIndex)
 {
     // Luma coefficients (approx. Rec.709)
@@ -40,6 +78,10 @@ vec4 resolveTAA(vec3 curr, vec2 uvCurr, vec2 motionOut, sampler2D prevAccum, int
 
     // ---------------------------------------------
     // CASE 1: camera/pixel effectively still
+    //
+    // When motion is below uTaaStillThresh we:
+    //  - sample history at the same UV
+    //  - blend using temporal weights that depend on frameIndex
     // ---------------------------------------------
     if (motMag < uTaaStillThresh) {
         vec4 prevRGBA = texture(prevAccum, uvCurr);
@@ -64,6 +106,10 @@ vec4 resolveTAA(vec3 curr, vec2 uvCurr, vec2 motionOut, sampler2D prevAccum, int
 
     // ---------------------------------------------
     // CASE 2: pixel is moving → motion-vector TAA
+    //
+    //  - Reproject to previous frame using motionOut.
+    //  - Sample history at uvPrev.
+    //  - Apply motion- and color-based confidence to history.
     // ---------------------------------------------
 
     // Reproject into previous frame
@@ -85,6 +131,10 @@ vec4 resolveTAA(vec3 curr, vec2 uvCurr, vec2 motionOut, sampler2D prevAccum, int
 
     // ---------------------------------------------
     // History weighting
+    //
+    // 1) Base history weight decreases as motion increases.
+    // 2) Luma-based confidence shrinks history when color changes a lot.
+    // 3) A hard kill-switch handles strong motion + color edges (sky/geometry).
     // ---------------------------------------------
 
     float wHist = 1.0 - smoothstep(0.02, uTaaHardMovingThresh, motMag);
@@ -123,7 +173,7 @@ vec4 resolveTAA(vec3 curr, vec2 uvCurr, vec2 motionOut, sampler2D prevAccum, int
     // Final TAA blended color
     vec3 taaCol = wHist * historyCol + wCurr * curr;
 
-    // Temporal variance
+    // Temporal variance (M2) updated with the same weights
     float m2New = wHist * prevM2 + wCurr * lCurr2;
 
     return vec4(taaCol, m2New);

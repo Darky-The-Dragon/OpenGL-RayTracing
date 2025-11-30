@@ -1,0 +1,10 @@
+<map id="tri_max" name="tri_max">
+<area shape="rect" id="Node000001" title=" " alt="" coords="528,29,593,55"/>
+<area shape="rect" id="Node000002" href="$bvh_8cpp.html#a066b73f6124cda7e786b36aec34119ef" title=" " alt="" coords="372,29,480,55"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="510,42,481,45,481,40,516,42"/>
+<area shape="poly" id="edge4_Node000002_Node000002" title=" " alt="" coords="447,13,441,10,426,8,413,10,405,14,404,20,407,30,403,28,398,21,401,11,411,5,426,3,443,5,453,15"/>
+<area shape="rect" id="Node000003" href="$bvh_8cpp.html#ad27f3a0dcf42da03a122b4fc87c6584a" title="Builds a simple median&#45;split BVH from CPU triangles." alt="" coords="248,29,324,55"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="354,42,325,45,324,40,359,42"/>
+<area shape="rect" id="Node000004" href="$bvh_8cpp.html#a294724ddcdddb7d76e99445fa5d11ab6" title="High&#45;level helper for loading a model and building its BVH." alt="" coords="5,29,200,55"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="229,42,200,45,200,40,235,42"/>
+</map>

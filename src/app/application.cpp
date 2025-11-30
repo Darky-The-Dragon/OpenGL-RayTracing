@@ -18,9 +18,13 @@
 #include <string>
 
 // ============================================================================
-// Anonymous namespace – local helpers
+// Application namespace – local helpers
 // ============================================================================
-namespace {
+// Small utility functions that are only used inside this translation unit.
+/// Internal helpers for Application.cpp (private logic, not part of public API).
+namespace app_detail {
+    // Halton sequence (1D) for a given index and base.
+    // Used as a low-discrepancy source for jitter.
     float halton(int index, int base) {
         float f = 1.0f;
         float r = 0.0f;
@@ -33,6 +37,8 @@ namespace {
         return r;
     }
 
+    // Generate a 2D jitter sample in [-0.5, 0.5]^2 from the frame index.
+    // The mask keeps the sequence bounded to 1024 entries.
     glm::vec2 generateJitter2D(int frameIndex) {
         const int idx = frameIndex & 1023;
         const float jx = halton(idx + 1, 2) - 0.5f;
@@ -40,6 +46,8 @@ namespace {
         return {jx, jy};
     }
 
+    // Checks whether any RenderParams value changed between previous and current GUI frame.
+    // If anything relevant differs, we reset accumulation.
     bool paramsChanged(const RenderParams &a, const RenderParams &b) {
         auto diff = [](float x, float y) { return std::fabs(x - y) > 1e-5f; };
 
@@ -137,7 +145,7 @@ namespace {
 
         return false;
     }
-} // namespace
+} // namespace app_detail
 
 // ============================================================================
 // Application lifecycle
@@ -146,6 +154,7 @@ namespace {
 Application::Application() = default;
 
 Application::~Application() {
+    // Make sure we always clean up GL + GLFW on destruction.
     shutdown();
 }
 
@@ -155,6 +164,7 @@ Application::~Application() {
 bool Application::initWindow() {
     if (!glfwInit()) return false;
 
+    // Request a core 4.1 context (compatible with macOS).
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -162,6 +172,7 @@ bool Application::initWindow() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
+    // Fixed-size window for now (1920x1080).
     window = glfwCreateWindow(1920, 1080, "OpenGL Ray/Path Tracing - Darky", nullptr, nullptr);
     if (!window) {
         glfwTerminate();
@@ -169,6 +180,7 @@ bool Application::initWindow() {
     }
 
     glfwMakeContextCurrent(window);
+    // Load GL entry points using glad.
     if (!gladLoadGL(glfwGetProcAddress)) {
         glfwDestroyWindow(window);
         window = nullptr;
@@ -186,9 +198,11 @@ void Application::initGLResources() {
     int fbw = 0, fbh = 0;
     glfwGetFramebufferSize(window, &fbw, &fbh);
 
+    // Accumulation + GBuffer need to match the actual framebuffer size.
     app.accum.recreate(fbw, fbh);
     app.gBuffer.recreate(fbw, fbh);
 
+    // Fullscreen triangle VAO (no VBO needed).
     glGenVertexArrays(1, &app.fsVao);
 }
 
@@ -198,8 +212,10 @@ void Application::initGLResources() {
 void Application::initState() {
     // Input & callbacks -------------------------------------------------------
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // Attach AppState to the window, so callbacks can access it.
     glfwSetWindowUserPointer(window, &app);
 
+    // Resize handler: keeps camera aspect, accumulation + GBuffer in sync.
     glfwSetFramebufferSizeCallback(window, [](GLFWwindow *win, int width, int height) {
         if (width <= 0 || height <= 0) return;
 
@@ -213,6 +229,7 @@ void Application::initState() {
         }
     });
 
+    // Register keyboard / mouse callbacks.
     io::attach_callbacks(window);
 
     // UI init -----------------------------------------------------------------
@@ -222,6 +239,7 @@ void Application::initState() {
     ui::Init(window);
 
     // Shaders -----------------------------------------------------------------
+    // Resolve paths depending on whether we are running from the build or source tree.
     const std::string rtVertPath = util::resolve_path("shaders/rt/rt_fullscreen.vert");
     const std::string rtFragPath = util::resolve_path("shaders/rt/rt.frag");
     const std::string presentFragPath = util::resolve_path("shaders/rt/rt_present.frag");
@@ -232,6 +250,7 @@ void Application::initState() {
     app.presentShader = std::make_unique<Shader>(rtVertPath.c_str(), presentFragPath.c_str());
     app.rasterShader = std::make_unique<Shader>(rasterVertPath.c_str(), rasterFragPath.c_str());
 
+    // If any shader failed, abort early and close the window.
     if (!app.rtShader->isValid() || !app.presentShader->isValid() || !app.rasterShader->isValid()) {
         ui::Log("[INIT] Shader compile/link failed. Exiting.\n");
         glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -239,6 +258,7 @@ void Application::initState() {
     }
 
     // Models / BVH ------------------------------------------------------------
+    // Basic analytic scene geometry + BVH model for the triangle path.
     app.ground = std::make_unique<Model>(util::resolve_path("models/plane.obj"));
     app.bunny = std::make_unique<Model>(util::resolve_path("models/bunny_lp.obj"));
     app.sphere = std::make_unique<Model>(util::resolve_path("models/sphere.obj"));
@@ -250,6 +270,7 @@ void Application::initState() {
                   "%s",
                   initModelPath.c_str());
 
+    // Build an initial BVH from the default bunny model.
     rebuild_bvh_from_model_path(app.bvhPicker.currentPath,
                                 app.bvhTransform,
                                 app.bvhModel,
@@ -258,6 +279,7 @@ void Application::initState() {
                                 app.bvh);
 
     // Environment map ---------------------------------------------------------
+    // Start with a dummy cubemap so shaders always have a valid texture bound.
     app.envMapTex = createDummyCubeMap(); // non-zero texture, GL-driver friendly
 
     const std::string envDir = util::resolve_dir("cubemaps");
@@ -270,6 +292,7 @@ void Application::initState() {
     app.envPicker.selectedIndex = 0;
     app.envPicker.reloadRequested = false;
 
+    // Try to replace the dummy cubemap with a real one.
     const GLuint realEnv = loadCubeMapFromCross(defaultEnvPath);
     if (realEnv != 0) {
         glDeleteTextures(1, &app.envMapTex);
@@ -283,6 +306,7 @@ void Application::initState() {
     }
 
     // Input mirroring ---------------------------------------------------------
+    // Sync GUI-controlled parameters into the input state, so hotkeys can modify them.
     app.input.sppPerFrame = app.params.sppPerFrame;
     app.input.exposure = app.params.exposure;
     app.input.sceneInputEnabled = true;
@@ -290,6 +314,7 @@ void Application::initState() {
     io::init(app.input);
 
     // Frame state -------------------------------------------------------------
+    // Initialize the frame state so TAA / motion have a valid "previous" frame.
     const glm::mat4 initView = app.camera.GetViewMatrix();
     const glm::mat4 initProj = app.camera.GetProjectionMatrix();
     app.frame.beginFrame(initView, initProj, app.camera.Position);
@@ -315,7 +340,8 @@ void Application::mainLoop() {
         app.deltaTime = tNow - app.lastFrame;
         app.lastFrame = tNow;
 
-        // Point-light orbit animation (deg/s * s)
+        // Point-light orbit animation (deg/s * s).
+        // This only updates the light yaw; the actual position is derived in the shader.
         if (app.params.pointLightOrbitEnabled) {
             app.params.pointLightYaw += app.params.pointLightOrbitSpeed * app.deltaTime;
 
@@ -329,6 +355,7 @@ void Application::mainLoop() {
         const bool anyChanged = io::update(app.input, window);
         const bool cameraChangedFromZoom = app.input.cameraChangedThisFrame;
 
+        // Pointer lock toggle (P) – switch between UI interaction and scene control.
         if (app.input.toggledPointerMode) {
             app.input.sceneInputEnabled = !app.input.sceneInputEnabled;
             ui::Log("[INPUT] Scene input %s (mouse %s)\n",
@@ -342,9 +369,11 @@ void Application::mainLoop() {
                 app.input.firstMouse = true;
         }
 
+        // ESC close request.
         if (app.input.quitRequested)
             glfwSetWindowShouldClose(window, GLFW_TRUE);
 
+        // Camera movement only when scene input is enabled.
         if (app.input.sceneInputEnabled)
             app.camera.ProcessKeyboardInput(window, app.deltaTime);
 
@@ -355,6 +384,8 @@ void Application::mainLoop() {
         const glm::mat4 currProj = app.camera.GetProjectionMatrix();
         app.frame.beginFrame(currView, currProj, app.camera.Position);
 
+        // Check how much the view-projection matrix changed since last frame.
+        // This drives the "cameraMoved" flag used by TAA and jitter scaling.
         float vpDiff = 0.0f;
         for (int c = 0; c < 4; ++c) {
             for (int r = 0; r < 4; ++r) {
@@ -365,9 +396,9 @@ void Application::mainLoop() {
         }
         const bool cameraMoved = (vpDiff > 1e-5f);
 
-        // Jitter based on camera motion
+        // Jitter based on camera motion: smaller when still, larger when moving.
         if (app.params.enableJitter) {
-            glm::vec2 baseJitter = generateJitter2D(app.accum.frameIndex);
+            glm::vec2 baseJitter = app_detail::generateJitter2D(app.accum.frameIndex);
             const float scale =
                     cameraMoved ? app.params.jitterMovingScale : app.params.jitterStillScale;
             app.frame.jitter = baseJitter * scale;
@@ -420,6 +451,7 @@ void Application::mainLoop() {
         glClearColor(0.1f, 0.0f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // Choose between the ray/path tracer and the simple raster path.
         if (app.rayMode) {
             renderRay(app, fbw, fbh, cameraMoved, currView, currProj);
         } else {
@@ -495,8 +527,9 @@ void Application::mainLoop() {
                 (app.useBVH != prevUseBVH) ||
                 (app.showMotion != prevShowMotion);
 
-        const bool guiChangedParams = paramsChanged(app.params, prevGuiParams);
+        const bool guiChangedParams = app_detail::paramsChanged(app.params, prevGuiParams);
 
+        // Log TAA/SVGF toggle changes explicitly for debugging.
         if (app.params.enableTAA != prevGuiParams.enableTAA) {
             ui::Log("[TAA] %s\n", app.params.enableTAA ? "ENABLED" : "DISABLED");
         }
@@ -504,12 +537,14 @@ void Application::mainLoop() {
             ui::Log("[SVGF] %s\n", app.params.enableSVGF ? "ENABLED" : "DISABLED");
         }
 
+        // Treat an orbiting point light as dynamic geometry for accumulation.
         const bool dynamicPointLightMoving =
                 app.rayMode &&
                 (app.params.pointLightOrbitEnabled != 0) &&
                 (std::fabs(app.params.pointLightOrbitSpeed) > 1e-5f) &&
                 (app.params.pointLightOrbitRadius > 0.0f);
 
+        // Any of these conditions invalidate the history buffer.
         if (guiChangedMode || guiChangedParams || cameraChangedFromZoom || dynamicPointLightMoving) {
             app.accum.reset();
             ui::Log("[ACCUM] Reset due to %s%s%s%s\n",
@@ -525,6 +560,7 @@ void Application::mainLoop() {
 // Shutdown + run
 // ============================================================================
 void Application::shutdown() {
+    // If init() never completed, only destroy the window + GLFW safely.
     if (!initialized) {
         if (window) {
             glfwDestroyWindow(window);
@@ -534,6 +570,7 @@ void Application::shutdown() {
         return;
     }
 
+    // Destroy CPU-side wrappers before killing GL objects.
     app.rtShader.reset();
     app.presentShader.reset();
     app.rasterShader.reset();
@@ -542,22 +579,27 @@ void Application::shutdown() {
     app.sphere.reset();
     app.bvhModel.reset();
 
+    // Release environment cubemap if we own one.
     if (app.envMapTex) {
         glDeleteTextures(1, &app.envMapTex);
         app.envMapTex = 0;
     }
 
+    // Fullscreen VAO used by the ray/present passes.
     if (app.fsVao) {
         glDeleteVertexArrays(1, &app.fsVao);
         app.fsVao = 0;
     }
 
+    // GPU-side BVH + GBuffer + accumulation textures.
     app.bvh.release();
     app.gBuffer.release();
     app.accum.release();
 
+    // Tear down ImGui/GUI.
     ui::Shutdown();
 
+    // Finally, destroy the window + GLFW.
     if (window) {
         glfwDestroyWindow(window);
         window = nullptr;
@@ -567,6 +609,7 @@ void Application::shutdown() {
 }
 
 int Application::run() {
+    // High-level entry point: init, run main loop, then rely on destructor for cleanup.
     if (!initWindow()) return -1;
     initGLResources();
     initState();

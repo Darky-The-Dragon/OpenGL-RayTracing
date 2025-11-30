@@ -1,0 +1,5 @@
+<map id="rt::Accum::bindWriteFBO_ColorAndMotion" name="rt::Accum::bindWriteFBO_ColorAndMotion">
+<area shape="rect" id="Node000001" title="Binds the FBO to write both accumulation color and motion vectors." alt="" coords="187,5,354,46"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_accum.html#a6d95392d1519cb8f8ce111f44e4ccb6c" title="Creates or recreates all accumulation textures." alt="" coords="5,13,139,38"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="168,26,139,28,139,23,174,25"/>
+</map>

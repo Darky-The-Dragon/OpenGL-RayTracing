@@ -1,0 +1,11 @@
+<map id="rt::Accum::Accum" name="rt::Accum::Accum">
+<area shape="rect" id="Node000001" title="Default constructor (creates an empty, uninitialized accumulator)." alt="" coords="195,80,322,106"/>
+<area shape="rect" id="Node000002" href="$classrt_1_1_accum.html#a5308665df4ada908e88c882ff526549b" title="Move constructor — transfers ownership of GL resources." alt="" coords="12,5,140,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="214,74,146,45,119,34,118,29,148,40,219,72"/>
+<area shape="rect" id="Node000003" href="$classrt_1_1_accum.html#af641d0016e55b84275069e00febf64c0" title="Non&#45;copyable to avoid double&#45;free of GL objects." alt="" coords="12,55,140,80"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="177,83,140,79,139,74,182,81"/>
+<area shape="rect" id="Node000004" href="$classrt_1_1_accum.html#aaa183d157c0efeacb89e121e6ece581a" title="Move assignment — transfers ownership and invalidates the source." alt="" coords="5,104,147,130"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="177,104,148,110,147,105,182,102"/>
+<area shape="rect" id="Node000005" href="$classrt_1_1_accum.html#abf57c3de1213cf54f032950b6ad545ca" title=" " alt="" coords="5,153,147,179"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="218,112,148,145,119,155,117,150,146,140,213,113"/>
+</map>

@@ -1,0 +1,5 @@
+<map id="ui::DrawMainControls" name="ui::DrawMainControls">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,5,153,31"/>
+<area shape="rect" id="Node000002" href="$namespaceui.html#ab9e06cf844da443c10f8da42a2fe150a" title="Appends a message to the UI log window." alt="" coords="201,5,261,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="153,16,188,18,183,18,153,21"/>
+</map>
