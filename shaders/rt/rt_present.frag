@@ -47,8 +47,6 @@ uniform float uKColor;
 uniform float uKVarMotion;
 uniform float uKColorMotion;
 uniform float uSvgfStrength;
-uniform float uSvgfVarStaticEps;
-uniform float uSvgfMotionStaticEps;
 uniform int uEnableSVGF;
 
 // Luma coefficients (approx. Rec.709)
@@ -134,6 +132,7 @@ vec3 svgfFilter(vec2 uv) {
     // Derive variance at center: Var = M2 - (E[l])^2
     float lCenter = dot(cCenter, YCOEFF);
     float varCenter = max(M2center - lCenter * lCenter, 0.0);
+    varCenter = min(varCenter, uVarMax);
 
     // Motion at center pixel
     vec2 motion = texture(uMotionTex, uv).xy;
@@ -143,36 +142,32 @@ vec3 svgfFilter(vec2 uv) {
     vec3 pCenter = texture(uGPos, uv).xyz;
     vec3 nCenter = texture(uGNrm, uv).xyz;
 
-    // Clamp variance to a reasonable max – prevents insane weights
-    varCenter = min(varCenter, uVarMax);
-
-    // If variance is essentially tiny *and* motion is tiny → skip blur.
-    if (varCenter < uSvgfVarStaticEps && motMag < uSvgfMotionStaticEps) {
-        return cCenter;
-    }
-
     vec2 texel = 1.0 / uResolution;
 
     vec3 accumCol = vec3(0.0);
     float accumW = 0.0;
 
     // ----------------------------------------
-    // Motion-aware filter strength, driven by CPU params
-    // uKVar / uKColor control the *overall* sharpness vs blur.
-    // ----------------------------------------
-
+    // Motion-aware tuning
     // t = 0 → static, t = 1 → fully moving
+    // ----------------------------------------
     float t = clamp(smoothstep(0.005, 0.05, motMag), 0.0, 1.0);
 
     float kVar = mix(uKVar, uKVarMotion, t);
     float kColor = mix(uKColor, uKColorMotion, t);
 
-    // Geometry weights – fixed scalars for now
-    const float K_NRM = 32.0;   // higher = stronger normal edge stopping
-    const float K_POS = 1.0;    // units are ~1 / (worldUnit^2)
+    // Geometry weights – much softer so neighbors actually contribute
+    const float K_NRM = 2.0;   // was 32.0 → now allows smoothing along curved surfaces
+    const float K_POS = 0.02;  // was 1.0  → smoother within same object
 
-    for (int j = -1; j <= 1; ++j) {
-        for (int i = -1; i <= 1; ++i) {
+    // Color + variance factors:
+    //  - higher variance => stronger blur (not weaker)
+    //  - kVar from UI still influences strength
+    float varBoost = 1.0 + varCenter * (1.0 + kVar * 0.5);
+
+    // 7x7 kernel: strong but still reasonable for real-time if resolution isn't huge
+    for (int j = -3; j <= 3; ++j) {
+        for (int i = -3; i <= 3; ++i) {
             vec2 offs = vec2(i, j);
             vec2 uvN = uv + offs * texel;
 
@@ -184,17 +179,11 @@ vec3 svgfFilter(vec2 uv) {
 
             vec4 s = texture(uTex, uvN);
             vec3 c = s.rgb;
-            float M2 = s.a;
 
-            float l = dot(c, YCOEFF);
-            float v = max(M2 - l * l, 0.0);
-            v = min(v, uVarMax);
-
-            float wVar = exp(-v * kVar);
-
+            // Color difference weight (softer than before)
             vec3 dc = c - cCenter;
             float dc2 = dot(dc, dc);
-            float wCol = exp(-dc2 * kColor);
+            float wCol = exp(-dc2 * (kColor * 0.3 + 0.05)); // extra 0.05 to ensure visible blur
 
             // GBuffer-based edge stopping
             vec3 p = texture(uGPos, uvN).xyz;
@@ -210,12 +199,20 @@ vec3 svgfFilter(vec2 uv) {
             float nDiff = max(0.0, 1.0 - ndot);   // 0 when aligned, 1 when opposite
             float wNrm = exp(-nDiff * K_NRM);
 
-            // Slightly favor center when static; when moving, neighbors matter more
-            float wSpatial = (i == 0 && j == 0)
-            ? 1.0
-            : mix(0.8, 1.1, t);
+            // Slightly favor neighbors when variance is high,
+            // but still keep center important.
+            float wSpatial;
+            if (i == 0 && j == 0) {
+                wSpatial = 1.0;
+            } else {
+                // neighbors get more weight when variance is high
+                wSpatial = 1.0 + varCenter * 4.0;
+            }
 
-            float w = wVar * wCol * wPos * wNrm * wSpatial;
+            // Combine weights:
+            //  - varBoost encourages blur in noisy areas
+            //  - wCol / wPos / wNrm keep edges and big color changes
+            float w = varBoost * wCol * wPos * wNrm * wSpatial;
             accumCol += c * w;
             accumW += w;
         }

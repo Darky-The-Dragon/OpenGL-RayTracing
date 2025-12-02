@@ -232,8 +232,6 @@ void renderRay(AppState &app, const int fbw, const int fbh, const bool cameraMov
     present.setFloat("uKVarMotion", app.params.svgfKVarMotion);
     present.setFloat("uKColorMotion", app.params.svgfKColorMotion);
     present.setFloat("uSvgfStrength", app.params.svgfStrength);
-    present.setFloat("uSvgfVarStaticEps", app.params.svgfVarEPS);
-    present.setFloat("uSvgfMotionStaticEps", app.params.svgfMotionEPS);
     present.setInt("uEnableSVGF", app.params.enableSVGF ? 1 : 0);
 
     // Fullscreen triangle for present pass

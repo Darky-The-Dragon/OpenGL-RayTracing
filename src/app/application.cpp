@@ -104,8 +104,6 @@ namespace app_detail {
         if (diff(a.svgfKColor, b.svgfKColor)) return true;
         if (diff(a.svgfKVarMotion, b.svgfKVarMotion)) return true;
         if (diff(a.svgfKColorMotion, b.svgfKColorMotion)) return true;
-        if (diff(a.svgfVarEPS, b.svgfVarEPS)) return true;
-        if (diff(a.svgfMotionEPS, b.svgfMotionEPS)) return true;
 
         // --- Sun light ---
         if (a.sunEnabled != b.sunEnabled) return true;

@@ -604,22 +604,6 @@ namespace ui {
             }
 
             ImGui::SeparatorText("Epsilons");
-
-            const float oldVarEPS = params.svgfVarEPS;
-            if (ImGui::SliderFloat("Var Static Eps", &params.svgfVarEPS, 0.0f, 1e-2f)) {
-                if (params.svgfVarEPS != oldVarEPS) {
-                    Log("[GUI] SVGF var EPS: %.6f -> %.6f\n",
-                        oldVarEPS, params.svgfVarEPS);
-                }
-            }
-
-            const float oldMotionEPS = params.svgfMotionEPS;
-            if (ImGui::SliderFloat("Motion Static Eps", &params.svgfMotionEPS, 0.0f, 0.05f)) {
-                if (params.svgfMotionEPS != oldMotionEPS) {
-                    Log("[GUI] SVGF motion EPS: %.6f -> %.6f\n",
-                        oldMotionEPS, params.svgfMotionEPS);
-                }
-            }
         }
 
         ImGui::End();

@@ -205,28 +205,22 @@ struct RenderParams {
     int enableSVGF = 1;
 
     /// Maximum variance clamp.
-    float svgfVarMax = 0.02f;
+    float svgfVarMax = 0.05f;
 
     /// Variance kernel constant for normal scenes.
-    float svgfKVar = 200.0f;
+    float svgfKVar = 1.0f;
 
     /// Color kernel constant for normal scenes.
-    float svgfKColor = 20.0f;
+    float svgfKColor = 1.2f;
 
     /// Variance kernel constant when motion is detected.
-    float svgfKVarMotion = 35.0f;
+    float svgfKVarMotion = 0.8f;
 
     /// Color kernel constant when motion is detected.
-    float svgfKColorMotion = 3.0f;
+    float svgfKColorMotion = 1.5f;
 
     /// Final SVGF blending strength.
-    float svgfStrength = 0.6f;
-
-    /// Small epsilon to avoid division instability in variance.
-    float svgfVarEPS = 2e-4f;
-
-    /// Small epsilon for motion confidence checks.
-    float svgfMotionEPS = 0.005f;
+    float svgfStrength = 0.7f;
 
     // -------------------------------------------------------------------------
     // Fundamental constants
