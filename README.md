@@ -111,8 +111,8 @@ git clone --recursive https://github.com/Darky-The-Dragon/OpenGL-RayTracing.git
 ```
 cd OpenGL-RayTracing
 ```
+If submodules didn't clone properly, run this:
 ```
-# If submodules didn't clone properly, run this:
 git submodule update --init --recursive
 ```
 ```
@@ -136,8 +136,8 @@ git clone --recursive https://github.com/Darky-The-Dragon/OpenGL-RayTracing.git
 ```
 cd OpenGL-RayTracing
 ```
+If submodules didn't clone properly, run this:
 ```
-# If submodules didn't clone properly, run this:
 git submodule update --init --recursive
 ```
 ```
