@@ -122,12 +122,8 @@ namespace ui {
     // Forward declarations of local UI helpers.
     static void DrawKeybindLegend();
 
-    static void DrawMainControls(RenderParams &params,
-                                 const rt::FrameState &frame,
-                                 const io::InputState &input,
-                                 bool &rayMode,
-                                 bool &useBVH,
-                                 bool &showMotion);
+    static void DrawMainControls(RenderParams &params, const rt::FrameState &frame, const io::InputState &input,
+                                 bool &rayMode, bool &useBVH, bool &showMotion);
 
     // ============================================================================
     // Log: mirror to terminal + GUI console
@@ -184,12 +180,8 @@ namespace ui {
     // ============================================================================
     // Main control panel (top-left, pinned)
     // ============================================================================
-    static void DrawMainControls(RenderParams &params,
-                                 const rt::FrameState &frame,
-                                 const io::InputState &input,
-                                 bool &rayMode,
-                                 bool &useBVH,
-                                 bool &showMotion) {
+    static void DrawMainControls(RenderParams &params, const rt::FrameState &frame, const io::InputState &input,
+                                 bool &rayMode, bool &useBVH, bool &showMotion) {
         (void) frame;
         (void) input;
 
@@ -249,14 +241,14 @@ namespace ui {
         // ------------------------------------------------------------------------
         if (ImGui::CollapsingHeader("Core", ImGuiTreeNodeFlags_DefaultOpen)) {
             const int oldSpp = params.sppPerFrame;
-            if (ImGui::SliderInt("SPP per frame", &params.sppPerFrame, 1, 64)) {
+            if (ImGui::SliderInt("SPP per frame", &params.sppPerFrame, 1, 64, "%d", ImGuiSliderFlags_NoInput)) {
                 if (params.sppPerFrame != oldSpp) {
                     Log("[GUI] SPP per frame changed: %d -> %d\n", oldSpp, params.sppPerFrame);
                 }
             }
 
             const float oldExp = params.exposure;
-            if (ImGui::SliderFloat("Exposure", &params.exposure, 0.01f, 8.0f, "%.3f")) {
+            if (ImGui::SliderFloat("Exposure", &params.exposure, 0.01f, 8.0f, "%.3f", ImGuiSliderFlags_NoInput)) {
                 if (params.exposure != oldExp) {
                     Log("[GUI] Exposure changed: %.4f -> %.4f\n", oldExp, params.exposure);
                 }
@@ -271,8 +263,9 @@ namespace ui {
             ImGui::SeparatorText("Albedo Material");
 
             ImGui::ColorEdit3("Albedo Color", params.matAlbedoColor);
-            ImGui::SliderFloat("Albedo Spec Strength", &params.matAlbedoSpecStrength, 0.0f, 1.0f);
-            ImGui::SliderFloat("Albedo Gloss", &params.matAlbedoGloss, 1.0f, 128.0f);
+            ImGui::SliderFloat("Albedo Spec Strength", &params.matAlbedoSpecStrength, 0.0f, 1.0f, "%.3f",
+                               ImGuiSliderFlags_NoInput);
+            ImGui::SliderFloat("Albedo Gloss", &params.matAlbedoGloss, 1.0f, 128.0f, "%.3f", ImGuiSliderFlags_NoInput);
 
             // --- Glass ---
             ImGui::SeparatorText("Glass Material");
@@ -281,8 +274,9 @@ namespace ui {
             ImGui::ColorEdit3("Glass Tint", params.matGlassColor);
 
             if (params.matGlassEnabled) {
-                ImGui::SliderFloat("Glass IOR", &params.matGlassIOR, 1.0f, 2.5f);
-                ImGui::SliderFloat("Glass Distortion", &params.matGlassDistortion, 0.0f, 1.0f);
+                ImGui::SliderFloat("Glass IOR", &params.matGlassIOR, 1.0f, 2.5f, "%.3f", ImGuiSliderFlags_NoInput);
+                ImGui::SliderFloat("Glass Distortion", &params.matGlassDistortion, 0.0f, 1.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput);
             }
 
             // --- Mirror ---
@@ -292,7 +286,8 @@ namespace ui {
             ImGui::ColorEdit3("Mirror Tint", params.matMirrorColor);
 
             if (params.matMirrorEnabled) {
-                ImGui::SliderFloat("Mirror Gloss", &params.matMirrorGloss, 1.0f, 256.0f);
+                ImGui::SliderFloat("Mirror Gloss", &params.matMirrorGloss, 1.0f, 256.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput);
             }
         }
 
@@ -308,8 +303,8 @@ namespace ui {
             }
 
             const float oldIntensity = params.envMapIntensity;
-            if (ImGui::SliderFloat("Env Intensity", &params.envMapIntensity,
-                                   0.0f, 5.0f, "%.2f")) {
+            if (ImGui::SliderFloat("Env Intensity", &params.envMapIntensity, 0.0f, 5.0f, "%.2f",
+                                   ImGuiSliderFlags_NoInput)) {
                 if (params.envMapIntensity != oldIntensity) {
                     Log("[ENV] Intensity: %.3f -> %.3f\n",
                         oldIntensity, params.envMapIntensity);
@@ -329,10 +324,11 @@ namespace ui {
                 }
 
                 ImGui::ColorEdit3("Sun Color", params.sunColor);
-                ImGui::SliderFloat("Sun Intensity", &params.sunIntensity, 0.0f, 20.0f);
+                ImGui::SliderFloat("Sun Intensity", &params.sunIntensity, 0.0f, 20.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput);
 
-                ImGui::SliderFloat("Sun Yaw", &params.sunYaw, -180.0f, 180.0f);
-                ImGui::SliderFloat("Sun Pitch", &params.sunPitch, -89.0f, 89.0f);
+                ImGui::SliderFloat("Sun Yaw", &params.sunYaw, -180.0f, 180.0f, "%.3f", ImGuiSliderFlags_NoInput);
+                ImGui::SliderFloat("Sun Pitch", &params.sunPitch, -89.0f, 89.0f, "%.3f", ImGuiSliderFlags_NoInput);
             }
 
             ImGui::SeparatorText("Sky Light"); {
@@ -343,10 +339,10 @@ namespace ui {
                 }
 
                 ImGui::ColorEdit3("Sky Color", params.skyColor);
-                ImGui::SliderFloat("Sky Intensity", &params.skyIntensity, 0.0f, 5.0f);
+                ImGui::SliderFloat("Sky Intensity", &params.skyIntensity, 0.0f, 5.0f, "%.3f", ImGuiSliderFlags_NoInput);
 
-                ImGui::SliderFloat("Sky Yaw", &params.skyYaw, -180.0f, 180.0f);
-                ImGui::SliderFloat("Sky Pitch", &params.skyPitch, -89.0f, 89.0f);
+                ImGui::SliderFloat("Sky Yaw", &params.skyYaw, -180.0f, 180.0f, "%.3f", ImGuiSliderFlags_NoInput);
+                ImGui::SliderFloat("Sky Pitch", &params.skyPitch, -89.0f, 89.0f, "%.3f", ImGuiSliderFlags_NoInput);
             }
 
             ImGui::SeparatorText("Point Light"); {
@@ -357,10 +353,12 @@ namespace ui {
                 }
 
                 ImGui::ColorEdit3("Point Color", params.pointLightColor);
-                ImGui::SliderFloat("Point Intensity", &params.pointLightIntensity, 0.0f, 100.0f);
+                ImGui::SliderFloat("Point Intensity", &params.pointLightIntensity, 0.0f, 100.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput);
 
                 // Base world-space position used by orbit logic as center.
-                ImGui::DragFloat3("Point Base Pos", params.pointLightPos, 0.05f);
+                ImGui::DragFloat3("Point Base Pos", params.pointLightPos, 0.05f, 0.0f, 0.0f, "%.3f",
+                                  ImGuiSliderFlags_NoInput);
 
                 bool orbitOn = (params.pointLightOrbitEnabled != 0);
                 if (ImGui::Checkbox("Orbit Around Center", &orbitOn)) {
@@ -368,12 +366,16 @@ namespace ui {
                     Log("[LIGHT] Point orbit: %s\n", orbitOn ? "ENABLED" : "DISABLED");
                 }
 
-                ImGui::SliderFloat("Orbit Radius", &params.pointLightOrbitRadius, 0.0f, 10.0f);
-                ImGui::SliderFloat("Orbit Speed (deg/s)", &params.pointLightOrbitSpeed, 0.0f, 360.0f);
+                ImGui::SliderFloat("Orbit Radius", &params.pointLightOrbitRadius, 0.0f, 10.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput);
+                ImGui::SliderFloat("Orbit Speed (deg/s)", &params.pointLightOrbitSpeed, 0.0f, 360.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput);
 
                 // Direct yaw/pitch control (works even if orbit is off).
-                ImGui::SliderFloat("Yaw (deg)", &params.pointLightYaw, -180.0f, 180.0f);
-                ImGui::SliderFloat("Pitch (deg)", &params.pointLightPitch, -89.0f, 89.0f);
+                ImGui::SliderFloat("Yaw (deg)", &params.pointLightYaw, -180.0f, 180.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput);
+                ImGui::SliderFloat("Pitch (deg)", &params.pointLightPitch, -89.0f, 89.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput);
             }
         }
 
@@ -393,7 +395,8 @@ namespace ui {
             const float oldMoving = params.jitterMovingScale;
 
             // Smaller jitter when camera is still
-            if (ImGui::SliderFloat("Still Jitter Scale", &params.jitterStillScale, 0.0f, 0.5f, "%.3f")) {
+            if (ImGui::SliderFloat("Still Jitter Scale", &params.jitterStillScale, 0.0f, 0.5f, "%.3f",
+                                   ImGuiSliderFlags_NoInput)) {
                 if (params.jitterStillScale != oldStill) {
                     Log("[GUI] Jitter still scale: %.3f -> %.3f\n",
                         oldStill, params.jitterStillScale);
@@ -401,7 +404,8 @@ namespace ui {
             }
 
             // Stronger jitter when the camera is moving
-            if (ImGui::SliderFloat("Moving Jitter Scale", &params.jitterMovingScale, 0.0f, 1.0f, "%.3f")) {
+            if (ImGui::SliderFloat("Moving Jitter Scale", &params.jitterMovingScale, 0.0f, 1.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput)) {
                 if (params.jitterMovingScale != oldMoving) {
                     Log("[GUI] Jitter moving scale: %.3f -> %.3f\n",
                         oldMoving, params.jitterMovingScale);
@@ -422,7 +426,8 @@ namespace ui {
             ImGui::SeparatorText("GI Scales");
 
             const float oldAnalytic = params.giScaleAnalytic;
-            if (ImGui::SliderFloat("Analytic GI Scale", &params.giScaleAnalytic, 0.0f, 2.0f)) {
+            if (ImGui::SliderFloat("Analytic GI Scale", &params.giScaleAnalytic, 0.0f, 2.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput)) {
                 if (params.giScaleAnalytic != oldAnalytic) {
                     Log("[GUI] Analytic GI scale: %.3f -> %.3f\n",
                         oldAnalytic, params.giScaleAnalytic);
@@ -430,7 +435,7 @@ namespace ui {
             }
 
             const float oldBVH = params.giScaleBVH;
-            if (ImGui::SliderFloat("BVH GI Scale", &params.giScaleBVH, 0.0f, 2.0f)) {
+            if (ImGui::SliderFloat("BVH GI Scale", &params.giScaleBVH, 0.0f, 2.0f, "%.3f", ImGuiSliderFlags_NoInput)) {
                 if (params.giScaleBVH != oldBVH) {
                     Log("[GUI] BVH GI scale: %.3f -> %.3f\n",
                         oldBVH, params.giScaleBVH);
@@ -451,14 +456,14 @@ namespace ui {
             ImGui::SeparatorText("AO Parameters");
 
             const int oldSamples = params.aoSamples;
-            if (ImGui::SliderInt("AO Samples", &params.aoSamples, 1, 32)) {
+            if (ImGui::SliderInt("AO Samples", &params.aoSamples, 1, 32, "%d", ImGuiSliderFlags_NoInput)) {
                 if (params.aoSamples != oldSamples) {
                     Log("[GUI] AO samples: %d -> %d\n", oldSamples, params.aoSamples);
                 }
             }
 
             const float oldRadius = params.aoRadius;
-            if (ImGui::SliderFloat("AO Radius", &params.aoRadius, 0.0f, 4.0f)) {
+            if (ImGui::SliderFloat("AO Radius", &params.aoRadius, 0.0f, 4.0f, "%.3f", ImGuiSliderFlags_NoInput)) {
                 if (params.aoRadius != oldRadius) {
                     Log("[GUI] AO radius: %.3f -> %.3f\n",
                         oldRadius, params.aoRadius);
@@ -466,7 +471,7 @@ namespace ui {
             }
 
             const float oldBias = params.aoBias;
-            if (ImGui::SliderFloat("AO Bias", &params.aoBias, 0.0f, 0.01f, "%.5f")) {
+            if (ImGui::SliderFloat("AO Bias", &params.aoBias, 0.0f, 0.01f, "%.5f", ImGuiSliderFlags_NoInput)) {
                 if (params.aoBias != oldBias) {
                     Log("[GUI] AO bias: %.5f -> %.5f\n",
                         oldBias, params.aoBias);
@@ -474,7 +479,7 @@ namespace ui {
             }
 
             const float oldMin = params.aoMin;
-            if (ImGui::SliderFloat("AO Min", &params.aoMin, 0.0f, 1.0f)) {
+            if (ImGui::SliderFloat("AO Min", &params.aoMin, 0.0f, 1.0f, "%.3f", ImGuiSliderFlags_NoInput)) {
                 if (params.aoMin != oldMin) {
                     Log("[GUI] AO min: %.3f -> %.3f\n",
                         oldMin, params.aoMin);
@@ -493,7 +498,8 @@ namespace ui {
             }
 
             const float oldStillThresh = params.taaStillThresh;
-            if (ImGui::SliderFloat("Still Threshold", &params.taaStillThresh, 0.0f, 1e-3f, "%.6f")) {
+            if (ImGui::SliderFloat("Still Threshold", &params.taaStillThresh, 0.0f, 1e-3f, "%.6f",
+                                   ImGuiSliderFlags_NoInput)) {
                 if (params.taaStillThresh != oldStillThresh) {
                     Log("[GUI] TAA still threshold: %.6f -> %.6f\n",
                         oldStillThresh, params.taaStillThresh);
@@ -501,7 +507,8 @@ namespace ui {
             }
 
             const float oldMovingThresh = params.taaHardMovingThresh;
-            if (ImGui::SliderFloat("Hard Moving Threshold", &params.taaHardMovingThresh, 0.0f, 1.0f)) {
+            if (ImGui::SliderFloat("Hard Moving Threshold", &params.taaHardMovingThresh, 0.0f, 1.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput)) {
                 if (params.taaHardMovingThresh != oldMovingThresh) {
                     Log("[GUI] TAA moving threshold: %.3f -> %.3f\n",
                         oldMovingThresh, params.taaHardMovingThresh);
@@ -511,7 +518,8 @@ namespace ui {
             ImGui::SeparatorText("History");
 
             const float oldMinW = params.taaHistoryMinWeight;
-            if (ImGui::SliderFloat("History Min Weight", &params.taaHistoryMinWeight, 0.0f, 1.0f)) {
+            if (ImGui::SliderFloat("History Min Weight", &params.taaHistoryMinWeight, 0.0f, 1.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput)) {
                 if (params.taaHistoryMinWeight != oldMinW) {
                     Log("[GUI] TAA history min weight: %.3f -> %.3f\n",
                         oldMinW, params.taaHistoryMinWeight);
@@ -519,7 +527,8 @@ namespace ui {
             }
 
             const float oldAvgW = params.taaHistoryAvgWeight;
-            if (ImGui::SliderFloat("History Avg Weight", &params.taaHistoryAvgWeight, 0.0f, 1.0f)) {
+            if (ImGui::SliderFloat("History Avg Weight", &params.taaHistoryAvgWeight, 0.0f, 1.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput)) {
                 if (params.taaHistoryAvgWeight != oldAvgW) {
                     Log("[GUI] TAA history avg weight: %.3f -> %.3f\n",
                         oldAvgW, params.taaHistoryAvgWeight);
@@ -527,7 +536,8 @@ namespace ui {
             }
 
             const float oldMaxW = params.taaHistoryMaxWeight;
-            if (ImGui::SliderFloat("History Max Weight", &params.taaHistoryMaxWeight, 0.0f, 1.0f)) {
+            if (ImGui::SliderFloat("History Max Weight", &params.taaHistoryMaxWeight, 0.0f, 1.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput)) {
                 if (params.taaHistoryMaxWeight != oldMaxW) {
                     Log("[GUI] TAA history max weight: %.3f -> %.3f\n",
                         oldMaxW, params.taaHistoryMaxWeight);
@@ -535,7 +545,8 @@ namespace ui {
             }
 
             const float oldBox = params.taaHistoryBoxSize;
-            if (ImGui::SliderFloat("History Box Size", &params.taaHistoryBoxSize, 0.0f, 0.25f)) {
+            if (ImGui::SliderFloat("History Box Size", &params.taaHistoryBoxSize, 0.0f, 0.25f, "%.3f",
+                                   ImGuiSliderFlags_NoInput)) {
                 if (params.taaHistoryBoxSize != oldBox) {
                     Log("[GUI] TAA history box size: %.3f -> %.3f\n",
                         oldBox, params.taaHistoryBoxSize);
@@ -554,7 +565,7 @@ namespace ui {
             }
 
             const float oldStrength = params.svgfStrength;
-            if (ImGui::SliderFloat("Strength", &params.svgfStrength, 0.0f, 1.0f)) {
+            if (ImGui::SliderFloat("Strength", &params.svgfStrength, 0.0f, 1.0f, "%.3f", ImGuiSliderFlags_NoInput)) {
                 if (params.svgfStrength != oldStrength) {
                     Log("[GUI] SVGF strength: %.3f -> %.3f\n",
                         oldStrength, params.svgfStrength);
@@ -564,7 +575,7 @@ namespace ui {
             ImGui::SeparatorText("Variance");
 
             const float oldVarMax = params.svgfVarMax;
-            if (ImGui::SliderFloat("Var Max", &params.svgfVarMax, 0.0f, 0.1f, "%.5f")) {
+            if (ImGui::SliderFloat("Var Max", &params.svgfVarMax, 0.0f, 0.1f, "%.5f", ImGuiSliderFlags_NoInput)) {
                 if (params.svgfVarMax != oldVarMax) {
                     Log("[GUI] SVGF var max: %.5f -> %.5f\n",
                         oldVarMax, params.svgfVarMax);
@@ -572,7 +583,7 @@ namespace ui {
             }
 
             const float oldKVar = params.svgfKVar;
-            if (ImGui::SliderFloat("K Var Static", &params.svgfKVar, 0.0f, 500.0f)) {
+            if (ImGui::SliderFloat("K Var Static", &params.svgfKVar, 0.0f, 500.0f, "%.3f", ImGuiSliderFlags_NoInput)) {
                 if (params.svgfKVar != oldKVar) {
                     Log("[GUI] SVGF K var static: %.3f -> %.3f\n",
                         oldKVar, params.svgfKVar);
@@ -580,7 +591,8 @@ namespace ui {
             }
 
             const float oldKColor = params.svgfKColor;
-            if (ImGui::SliderFloat("K Color Static", &params.svgfKColor, 0.0f, 100.0f)) {
+            if (ImGui::SliderFloat("K Color Static", &params.svgfKColor, 0.0f, 100.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput)) {
                 if (params.svgfKColor != oldKColor) {
                     Log("[GUI] SVGF K color static: %.3f -> %.3f\n",
                         oldKColor, params.svgfKColor);
@@ -588,7 +600,8 @@ namespace ui {
             }
 
             const float oldKVarMov = params.svgfKVarMotion;
-            if (ImGui::SliderFloat("K Var Moving", &params.svgfKVarMotion, 0.0f, 500.0f)) {
+            if (ImGui::SliderFloat("K Var Moving", &params.svgfKVarMotion, 0.0f, 500.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput)) {
                 if (params.svgfKVarMotion != oldKVarMov) {
                     Log("[GUI] SVGF K var moving: %.3f -> %.3f\n",
                         oldKVarMov, params.svgfKVarMotion);
@@ -596,7 +609,8 @@ namespace ui {
             }
 
             const float oldKColorMov = params.svgfKColorMotion;
-            if (ImGui::SliderFloat("K Color Moving", &params.svgfKColorMotion, 0.0f, 100.0f)) {
+            if (ImGui::SliderFloat("K Color Moving", &params.svgfKColorMotion, 0.0f, 100.0f, "%.3f",
+                                   ImGuiSliderFlags_NoInput)) {
                 if (params.svgfKColorMotion != oldKColorMov) {
                     Log("[GUI] SVGF K color moving: %.3f -> %.3f\n",
                         oldKColorMov, params.svgfKColorMotion);

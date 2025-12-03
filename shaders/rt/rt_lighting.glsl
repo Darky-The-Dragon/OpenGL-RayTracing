@@ -25,13 +25,15 @@
     - MaterialProps, sky(), sampleHemisphereCosine(), etc.
 */
 
-// ------------- Disk area light (existing) --------------
+// ------------- Disk area light --------------
 const vec3 kLightCenter = vec3(0.0, 5.0, -3.0);
 const vec3 kLightN = normalize(vec3(0.0, -1.0, 0.2));
 const float kLightRadius = 1.2;
 const vec3 kLightCol = vec3(18.0);
 
-// ---- Unified shadow test for both modes
+// ---------------------------------------------------------------------------
+// Unified shadow test for both modes
+// ---------------------------------------------------------------------------
 
 /**
  * @brief Tests whether the segment between p and q is occluded.
@@ -163,9 +165,7 @@ vec3 skyDirect(Hit h, MaterialProps mat, vec3 Vdir)
 
     // Simple cosine-weighted dome around U
     vec3 Li = uSkyColor * uSkyIntensity;
-
-    // Diffuse only, no specular
-    return mat.albedo * (ndl / uPI) * Li;
+    return mat.albedo * (ndl / uPI) * Li; // diffuse only
 }
 
 // ---------------------------------------------------------------------------
@@ -301,27 +301,57 @@ vec3 evalPhongSpec(vec3 N, vec3 V, vec3 L, float gloss, float specStrength) {
     return specStrength * phong * vec3(1.0);
 }
 
-// ---- Direct lighting (analytic) with cheap specular + hybrid lights
-
 /**
  * @brief Direct lighting for the analytic scene (plane + spheres).
  *
- * Evaluates:
- *  - Disk area light with soft shadows.
- *  - Sun, sky, and point lights (hybrid analytic lights).
- *
- * @param h     Primary hit.
- * @param frame Current frame index.
- * @param Vdir  Direction from hit → camera.
- * @return Total direct lighting contribution at h.
+ * IMPORTANT:
+ *  - For primary hits of mirror/glass we use shadeMirror/shadeGlass in rt.frag.
+ *  - This function is also used for secondary hits (reflections / refractions).
+ *    For those, we approximate mirror/glass locally here WITHOUT calling
+ *    shadeMirror/shadeGlass again, to avoid recursion.
  */
 vec3 directLight(Hit h, int frame, vec3 Vdir) {
     vec3 N = normalize(h.n);
     vec3 sum = vec3(0.0);
 
     MaterialProps mat = getMaterial(h.mat);
+    vec3 V = normalize(Vdir); // from hit → camera
 
-    // Orthonormal basis for disk light
+    // --------------------------------------------------------------------
+    // Special handling for mirror / glass on SECONDARY hits
+    // (called from shadeGlass/shadeMirror or GI). We approximate them as
+    // reflective here so they don't appear as flat albedo.
+    // --------------------------------------------------------------------
+    if (mat.type == 1) {
+        // Mirror-like: sample env/sky along perfect reflection, tinted.
+        vec3 R = reflect(-V, N);
+        vec3 col;
+        if (uUseEnvMap == 1) {
+            col = texture(uEnvMap, R).rgb * uEnvIntensity;
+        } else {
+            col = sky(R);
+        }
+        return col * mat.albedo;
+    }
+
+    if (mat.type == 2) {
+        // Glass-like: mostly reflected env, plus some sky dome diffuse,
+        // so it doesn't turn into flat color.
+        vec3 R = reflect(-V, N);
+        vec3 refl;
+        if (uUseEnvMap == 1) {
+            refl = texture(uEnvMap, R).rgb * uEnvIntensity;
+        } else {
+            refl = sky(R);
+        }
+
+        vec3 skyDiff = skyDirect(h, mat, V);
+        return refl * mat.albedo + skyDiff;
+    }
+
+    // --------------------------------------------------------------------
+    // Regular diffuse / Phong materials (type == 0)
+    // --------------------------------------------------------------------
     vec3 t = normalize(abs(kLightN.y) < 0.99 ? cross(kLightN, vec3(0, 1, 0))
                        : cross(kLightN, vec3(1, 0, 0)));
     vec3 b = cross(kLightN, t);
@@ -329,9 +359,7 @@ vec3 directLight(Hit h, int frame, vec3 Vdir) {
     // Per-pixel rotated sampling
     vec2 rot = cpOffset(gl_FragCoord.xy, uFrameIndex);
 
-    vec3 V = normalize(Vdir); // from hit → camera
-
-    // Existing soft disk area light
+    // Soft disk area light
     for (int i = 0; i < SOFT_SHADOW_SAMPLES; ++i) {
         vec2 u = vec2(
         rand(gl_FragCoord.xy + float(i), frame),
@@ -352,13 +380,13 @@ vec3 directLight(Hit h, int frame, vec3 Vdir) {
 
         vec3 Li = kLightCol * geom * vis;
 
-        float specStrength = (mat.type == 0) ? mat.specStrength : 0.0;
+        float specStrength = mat.specStrength;
         sum += shadeLambertPhong(N, V, L, Li, mat.albedo, specStrength, mat.gloss);
     }
 
     sum /= float(SOFT_SHADOW_SAMPLES);
 
-    // Add hybrid lights
+    // Hybrid lights
     sum += sunDirect(h, mat, V);
     sum += skyDirect(h, mat, V);
     sum += pointDirect(h, mat, V);
@@ -430,7 +458,6 @@ vec3 directLightBVH(Hit h, int frame, vec3 Vdir) {
 
     return sum;
 }
-
 
 // ============================================================================
 // One-bounce diffuse GI (indirect lighting)
